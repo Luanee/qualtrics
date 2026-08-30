@@ -17,15 +17,9 @@ def build(
     """Build canonical entities from one or more CSV/QSF exports."""
     if format not in {"csv", "json", "parquet"}:
         raise typer.BadParameter("format must be csv, json, or parquet")
-    expanded_csvs = [
-        child
-        for path in csv_paths
-        for child in (sorted(path.glob("*.csv")) if path.is_dir() else [path])
-    ]
+    expanded_csvs = [child for path in csv_paths for child in (sorted(path.glob("*.csv")) if path.is_dir() else [path])]
     expanded_qsfs = [
-        child
-        for path in (qsf or [])
-        for child in (sorted(path.glob("*.qsf")) if path.is_dir() else [path])
+        child for path in (qsf or []) for child in (sorted(path.glob("*.qsf")) if path.is_dir() else [path])
     ]
     if not expanded_csvs:
         raise typer.BadParameter("no CSV files found")

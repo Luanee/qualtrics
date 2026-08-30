@@ -29,9 +29,7 @@ def _question_role(definition: dict[str, Any], import_ids: list[str]) -> str:
         return "timing"
     technical = " ".join(import_ids).upper()
     metadata_suffixes = ("_BROWSER", "_VERSION", "_OS", "_RESOLUTION", "_USERAGENT")
-    if technical and all(
-        any(code in item.upper() for code in metadata_suffixes) for item in import_ids
-    ):
+    if technical and all(any(code in item.upper() for code in metadata_suffixes) for item in import_ids):
         return "metadata"
     timing_suffixes = ("FIRST_CLICK", "LAST_CLICK", "PAGE_SUBMIT", "CLICK_COUNT")
     if any(code in technical for code in timing_suffixes):

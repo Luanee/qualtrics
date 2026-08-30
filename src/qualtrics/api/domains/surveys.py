@@ -11,9 +11,7 @@ class SurveysAPI(APIDomain):
     """Survey listing, retrieval, and update endpoints."""
 
     def list(self, *, offset: int | None = None) -> SurveyPage:
-        result = self._client.request(
-            "GET", "/surveys", params={"offset": offset} if offset else None
-        )
+        result = self._client.request("GET", "/surveys", params={"offset": offset} if offset else None)
         return SurveyPage.model_validate(result)
 
     def iter(self) -> Iterator[SurveySummary]:
@@ -27,9 +25,7 @@ class SurveysAPI(APIDomain):
     def get(self, survey_id: str) -> dict[str, Any]:
         return self._client.request("GET", f"/surveys/{survey_id}")
 
-    def update(
-        self, survey_id: str, changes: SurveyUpdateRequest | dict[str, Any]
-    ) -> dict[str, Any] | None:
+    def update(self, survey_id: str, changes: SurveyUpdateRequest | dict[str, Any]) -> dict[str, Any] | None:
         payload = (
             changes.model_dump(by_alias=True, exclude_none=True, mode="json")
             if isinstance(changes, SurveyUpdateRequest)

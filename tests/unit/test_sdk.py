@@ -36,9 +36,7 @@ def test_export_responses_with_survey_id_filename(tmp_path: Path) -> None:
             assert json.loads(request.content)["useLabels"] is True
             return httpx.Response(
                 200,
-                json={
-                    "result": {"progressId": "ES_1", "percentComplete": 0, "status": "inProgress"}
-                },
+                json={"result": {"progressId": "ES_1", "percentComplete": 0, "status": "inProgress"}},
             )
         if path.endswith("/ES_1"):
             return httpx.Response(
@@ -46,9 +44,7 @@ def test_export_responses_with_survey_id_filename(tmp_path: Path) -> None:
                 json={"result": {"fileId": "FILE_1", "percentComplete": 100, "status": "complete"}},
             )
         if path.endswith("/FILE_1/file"):
-            return httpx.Response(
-                200, content=b"zip-content", headers={"content-type": "application/zip"}
-            )
+            return httpx.Response(200, content=b"zip-content", headers={"content-type": "application/zip"})
         raise AssertionError(f"Unexpected request: {request.method} {path}")
 
     with QualtricsClient(
@@ -106,22 +102,16 @@ def test_response_filters_and_imports(tmp_path: Path) -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path.endswith("/filters"):
-            return httpx.Response(
-                200, json={"result": {"elements": [{"filterId": "FL_1", "name": "Complete"}]}}
-            )
+            return httpx.Response(200, json={"result": {"elements": [{"filterId": "FL_1", "name": "Complete"}]}})
         if request.method == "POST" and request.headers["content-type"].startswith("text/csv"):
             assert request.content == source.read_bytes()
-            return httpx.Response(
-                200, json={"result": {"progressId": "IM_1", "status": "inProgress"}}
-            )
+            return httpx.Response(200, json={"result": {"progressId": "IM_1", "status": "inProgress"}})
         if request.method == "POST":
             assert json.loads(request.content) == {
                 "fileUrl": "https://example.test/r.csv",
                 "format": "csv",
             }
-            return httpx.Response(
-                200, json={"result": {"progressId": "IM_2", "status": "inProgress"}}
-            )
+            return httpx.Response(200, json={"result": {"progressId": "IM_2", "status": "inProgress"}})
         return httpx.Response(
             200,
             json={"result": {"progressId": "IM_1", "percentComplete": 100, "status": "complete"}},
@@ -132,9 +122,5 @@ def test_response_filters_and_imports(tmp_path: Path) -> None:
     ) as client:
         assert client.responses.list_filters("SV_1").elements[0].filter_id == "FL_1"
         assert client.responses.import_file("SV_1", source).progress_id == "IM_1"
-        assert (
-            client.responses.import_url("SV_1", "https://example.test/r.csv").progress_id == "IM_2"
-        )
-        assert (
-            client.responses.wait_for_import("SV_1", "IM_1", poll_interval=0).status == "complete"
-        )
+        assert client.responses.import_url("SV_1", "https://example.test/r.csv").progress_id == "IM_2"
+        assert client.responses.wait_for_import("SV_1", "IM_1", poll_interval=0).status == "complete"

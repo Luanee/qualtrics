@@ -60,9 +60,7 @@ def _parse_survey_file(
     entities.sections = [{"survey_id": sid, **section} for section in sections]
     field_specs: list[tuple[int, str, str, str]] = []
     grouped_headers: dict[str, list[str]] = {}
-    for index, (column, header, raw_meta) in enumerate(
-        zip(columns, headers, metadata, strict=True)
-    ):
+    for index, (column, header, raw_meta) in enumerate(zip(columns, headers, metadata, strict=True)):
         import_id = ""
         if has_import:
             with contextlib.suppress(json.JSONDecodeError, AttributeError):
@@ -87,56 +85,44 @@ def _parse_survey_file(
                 question_text = prefixes[0] if len(set(prefixes)) == 1 else header
         catalog_id = _hash(question_text.casefold())
         if question_id not in seen:
-            question_import_ids = [
-                item[3] for item in field_specs if _qid(item[3] or item[1]) == question_id
-            ]
+            question_import_ids = [item[3] for item in field_specs if _qid(item[3] or item[1]) == question_id]
             role = _question_role(definition, question_import_ids)
-            entities.questions.append(
-                {
-                    "survey_id": sid,
-                    "question_id": question_id,
-                    "question_catalog_id": catalog_id,
-                    "question_text": question_text,
-                    "question_description": definition.get("DataExportTag"),
-                    "question_type": definition.get("QuestionType"),
-                    "selector": definition.get("Selector"),
-                    "sub_selector": definition.get("SubSelector"),
-                    "question_role": role,
-                    **question_blocks.get(question_id, {}),
-                }
-            )
+            entities.questions.append({
+                "survey_id": sid,
+                "question_id": question_id,
+                "question_catalog_id": catalog_id,
+                "question_text": question_text,
+                "question_description": definition.get("DataExportTag"),
+                "question_type": definition.get("QuestionType"),
+                "selector": definition.get("Selector"),
+                "sub_selector": definition.get("SubSelector"),
+                "question_role": role,
+                **question_blocks.get(question_id, {}),
+            })
             # Meta Info and Timing choices describe captured fields, not respondent
             # answer options. Treating them as options creates false "unused" alerts.
-            for option_id, option in (
-                (definition.get("Choices") or {}).items() if role == "response" else []
-            ):
-                entities.answer_options.append(
-                    {
-                        "survey_id": sid,
-                        "question_id": question_id,
-                        "answer_id": str(option_id),
-                        "answer_text": _clean(
-                            option.get("Display") if isinstance(option, dict) else option
-                        ),
-                    }
-                )
+            for option_id, option in (definition.get("Choices") or {}).items() if role == "response" else []:
+                entities.answer_options.append({
+                    "survey_id": sid,
+                    "question_id": question_id,
+                    "answer_id": str(option_id),
+                    "answer_text": _clean(option.get("Display") if isinstance(option, dict) else option),
+                })
             seen.add(question_id)
         suffix = (import_id.replace(question_id, "", 1).strip("_") or None) if import_id else None
         field_text = _field_text(header, question_text, column, suffix)
-        entities.question_fields.append(
-            {
-                "survey_id": sid,
-                "question_id": question_id,
-                "field_id": column,
-                "source_import_id": import_id or None,
-                "source_field_suffix": suffix,
-                "source_column_index": index,
-                "question_catalog_id": catalog_id,
-                "question_field_catalog_id": _hash(catalog_id, _clean(field_text).casefold()),
-                "field_text": field_text,
-                "is_text_field": bool(suffix and "TEXT" in suffix),
-            }
-        )
+        entities.question_fields.append({
+            "survey_id": sid,
+            "question_id": question_id,
+            "field_id": column,
+            "source_import_id": import_id or None,
+            "source_field_suffix": suffix,
+            "source_column_index": index,
+            "question_catalog_id": catalog_id,
+            "question_field_catalog_id": _hash(catalog_id, _clean(field_text).casefold()),
+            "field_text": field_text,
+            "is_text_field": bool(suffix and "TEXT" in suffix),
+        })
     field_map = {row["field_id"]: row["question_id"] for row in entities.question_fields}
     entities.question_catalog = list(
         {
@@ -164,30 +150,26 @@ def _parse_survey_file(
         response_id = record.get("ResponseId", "")
         if not response_id:
             continue
-        entities.responses.append(
-            {
-                "survey_id": sid,
-                "response_id": response_id,
-                "started_at": record.get("StartDate"),
-                "ended_at": record.get("EndDate"),
-                "recorded_at": record.get("RecordedDate"),
-                "is_finished": record.get("Finished"),
-                "user_language": record.get("UserLanguage"),
-            }
-        )
+        entities.responses.append({
+            "survey_id": sid,
+            "response_id": response_id,
+            "started_at": record.get("StartDate"),
+            "ended_at": record.get("EndDate"),
+            "recorded_at": record.get("RecordedDate"),
+            "is_finished": record.get("Finished"),
+            "user_language": record.get("UserLanguage"),
+        })
         for column, question_id in field_map.items():
             value = record.get(column, "")
             if value:
-                entities.response_answers.append(
-                    {
-                        "survey_id": sid,
-                        "response_id": response_id,
-                        "question_id": question_id,
-                        "field_id": column,
-                        "user_language": record.get("UserLanguage"),
-                        "answer_text": value,
-                    }
-                )
+                entities.response_answers.append({
+                    "survey_id": sid,
+                    "response_id": response_id,
+                    "question_id": question_id,
+                    "field_id": column,
+                    "user_language": record.get("UserLanguage"),
+                    "answer_text": value,
+                })
     return entities
 
 

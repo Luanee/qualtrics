@@ -28,25 +28,19 @@ def _qsf(
     question_blocks = {}
     sections = []
     block_elements = next(
-        (
-            element.get("Payload", {})
-            for element in data.get("SurveyElements", [])
-            if element.get("Element") == "BL"
-        ),
+        (element.get("Payload", {}) for element in data.get("SurveyElements", []) if element.get("Element") == "BL"),
         {},
     )
     for block_order, block in enumerate(block_elements.values(), start=1):
         if block.get("Type") == "Trash":
             continue
         section_id = block.get("ID")
-        sections.append(
-            {
-                "section_id": section_id,
-                "section_name": block.get("Description"),
-                "section_type": block.get("Type"),
-                "section_order": block_order,
-            }
-        )
+        sections.append({
+            "section_id": section_id,
+            "section_name": block.get("Description"),
+            "section_type": block.get("Type"),
+            "section_order": block_order,
+        })
         for question_order, element in enumerate(block.get("BlockElements", []), start=1):
             question_id = element.get("QuestionID")
             if question_id:

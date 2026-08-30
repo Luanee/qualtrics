@@ -11,13 +11,10 @@ from qualtrics import (
 )
 
 
-def test_sample_preserves_multifield_identity(
-    tmp_path: Path, survey_files: tuple[Path, Path]
-) -> None:
+def test_sample_preserves_multifield_identity(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
     entities = parse_survey(*survey_files)
     counts = {
-        qid: sum(item["question_id"] == qid for item in entities.question_fields)
-        for qid in ("QID18", "QID30", "QID37")
+        qid: sum(item["question_id"] == qid for item in entities.question_fields) for qid in ("QID18", "QID30", "QID37")
     }
     assert counts == {"QID18": 10, "QID30": 6, "QID37": 4}
     assert entities.question_catalog
@@ -38,13 +35,9 @@ def test_sample_preserves_multifield_identity(
     assert qid18["question_text"] == "Cat"
     assert qid18["block_name"] == "Categorize faces"
     assert qid18["block_id"] == "BL_FACES"
-    assert (
-        next(item["question_role"] for item in entities.questions if item["question_id"] == "QID37")
-        == "metadata"
-    )
+    assert next(item["question_role"] for item in entities.questions if item["question_id"] == "QID37") == "metadata"
     assert any(
-        item["question_id"] == "QID37" and item["field_id"] == "browser_Browser"
-        for item in entities.response_answers
+        item["question_id"] == "QID37" and item["field_id"] == "browser_Browser" for item in entities.response_answers
     )
     write_entities(entities, tmp_path, "json")
     loaded = load_entities(tmp_path)
@@ -81,9 +74,7 @@ def test_sample_preserves_multifield_identity(
     assert "response-meta" in report
 
 
-def test_combined_report_has_survey_selector(
-    tmp_path: Path, survey_files: tuple[Path, Path]
-) -> None:
+def test_combined_report_has_survey_selector(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
     first = parse_survey(*survey_files)
     second = deepcopy(first)
     for name in (
@@ -129,9 +120,7 @@ def test_parse_multiple_csv_files(tmp_path: Path, survey_files: tuple[Path, Path
     assert len(entities.responses) == 4
 
 
-def test_parse_survey_accepts_raw_folder_wildcard(
-    tmp_path: Path, survey_files: tuple[Path, Path]
-) -> None:
+def test_parse_survey_accepts_raw_folder_wildcard(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
     source = survey_files[0]
     for survey_id in ("SV_FIRST", "SV_SECOND"):
         survey_folder = tmp_path / "run-1" / survey_id

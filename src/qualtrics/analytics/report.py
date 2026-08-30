@@ -40,8 +40,7 @@ class ReportAnalytics:
 def analyze_entities(entities: EntitySet) -> ReportAnalytics:
     """Calculate report metrics independently from HTML presentation."""
     questions = {
-        (str(question["survey_id"]), str(question["question_id"])): question
-        for question in entities.questions
+        (str(question["survey_id"]), str(question["question_id"])): question for question in entities.questions
     }
     fields = {
         (str(field["survey_id"]), str(field["question_id"]), str(field["field_id"])): field
@@ -49,9 +48,7 @@ def analyze_entities(entities: EntitySet) -> ReportAnalytics:
     }
     answers: dict[QuestionKey, list[Row]] = {}
     for answer in entities.response_answers:
-        answers.setdefault((str(answer["survey_id"]), str(answer["response_id"])), []).append(
-            answer
-        )
+        answers.setdefault((str(answer["survey_id"]), str(answer["response_id"])), []).append(answer)
     survey_lookup = {str(item["survey_id"]): item for item in entities.surveys}
     survey_name = (
         str(entities.surveys[0].get("survey_name") or "Qualtrics survey")
@@ -63,18 +60,12 @@ def analyze_entities(entities: EntitySet) -> ReportAnalytics:
             question.get("question_role")
             or _question_role(
                 question,
-                [
-                    str(item.get("source_import_id") or "")
-                    for field_key, item in fields.items()
-                    if field_key[:2] == key
-                ],
+                [str(item.get("source_import_id") or "") for field_key, item in fields.items() if field_key[:2] == key],
             )
         )
         for key, question in questions.items()
     }
-    response_questions = {
-        key: question for key, question in questions.items() if question_roles[key] == "response"
-    }
+    response_questions = {key: question for key, question in questions.items() if question_roles[key] == "response"}
     question_responses: dict[QuestionKey, set[str]] = {key: set() for key in response_questions}
     question_answers: dict[QuestionKey, list[Row]] = {key: [] for key in response_questions}
     used_fields: set[FieldKey] = set()
@@ -87,9 +78,7 @@ def analyze_entities(entities: EntitySet) -> ReportAnalytics:
         question_answers.setdefault(question_key, []).append(answer)
         used_fields.add((*question_key, str(answer["field_id"])))
         used_values.setdefault(question_key, set()).add(str(answer["answer_text"]).casefold())
-    unanswered_questions = [
-        question for key, question in response_questions.items() if not question_responses.get(key)
-    ]
+    unanswered_questions = [question for key, question in response_questions.items() if not question_responses.get(key)]
     unused_fields = [
         item
         for key, item in fields.items()
@@ -98,8 +87,7 @@ def analyze_entities(entities: EntitySet) -> ReportAnalytics:
     unused_options = [
         option
         for option in entities.answer_options
-        if question_roles.get((str(option["survey_id"]), str(option["question_id"])), "response")
-        == "response"
+        if question_roles.get((str(option["survey_id"]), str(option["question_id"])), "response") == "response"
         and str(option["answer_id"]).casefold()
         not in used_values.get((str(option["survey_id"]), str(option["question_id"])), set())
         and str(option["answer_text"]).casefold()
@@ -116,8 +104,7 @@ def analyze_entities(entities: EntitySet) -> ReportAnalytics:
         for survey_id, _, _ in {
             (str(item["survey_id"]), str(item["response_id"]), str(item["question_id"]))
             for item in entities.response_answers
-            if question_roles.get((str(item["survey_id"]), str(item["question_id"])), "response")
-            == "response"
+            if question_roles.get((str(item["survey_id"]), str(item["question_id"])), "response") == "response"
         }
     )
     content_answer_count = sum(survey_answer_counts.values())

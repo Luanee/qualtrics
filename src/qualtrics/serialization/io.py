@@ -40,11 +40,7 @@ def load_entities(folder: str | Path | None = None, **paths: str | Path) -> Enti
             Path(paths[name])
             if name in paths
             else next(
-                (
-                    p
-                    for ext in ("json", "csv", "parquet")
-                    if folder and (p := folder / f"{name}.{ext}").exists()
-                ),
+                (p for ext in ("json", "csv", "parquet") if folder and (p := folder / f"{name}.{ext}").exists()),
                 None,
             )
         )

@@ -56,7 +56,9 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         block_name = str(question.get("block_name") or "")
         choice_label = html.escape(label)
         if len(entities.surveys) > 1:
-            choice_label += f"<em>{html.escape(str(survey_lookup.get(survey_id, {}).get('survey_name') or survey_id))}</em>"
+            choice_label += (
+                f"<em>{html.escape(str(survey_lookup.get(survey_id, {}).get('survey_name') or survey_id))}</em>"
+            )
         count = len(question_responses.get(key, set()))
         question_response_total = survey_response_counts.get(survey_id, 0)
         rate = round((count / question_response_total * 100) if question_response_total else 0)
@@ -76,9 +78,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
     def issue_list(items: list[dict[str, Any]], label_key: str, empty: str) -> str:
         if not items:
             return f"<p class='meta'>{empty}</p>"
-        labels = [
-            str(item.get(label_key) or item.get("question_id") or "Unknown") for item in items
-        ]
+        labels = [str(item.get(label_key) or item.get("question_id") or "Unknown") for item in items]
         preview = "".join(f"<li>{html.escape(label)}</li>" for label in labels[:8])
         remaining = f"<li>…and {len(labels) - 8} more</li>" if len(labels) > 8 else ""
         return f"<ul>{preview}{remaining}</ul>"
@@ -103,8 +103,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             ),
         ]
         quality_html = "".join(
-            f"<div class='quality-group'><strong>{html.escape(title)}</strong>"
-            f"{issue_list(items, label_key, '')}</div>"
+            f"<div class='quality-group'><strong>{html.escape(title)}</strong>{issue_list(items, label_key, '')}</div>"
             for title, items, label_key in quality_groups
             if items
         )
@@ -147,9 +146,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         observed = question_answers.get(key, [])
         respondent_count = len(question_responses.get(key, set()))
         question_response_total = survey_response_counts.get(str(key[0]), 0)
-        coverage = (
-            respondent_count / question_response_total * 100 if question_response_total else 0
-        )
+        coverage = respondent_count / question_response_total * 100 if question_response_total else 0
         field_groups: dict[str, list[str]] = {}
         for answer in observed:
             field_groups.setdefault(str(answer["field_id"]), []).append(str(answer["answer_text"]))
@@ -165,12 +162,8 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
                 for value in values:
                     with contextlib.suppress(ValueError):
                         numeric_values.append(float(value.replace(",", "")))
-                field_label = (
-                    fields.get((key[0], key[1], field_id), {}).get("field_text") or field_id
-                )
-                heading = (
-                    f"<h4>{html.escape(str(field_label))}</h4>" if len(field_groups) > 1 else ""
-                )
+                field_label = fields.get((key[0], key[1], field_id), {}).get("field_text") or field_id
+                heading = f"<h4>{html.escape(str(field_label))}</h4>" if len(field_groups) > 1 else ""
                 if values and len(numeric_values) / len(values) >= 0.8:
                     content = (
                         "<div class='numeric-summary'>"
@@ -190,9 +183,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
                 for value in values:
                     with contextlib.suppress(ValueError):
                         numeric_values.append(float(value.replace(",", "")))
-                field_label = (
-                    fields.get((key[0], key[1], field_id), {}).get("field_text") or field_id
-                )
+                field_label = fields.get((key[0], key[1], field_id), {}).get("field_text") or field_id
                 if numeric_values:
                     bodies.append(
                         f"<div class='field-analysis'><h4>{html.escape(str(field_label))}</h4>"
@@ -202,14 +193,10 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
                     )
         else:
             for field_id, values in field_groups.items():
-                field_label = (
-                    fields.get((key[0], key[1], field_id), {}).get("field_text") or field_id
-                )
+                field_label = fields.get((key[0], key[1], field_id), {}).get("field_text") or field_id
                 show_field = len(field_groups) > 1 or question_type in categorical_types
                 heading = f"<h4>{html.escape(str(field_label))}</h4>" if show_field else ""
-                bodies.append(
-                    f"<div class='field-analysis'>{heading}{distribution(values, len(values))}</div>"
-                )
+                bodies.append(f"<div class='field-analysis'>{heading}{distribution(values, len(values))}</div>")
         type_label = {"MC": "Multiple choice", "TE": "Text entry"}.get(
             question_type, question_type.replace("_", " ").title()
         )
@@ -272,9 +259,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
     for index, response in enumerate(entities.responses):
         key = (response["survey_id"], response["response_id"])
         response_survey_id = str(response["survey_id"])
-        response_survey_name = str(
-            survey_lookup.get(response_survey_id, {}).get("survey_name") or response_survey_id
-        )
+        response_survey_name = str(survey_lookup.get(response_survey_id, {}).get("survey_name") or response_survey_id)
         response_answers = answers.get(key, [])
         search_terms = [str(response["response_id"])]
         rows = []
@@ -290,8 +275,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             if question_roles.get(question_key, "response") != "response":
                 metadata_label = field_label or label
                 metadata_values.append(
-                    f"<span><b>{html.escape(str(metadata_label))}</b> "
-                    f"{html.escape(str(answer['answer_text']))}</span>"
+                    f"<span><b>{html.escape(str(metadata_label))}</b> {html.escape(str(answer['answer_text']))}</span>"
                 )
                 continue
             grouped_response_answers.setdefault(str(answer["question_id"]), []).append((answer, f))
@@ -306,11 +290,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             block_name = str(q.get("block_name") or "")
             field_rows = []
             for answer, field_definition in grouped_answers:
-                field_label = (
-                    field_definition.get("field_text")
-                    or field_definition.get("field_id")
-                    or "Answer"
-                )
+                field_label = field_definition.get("field_text") or field_definition.get("field_id") or "Answer"
                 field_rows.append(
                     f"<div class='field-answer'><span class='field'>{html.escape(str(field_label))}</span>"
                     f"<span class='value'>{html.escape(str(answer['answer_text']))}</span></div>"
@@ -330,20 +310,14 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             value
             for value in (
                 f"Recorded {response.get('recorded_at')}" if response.get("recorded_at") else "",
-                f"Language {response.get('user_language')}"
-                if response.get("user_language")
-                else "",
-                "Finished"
-                if str(response.get("is_finished", "")).casefold() in {"true", "1"}
-                else "",
+                f"Language {response.get('user_language')}" if response.get("user_language") else "",
+                "Finished" if str(response.get("is_finished", "")).casefold() in {"true", "1"} else "",
             )
             if value
         ]
         metadata_values.insert(0, f"<span>{html.escape(' · '.join(metadata_parts))}</span>")
         if len(entities.surveys) > 1:
-            metadata_values.insert(
-                0, f"<span><b>Survey</b> {html.escape(response_survey_name)}</span>"
-            )
+            metadata_values.insert(0, f"<span><b>Survey</b> {html.escape(response_survey_name)}</span>")
         parts.append(
             f"<details class='respondent' data-survey='{html.escape(response_survey_id, quote=True)}' "
             f"data-total-answers='{len(rows)}' data-search='{searchable}'{' open' if index == 0 else ''}>"

@@ -141,9 +141,7 @@ class ResponseImportsExportsAPI(APIDomain):
         started = self.start(survey_id, request)
         if not started.progress_id:
             raise QualtricsExportError("Qualtrics did not return a progressId")
-        progress = self.wait(
-            survey_id, started.progress_id, poll_interval=poll_interval, timeout=timeout
-        )
+        progress = self.wait(survey_id, started.progress_id, poll_interval=poll_interval, timeout=timeout)
         if not progress.file_id:
             raise QualtricsExportError("Completed export did not contain a fileId")
         response = self.download(survey_id, progress.file_id)
@@ -198,9 +196,7 @@ class ResponseImportsExportsAPI(APIDomain):
             stem = survey_id
         safe_stem = re.sub(r"[^A-Za-z0-9._-]+", "_", stem).strip("._") or survey_id
         suffix = ".zip" if request.compress else f".{request.format}"
-        return output / (
-            safe_stem if safe_stem.casefold().endswith(suffix) else f"{safe_stem}{suffix}"
-        )
+        return output / (safe_stem if safe_stem.casefold().endswith(suffix) else f"{safe_stem}{suffix}")
 
 
 # Compatibility name for callers that only use the export workflow.

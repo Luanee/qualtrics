@@ -84,9 +84,7 @@ class QualtricsClient:
         headers: dict[str, str] | None = None,
     ) -> Any:
         """Call an arbitrary JSON API endpoint using the configured transport."""
-        response = self._http.request(
-            method, path, params=params, json=json, content=content, headers=headers
-        )
+        response = self._http.request(method, path, params=params, json=json, content=content, headers=headers)
         self._raise_for_error(response)
         if response.status_code == 204:
             return None
@@ -127,9 +125,7 @@ class QualtricsClient:
     def get_survey(self, survey_id: str) -> dict[str, Any]:
         return self.surveys.get(survey_id)
 
-    def start_response_export(
-        self, survey_id: str, options: ResponseExportRequest | None = None
-    ) -> ExportProgress:
+    def start_response_export(self, survey_id: str, options: ResponseExportRequest | None = None) -> ExportProgress:
         return self.response_exports.start(survey_id, options)
 
     def get_response_export_progress(self, survey_id: str, progress_id: str) -> ExportProgress:
@@ -143,9 +139,7 @@ class QualtricsClient:
         poll_interval: float = 1.0,
         timeout: float = 900.0,
     ) -> ExportProgress:
-        return self.response_exports.wait(
-            survey_id, progress_id, poll_interval=poll_interval, timeout=timeout
-        )
+        return self.response_exports.wait(survey_id, progress_id, poll_interval=poll_interval, timeout=timeout)
 
     def download_response_export(self, survey_id: str, file_id: str) -> httpx.Response:
         return self.response_exports.download(survey_id, file_id)

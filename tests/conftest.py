@@ -48,9 +48,7 @@ def survey_files(tmp_path: Path) -> tuple[Path, Path]:
         ["R_2", "EN", *(["Human"] * 10), *(["Human"] * 6), "Firefox", "121", "TestOS", "1440x900"],
     ]
     with csv_path.open("w", encoding="utf-8", newline="") as handle:
-        csv.writer(handle).writerows(
-            [columns, headers, [json.dumps(item) for item in import_ids], *answers]
-        )
+        csv.writer(handle).writerows([columns, headers, [json.dumps(item) for item in import_ids], *answers])
 
     questions = {
         "QID18": {
@@ -93,22 +91,17 @@ def survey_files(tmp_path: Path) -> tuple[Path, Path]:
         },
     }
     qsf_path.write_text(
-        json.dumps(
-            {
-                "SurveyEntry": {
-                    "SurveyID": "SV_SAMPLE",
-                    "SurveyName": "Sample",
-                    "SurveyLanguage": "EN",
-                },
-                "SurveyElements": [
-                    *(
-                        {"Element": "SQ", "PrimaryAttribute": qid, "Payload": payload}
-                        for qid, payload in questions.items()
-                    ),
-                    {"Element": "BL", "Payload": blocks},
-                ],
-            }
-        ),
+        json.dumps({
+            "SurveyEntry": {
+                "SurveyID": "SV_SAMPLE",
+                "SurveyName": "Sample",
+                "SurveyLanguage": "EN",
+            },
+            "SurveyElements": [
+                *({"Element": "SQ", "PrimaryAttribute": qid, "Payload": payload} for qid, payload in questions.items()),
+                {"Element": "BL", "Payload": blocks},
+            ],
+        }),
         encoding="utf-8",
     )
     return csv_path, qsf_path
