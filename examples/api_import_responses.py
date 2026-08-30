@@ -5,7 +5,7 @@ from typing import Annotated
 
 import typer
 
-from qualtrics_toolkit import QualtricsClient
+from qualtrics import QualtricsClient
 
 
 def main(

@@ -5,7 +5,7 @@ from typing import Annotated
 
 import typer
 
-from qualtrics_toolkit import parse_survey, render_report, write_entities
+from qualtrics import parse_survey, render_report, write_entities
 
 
 def main(

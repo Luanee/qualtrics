@@ -23,10 +23,10 @@ def write_entities(entities: EntitySet, folder: str | Path, format: str = "json"
                 writer.writerows(records)
         elif format == "parquet":
             try:
-                import pyarrow as pa  # ty: ignore[unresolved-import]
-                import pyarrow.parquet as pq  # ty: ignore[unresolved-import]
+                import pyarrow as pa
+                import pyarrow.parquet as pq
             except ImportError as exc:
-                raise RuntimeError("Install qualtrics-toolkit[parquet]") from exc
+                raise RuntimeError("Install qualtrics[parquet]") from exc
             pq.write_table(pa.Table.from_pylist(records), path)
         else:
             raise ValueError(f"Unsupported format: {format}")
@@ -57,9 +57,9 @@ def load_entities(folder: str | Path | None = None, **paths: str | Path) -> Enti
                 records = list(csv.DictReader(handle))
         else:
             try:
-                import pyarrow.parquet as pq  # ty: ignore[unresolved-import]
+                import pyarrow.parquet as pq
             except ImportError as exc:
-                raise RuntimeError("Install qualtrics-toolkit[parquet]") from exc
+                raise RuntimeError("Install qualtrics[parquet]") from exc
             records = pq.read_table(path).to_pylist()
         setattr(result, name, records)
     return result

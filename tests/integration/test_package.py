@@ -1,7 +1,7 @@
 from copy import deepcopy
 from pathlib import Path
 
-from qualtrics_toolkit import (
+from qualtrics import (
     load_entities,
     merge_entity_sets,
     parse_survey,

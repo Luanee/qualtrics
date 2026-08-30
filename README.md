@@ -1,6 +1,6 @@
 # Qualtrics Toolkit
 
-`qualtrics-toolkit` is a Python library and Typer CLI for working with
+`qualtrics` is a Python library and Typer CLI for working with
 Qualtrics surveys end to end:
 
 - list and update surveys through Qualtrics API v3;
@@ -56,7 +56,7 @@ uv sync
 Run the CLI without installing it globally:
 
 ```bash
-uv run qualtrics-toolkit --help
+uv run qualtrics --help
 ```
 
 Parquet support:
@@ -70,21 +70,21 @@ uv sync --extra parquet
 One survey:
 
 ```bash
-uv run qualtrics-toolkit build \
+uv run qualtrics build \
   survey.csv --qsf survey.qsf --output entities --format json
 ```
 
 With matching files such as `survey.csv` and `survey.qsf`, `--qsf` is optional:
 
 ```bash
-uv run qualtrics-toolkit build \
+uv run qualtrics build \
   survey.csv --output entities --format json
 ```
 
 Multiple surveys:
 
 ```bash
-uv run qualtrics-toolkit build \
+uv run qualtrics build \
   survey-v1.csv survey-v2.csv \
   --qsf survey-v1.qsf --qsf survey-v2.qsf \
   --output entities --format parquet
@@ -94,7 +94,7 @@ Directories are supported too. CSV and QSF directory contents are sorted by
 filename and paired in that order:
 
 ```bash
-uv run qualtrics-toolkit build \
+uv run qualtrics build \
   ./exports/csv --qsf ./exports/qsf --output entities
 ```
 
@@ -129,7 +129,7 @@ therefore not added by the parser.
 lakehouse layouts where each survey has its own folder:
 
 ```python
-from qualtrics_toolkit import parse_survey
+from qualtrics import parse_survey
 
 entities = parse_survey("/lakehouse/default/Files/qualtrics/run-1/*/*.csv")
 ```
@@ -141,7 +141,7 @@ patterns may also select translated CSV files stored below `translations/`.
 ## Generate an HTML report
 
 ```bash
-uv run qualtrics-toolkit report \
+uv run qualtrics report \
   --folder entities --output report.html
 ```
 
@@ -164,7 +164,7 @@ your account. You may instead set `QUALTRICS_BASE_URL` for a custom API base.
 Explicit constructor arguments override matching environment variables:
 
 ```python
-from qualtrics_toolkit import QualtricsClient
+from qualtrics import QualtricsClient
 
 client = QualtricsClient()  # reads QUALTRICS_API_TOKEN and connection settings
 client = QualtricsClient(api_token="...", data_center="ca1")
@@ -173,20 +173,20 @@ client = QualtricsClient(api_token="...", data_center="ca1")
 List surveys:
 
 ```bash
-uv run qualtrics-toolkit api surveys
+uv run qualtrics api surveys
 ```
 
 Export labeled CSV responses and name the ZIP after the survey ID:
 
 ```bash
-uv run qualtrics-toolkit api export SV_123 --output exports --labels \
+uv run qualtrics api export SV_123 --output exports --labels \
   --naming survey_id
 ```
 
 Import a UTF-8 CSV response file and wait for processing:
 
 ```bash
-uv run qualtrics-toolkit api import SV_123 responses.csv
+uv run qualtrics api import SV_123 responses.csv
 ```
 
 Naming strategies are `qualtrics`, `survey_id`, `survey_name`, and `custom`.
@@ -198,8 +198,8 @@ Python usage:
 ```python
 from pathlib import Path
 
-from qualtrics_toolkit import QualtricsClient
-from qualtrics_toolkit.api import FilenameStrategy, ResponseExportRequest
+from qualtrics import QualtricsClient
+from qualtrics.api import FilenameStrategy, ResponseExportRequest
 
 # With no arguments, credentials are read from QUALTRICS_* variables.
 with QualtricsClient() as client:
@@ -252,7 +252,7 @@ continuation tokens where appropriate.
 ## Python API
 
 ```python
-from qualtrics_toolkit import parse_surveys, render_report, write_entities
+from qualtrics import parse_surveys, render_report, write_entities
 
 entities = parse_surveys(
     ["survey-v1.csv", "survey-v2.csv"],
@@ -265,7 +265,7 @@ render_report(entities, "report.html")
 ## Source layout
 
 ```text
-src/qualtrics_toolkit/
+src/qualtrics/
 ├── api/                 # HTTP client, API models, and domain resources
 ├── analytics/           # Coverage and data-quality calculations
 ├── cli/                 # Small Typer command modules
@@ -282,8 +282,7 @@ serialization remain independent and never require network credentials.
 The package contains no catch-all core module: each public operation is exported
 from the domain that implements it.
 
-The distribution and CLI are named `qualtrics-toolkit`; the Python import is
-`qualtrics_toolkit`.
+The distribution, CLI, and Python import are all named `qualtrics`.
 
 ## Development
 

@@ -1,5 +1,5 @@
 [project]
-name = "qualtrics-toolkit"
+name = "qualtrics"
 version = "0.3.0"
 description = "A typed Qualtrics SDK and offline survey data toolkit"
 readme = "README.md"
@@ -27,7 +27,7 @@ test = [
 ]
 
 [project.scripts]
-qualtrics-toolkit = "qualtrics_toolkit.cli.app:app"
+qualtrics = "qualtrics.cli.app:app"
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -40,7 +40,7 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-qualtrics_toolkit = ["py.typed", "reporting/templates/*.jinja", "reporting/static/*"]
+qualtrics = ["py.typed", "reporting/templates/*.jinja", "reporting/static/*"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"

@@ -456,7 +456,7 @@ wheels = [
 ]
 
 [[package]]
-name = "qualtrics-toolkit"
+name = "qualtrics"
 version = "0.3.0"
 source = { editable = "." }
 dependencies = [

@@ -3,8 +3,8 @@ from pathlib import Path
 
 import httpx
 
-from qualtrics_toolkit import QualtricsClient as RootQualtricsClient
-from qualtrics_toolkit.api import (
+from qualtrics import QualtricsClient as RootQualtricsClient
+from qualtrics.api import (
     FilenameStrategy,
     QualtricsClient,
     ResponseExportRequest,

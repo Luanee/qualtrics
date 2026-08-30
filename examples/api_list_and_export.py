@@ -5,8 +5,8 @@ from typing import Annotated
 
 import typer
 
-from qualtrics_toolkit import QualtricsClient
-from qualtrics_toolkit.api import FilenameStrategy, ResponseExportRequest
+from qualtrics import QualtricsClient
+from qualtrics.api import FilenameStrategy, ResponseExportRequest
 
 
 def main(
@@ -21,7 +21,7 @@ def main(
             result = client.responses.export(
                 survey_id,
                 output,
-                options=ResponseExportRequest(format="csv", use_labels=True),
+                options=ResponseExportRequest(format="csv", use_labels=True),  # pyright: ignore[reportCallIssue]
                 naming=FilenameStrategy.SURVEY_ID,
             )
             typer.echo(f"Downloaded {result.path}")
