@@ -17,6 +17,7 @@ parquet = ["pyarrow>=17"]
 [dependency-groups]
 dev = [
     "poethepoet>=0.37,<1",
+    "pre-commit>=4.3,<5",
     "ruff>=0.12,<1",
     "ty>=0.0.1a19,<1",
 ]
@@ -115,4 +116,5 @@ format-check = "ruff format --check ."
 type = "ty check"
 test = "pytest"
 build = "uv build"
+pre-commit = "pre-commit run --all-files"
 check = ["lint", "format-check", "type", "test"]

@@ -288,9 +288,13 @@ The distribution, CLI, and Python import are all named `qualtrics`.
 
 ```bash
 uv sync --group dev --group test --extra parquet
+uv run pre-commit install --hook-type pre-commit --hook-type pre-push
 uv run poe check
 uv run poe build
 ```
+
+Run every commit hook manually with `uv run poe pre-commit`. Ruff and `ty` run
+before commits; the complete pytest suite additionally runs before pushes.
 
 ## Examples
 
