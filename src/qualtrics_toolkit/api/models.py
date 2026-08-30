@@ -47,13 +47,7 @@ class SurveyDefinition(APIModel):
     payload: dict[str, Any] = Field(default_factory=dict)
 
 
-class ExportFormat(StrEnum):
-    CSV = "csv"
-    TSV = "tsv"
-    JSON = "json"
-    NDJSON = "ndjson"
-    XML = "xml"
-    SPSS = "spss"
+ExportFormat = Literal["csv", "tsv", "json", "ndjson", "xml", "spss"]
 
 
 class ExportStatus(StrEnum):
@@ -96,7 +90,7 @@ class FilenameStrategy(StrEnum):
 
 
 class ResponseExportRequest(APIModel):
-    format: ExportFormat = ExportFormat.CSV
+    format: ExportFormat = "csv"
     compress: bool = True
     use_labels: bool = Field(default=True, alias="useLabels")
     include_display_order: bool = Field(default=False, alias="includeDisplayOrder")

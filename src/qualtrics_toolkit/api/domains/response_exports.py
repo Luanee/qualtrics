@@ -197,7 +197,7 @@ class ResponseImportsExportsAPI(APIDomain):
         else:
             stem = survey_id
         safe_stem = re.sub(r"[^A-Za-z0-9._-]+", "_", stem).strip("._") or survey_id
-        suffix = ".zip" if request.compress else f".{request.format.value}"
+        suffix = ".zip" if request.compress else f".{request.format}"
         return output / (
             safe_stem if safe_stem.casefold().endswith(suffix) else f"{safe_stem}{suffix}"
         )
