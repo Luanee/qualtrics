@@ -15,9 +15,12 @@ jobs:
   build:
     name: Build distributions
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7.1.0
@@ -28,8 +31,25 @@ jobs:
       - name: Set up Python
         run: uv python install 3.13
 
+      - name: Verify release tag matches package version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          PACKAGE_VERSION="$(uv run --no-project python -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')"
+          test "$RELEASE_TAG" = "v$PACKAGE_VERSION" || {
+            echo "Release tag $RELEASE_TAG does not match package version v$PACKAGE_VERSION"
+            exit 1
+          }
+
       - name: Build distributions
         run: uv build
+
+      - name: Smoke-test built wheel
+        run: |
+          uv venv .wheel-venv
+          uv pip install --python .wheel-venv/bin/python dist/*.whl
+          .wheel-venv/bin/python -c "import qualtrics"
+          .wheel-venv/bin/qualtrics --help
 
       - name: Upload distributions
         uses: actions/upload-artifact@v4
@@ -37,11 +57,13 @@ jobs:
           name: distributions
           path: dist/
           if-no-files-found: error
+          retention-days: 7
 
   publish:
     name: Publish to PyPI
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment:
       name: pypi
       url: https://pypi.org/project/qualtrics/
@@ -61,6 +83,7 @@ jobs:
     name: Attest distributions
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       id-token: write
       contents: read
