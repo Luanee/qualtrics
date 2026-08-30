@@ -1,4 +1,4 @@
-# Qualtrics Toolkit
+# Qualtrics
 
 `qualtrics` is a Python library and Typer CLI for working with
 Qualtrics surveys end to end:
@@ -101,7 +101,7 @@ uv run qualtrics build \
 The output contains:
 
 | Entity | Identity and purpose |
-|---|---|
+| --- | --- |
 | `surveys` | Survey/version metadata |
 | `sections` | Survey-local Qualtrics blocks and their display order |
 | `question_catalog` | Canonical logical questions shared across surveys |
