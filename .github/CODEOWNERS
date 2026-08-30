@@ -1,0 +1,5 @@
+# Require Luanee's review for every repository change.
+** @Luanee
+
+# Keep repository governance, workflows, and this file under Luanee's ownership.
+/.github/** @Luanee
