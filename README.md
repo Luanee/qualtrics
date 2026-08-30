@@ -266,19 +266,21 @@ render_report(entities, "report.html")
 
 ```text
 src/qualtrics_toolkit/
-├── api/
-├── analytics/
-├── cli/
-├── models/
-├── parsers/
-├── reporting/
-├── serialization/
-└── services/
+├── api/                 # HTTP client, API models, and domain resources
+├── analytics/           # Coverage and data-quality calculations
+├── cli/                 # Small Typer command modules
+├── models/              # EntitySet and entity collection operations
+├── parsers/             # CSV, QSF, identity, and path parsing
+├── reporting/           # HTML renderer and bundled CSS/JavaScript
+├── serialization/       # CSV, JSON, and Parquet entity I/O
+└── services/            # Cross-domain application services
 ```
 
 The API and offline data tooling are equal package capabilities. The `api/`
 domain owns HTTP resources and API models; parsing, analytics, reporting, and
 serialization remain independent and never require network credentials.
+The package contains no catch-all core module: each public operation is exported
+from the domain that implements it.
 
 The distribution and CLI are named `qualtrics-toolkit`; the Python import is
 `qualtrics_toolkit`.
