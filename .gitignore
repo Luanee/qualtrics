@@ -195,3 +195,7 @@ pip-selfcheck.json
 !.vscode/launch.json
 !.vscode/extensions.json
 .history
+
+# Repository maintenance scripts are source files, not virtualenv scripts.
+!/scripts/
+!/scripts/*.py

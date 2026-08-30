@@ -296,6 +296,16 @@ uv run poe build
 Run every commit hook manually with `uv run poe pre-commit`. Ruff and `ty` run
 before commits; the complete pytest suite additionally runs before pushes.
 
+## Releases
+
+Run the **Prepare Release** workflow from GitHub Actions and choose a patch,
+minor, or major bump. The workflow updates `pyproject.toml` and `uv.lock`,
+prepends a dated section to [`release-notes.md`](release-notes.md), validates the
+package, and opens a release pull request. After merging it, publish a GitHub
+release using the matching `vX.Y.Z` tag; the **Publish** workflow then verifies
+the tag, builds and attests the distributions, and publishes them through the
+PyPI `pypi` environment.
+
 ## Examples
 
 Runnable examples live in [`examples/`](examples/):

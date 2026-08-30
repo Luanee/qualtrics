@@ -3,6 +3,7 @@ from .models import EntitySet, merge_entity_sets
 from .parsers import parse_survey, parse_surveys
 from .reporting import render_report
 from .serialization import load_entities, write_entities
+from .version import __version__
 
 __all__ = [
     "EntitySet",
@@ -13,4 +14,5 @@ __all__ = [
     "parse_surveys",
     "render_report",
     "write_entities",
+    "__version__",
 ]

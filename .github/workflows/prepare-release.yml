@@ -1,0 +1,108 @@
+name: Prepare Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Release bump
+        required: true
+        type: choice
+        options: [patch, minor, major]
+      date:
+        description: Release date in YYYY-MM-DD format. Defaults to today.
+        required: false
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: prepare-release
+  cancel-in-progress: false
+
+jobs:
+  prepare-release:
+    name: Prepare release pull request
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    env:
+      PREPARE_RELEASE_VERSION_FILE: pyproject.toml
+      PREPARE_RELEASE_RUNTIME_VERSION_FILE: src/qualtrics/version.py
+      PREPARE_RELEASE_LOCK_FILE: uv.lock
+      PREPARE_RELEASE_RELEASE_NOTES_FILE: release-notes.md
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version-file: .python-version
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: latest-known
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Bump version and update release notes
+        id: release
+        env:
+          BUMP: ${{ inputs.bump }}
+          INPUT_DATE: ${{ inputs.date }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          release_date="${INPUT_DATE:-$(date -u +%F)}"
+          uv version --bump "$BUMP"
+          uv lock
+          version="$(uv version --short)"
+          printf '__version__ = "%s"\n' "$version" > "$PREPARE_RELEASE_RUNTIME_VERSION_FILE"
+          latest_tag="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+          args=(--version "$version" --date "$release_date" --repository "$REPOSITORY")
+          if [[ -n "$latest_tag" ]]; then
+            args+=(--from-ref "$latest_tag")
+          fi
+          uv run --no-project python scripts/prepare_release.py "${args[@]}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "date=$release_date" >> "$GITHUB_OUTPUT"
+
+      - name: Validate release changes
+        run: |
+          uv sync --locked --all-groups --extra parquet
+          mkdir -p reports
+          uv run poe check
+          uv run poe build
+
+      - name: Create release pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          branch="release-${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git config user.name "release[bot]"
+          git config user.email "release[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add \
+            "$PREPARE_RELEASE_VERSION_FILE" \
+            "$PREPARE_RELEASE_RUNTIME_VERSION_FILE" \
+            "$PREPARE_RELEASE_LOCK_FILE" \
+            "$PREPARE_RELEASE_RELEASE_NOTES_FILE"
+          git commit -m "🔖 Release version ${VERSION}"
+          gh auth setup-git
+          git push --set-upstream origin "$branch"
+          gh label create release --color 0e8a16 --description "Prepare a package release" --force
+          gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "🔖 Release version ${VERSION}" \
+            --body "Prepare release ${VERSION}." \
+            --label release

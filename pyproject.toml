@@ -1,6 +1,6 @@
 [project]
 name = "qualtrics"
-version = "0.3.0"
+version = "0.1.0"
 description = "A typed Qualtrics SDK and offline survey data toolkit"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -65,7 +65,7 @@ filterwarnings = [
 testpaths = ["src", "tests"]
 xfail_strict = true
 log_file_level = "INFO"
-pythonpath = "src"
+pythonpath = [".", "src"]
 
 [tool.coverage.report]
 skip_empty = true
