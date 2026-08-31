@@ -7,10 +7,11 @@ const cards=[...document.querySelectorAll('.respondent')],search=document.queryS
         activeChoices=choices.filter(c=>!survey||c.closest('label').dataset.survey===survey),selected=new Set(
         activeChoices.filter(c=>c.checked).map(c=>c.value));let visible=0;
         choices.forEach(c=>c.closest('label').hidden=!!survey&&c.closest('label').dataset.survey!==survey);
-        document.querySelectorAll('.question-analysis,.quality').forEach(item=>
+        document.querySelectorAll('.quality').forEach(item=>
         item.hidden=!!survey&&item.dataset.survey!==survey);
-        document.querySelectorAll('#overview tr[data-survey]').forEach(item=>
-        item.hidden=!!survey&&item.dataset.survey!==survey);
+        document.querySelectorAll('.catalog-group').forEach(group=>{const rows=[...group.querySelectorAll('.survey-occurrence')];
+        rows.forEach(row=>row.hidden=!!survey&&row.dataset.survey!==survey);
+        group.hidden=!!survey&&!rows.some(row=>row.dataset.survey===survey);});
         cards.forEach(card=>{const answerRows=[...card.querySelectorAll('.answer')];let shownAnswers=0;
         answerRows.forEach(row=>{const show=selected.has(row.dataset.question);
         row.hidden=!show;if(show)shownAnswers+=1;});
