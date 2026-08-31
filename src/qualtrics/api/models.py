@@ -93,6 +93,7 @@ class ResponseExportRequest(APIModel):
     format: ExportFormat = "csv"
     compress: bool = True
     use_labels: bool = Field(default=True, alias="useLabels")
+    new_line_replacement: str | None = Field(default=None, alias="newlineReplacement")
     include_display_order: bool = Field(default=False, alias="includeDisplayOrder")
     include_label_columns: bool = Field(default=False, alias="includeLabelColumns")
     start_date: str | None = Field(default=None, alias="startDate")

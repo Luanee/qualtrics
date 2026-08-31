@@ -11,10 +11,11 @@ class SurveyDefinitionsAPI(APIDomain):
 
     def get(self, survey_id: str) -> SurveyDefinition:
         result = self._client.request("GET", f"/survey-definitions/{survey_id}")
-        entry = result.get("SurveyEntry", {}) if isinstance(result, dict) else {}
+        raw_entry = result.get("SurveyEntry") if isinstance(result, dict) else None
+        entry = raw_entry if isinstance(raw_entry, dict) else result
         return SurveyDefinition(
-            SurveyID=entry.get("SurveyID", survey_id),
-            SurveyName=entry.get("SurveyName"),
+            SurveyID=entry.get("SurveyID", survey_id) if isinstance(entry, dict) else survey_id,
+            SurveyName=entry.get("SurveyName") if isinstance(entry, dict) else None,
             payload=result if isinstance(result, dict) else {},
         )
 
