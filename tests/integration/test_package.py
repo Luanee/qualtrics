@@ -181,18 +181,26 @@ def test_combined_report_has_survey_selector(tmp_path: Path, survey_files: tuple
     output = tmp_path / "combined.html"
     render_report(combined, output)
     report = output.read_text()
-    assert "id='survey-select'" in report
+    assert "id='survey-toggle'" in report
+    assert "id='survey-menu'" in report
+    assert report.count("class='survey-choice'") == 2
+    assert "id='survey-select-all'" in report
+    assert "id='survey-clear'" in report
     assert "Second survey" in report
     assert "data-survey='SV_SECOND'" in report
     assert "SV_SECOND::QID30" in report
-    assert "surveySelect.addEventListener('change',filter)" in report
+    assert "surveyChoices.forEach(choice=>choice.addEventListener('change',filter))" in report
+    assert "surveySelectedCount.textContent=surveys.size===surveyChoices.length?'All':" in report
+    assert "function selectedSurveys(){return new Set(surveyChoices.filter(choice=>choice.checked)" in report
+    assert "surveys=selectedSurveys()" in report
+    assert "surveyChoices.filter(choice=>surveys.has(choice.value)).reduce" in report
     assert "count.textContent=visible+' of '+eligibleCards.length" in report
     assert "id='overview-finished'" in report
     assert "data-responses='2'" in report
     assert report.count("class='quality' data-survey=") == 2
     assert "card.hidden=!show" in report
-    assert "visibleChoices().forEach(c=>c.checked=true)" in report
-    assert "visibleChoices().forEach(c=>c.checked=false)" in report
+    assert "surveyChoices.forEach(choice=>choice.checked=true)" in report
+    assert "surveyChoices.forEach(choice=>choice.checked=false)" in report
     assert "<details id='question-coverage' class='panel report-section'>" in report
     assert "<details id='question-analytics' class='report-section'>" in report
     assert report.count("class='coverage-question catalog-group'") == 2
@@ -201,7 +209,11 @@ def test_combined_report_has_survey_selector(tmp_path: Path, survey_files: tuple
     assert report.count("class='survey-analysis survey-occurrence'") == 4
     assert "<strong>Sample</strong><small>Import ID: QID30 · Section: Training</small>" in report
     assert "<strong>Second survey</strong><small>Import ID: QID30 · Section: Training</small>" in report
-    assert "group.hidden=!!survey&&!rows.some(row=>row.dataset.survey===survey)" in report
+    assert report.count("class='occurrence-count'") == 4
+    assert "new Set(visibleRows.map(row=>row.dataset.survey)).size" in report
+    assert "group.hidden=visibleRows.length===0" in report
+    assert "document.querySelector('#coverage-count').textContent=visibleCoverageGroups" in report
+    assert "document.querySelector('#analytics-count').textContent=visibleAnalyticsGroups" in report
 
 
 def test_data_quality_is_collapsible_and_groups_issues_by_question(

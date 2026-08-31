@@ -72,14 +72,15 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
     survey_unanswered_counts = analysis.survey_unanswered_counts
     survey_unused_field_counts = analysis.survey_unused_field_counts
     survey_options = "".join(
-        f"<option value='{html.escape(str(item['survey_id']), quote=True)}' "
+        f"<label><input class='survey-choice' type='checkbox' "
+        f"value='{html.escape(str(item['survey_id']), quote=True)}' checked "
         f"data-responses='{survey_response_counts.get(str(item['survey_id']), 0)}' "
         f"data-finished='{survey_finished_counts.get(str(item['survey_id']), 0)}' "
         f"data-questions='{survey_question_counts.get(str(item['survey_id']), 0)}' "
         f"data-answers='{survey_answer_counts.get(str(item['survey_id']), 0)}' "
         f"data-unanswered='{survey_unanswered_counts.get(str(item['survey_id']), 0)}' "
         f"data-unused-fields='{survey_unused_field_counts.get(str(item['survey_id']), 0)}'>"
-        f"{html.escape(str(item.get('survey_name') or item['survey_id']))}</option>"
+        f"<span>{html.escape(str(item.get('survey_name') or item['survey_id']))}</span></label>"
         for item in entities.surveys
     )
     question_catalog_lookup = {str(item["question_catalog_id"]): item for item in entities.question_catalog}
@@ -123,7 +124,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         coverage_groups.append(
             f"<details class='coverage-question catalog-group' data-catalog='{html.escape(catalog_id, quote=True)}'>"
             f"<summary><span class='analysis-title'>{html.escape(str(group['label']))}"
-            f"<small>{len(rows)} {occurrence_label}</small></span></summary>"
+            f"<small class='occurrence-count'>{len(rows)} {occurrence_label}</small></span></summary>"
             "<div class='catalog-body'><table><thead><tr><th>Survey occurrence</th><th>Responses</th>"
             f"<th>Coverage</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div></details>"
         )
@@ -365,11 +366,11 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
     question_analytics = []
     for catalog_id, group in analytics_by_catalog.items():
         occurrences = group["occurrences"]
-        survey_label = "survey" if len(occurrences) == 1 else "surveys"
+        occurrence_label = "survey occurrence" if len(occurrences) == 1 else "survey occurrences"
         question_analytics.append(
             f"<details class='question-analysis catalog-group' data-catalog='{html.escape(catalog_id, quote=True)}'>"
             f"<summary><span class='analysis-title'>{html.escape(str(group['label']))}"
-            f"<small>{len(occurrences)} {survey_label}</small></span></summary>"
+            f"<small class='occurrence-count'>{len(occurrences)} {occurrence_label}</small></span></summary>"
             f"<div class='catalog-body'>{''.join(occurrences)}</div></details>"
         )
 
@@ -384,11 +385,12 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         f"<div class='stat'><strong id='stat-responses'>{len(entities.responses):,}</strong><span>Responses</span></div>"
         f"<div class='stat'><strong id='stat-questions'>{len(response_questions):,}</strong><span>Response questions</span></div>"
         f"<div class='stat'><strong id='stat-answers'>{content_answer_count:,}</strong><span>Respondent answers</span></div></div>",
-        "<main class='shell'><div class='survey-switcher'><label for='survey-select'>Survey</label>"
-        f"<select id='survey-select'><option value='' data-responses='{response_count}' "
-        f"data-finished='{finished_count}' data-questions='{len(response_questions)}' "
-        f"data-answers='{content_answer_count}' data-unanswered='{len(unanswered_questions)}' "
-        f"data-unused-fields='{len(unused_fields)}'>All surveys</option>{survey_options}</select></div>"
+        "<main class='shell'><div class='survey-switcher'><strong>Surveys</strong>"
+        "<div class='survey-filter filter-wrap'><button id='survey-toggle' type='button' aria-expanded='false'>"
+        "Surveys · <span id='survey-selected-count'>All</span></button><div id='survey-menu' "
+        "class='survey-menu' hidden><div class='selector-actions'>"
+        "<button id='survey-select-all' type='button'>Select all</button>"
+        f"<button id='survey-clear' type='button'>Clear</button></div>{survey_options}</div></div></div>"
         "<nav><a href='#overview'>Overview</a>"
         "<a href='#question-analytics'>Question analytics</a>"
         "<a href='#by-responses'>By responses</a></nav>",
@@ -402,11 +404,11 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         f"{''.join(quality_panels)}",
         "<details id='question-coverage' class='panel report-section'><summary class='section-summary'>"
         "<span><strong>Question coverage</strong><small>Compare response coverage across survey occurrences.</small></span>"
-        f"<span class='section-count'>{len(coverage_groups)} canonical questions</span></summary>"
+        f"<span id='coverage-count' class='section-count'>{len(coverage_groups)} canonical questions</span></summary>"
         f"<div class='section-body'>{''.join(coverage_groups)}</div></details></section>"
         "<details id='question-analytics' class='report-section'><summary class='section-summary'>"
         "<span><strong>Question analytics</strong><small>Type-aware answer patterns grouped across surveys.</small></span>"
-        f"<span class='section-count'>{len(question_analytics)} canonical questions</span></summary>"
+        f"<span id='analytics-count' class='section-count'>{len(question_analytics)} canonical questions</span></summary>"
         f"<div class='section-body'>{''.join(question_analytics)}</div></details>"
         "<section id='by-responses'><h2>By responses</h2>"
         "<p class='section-intro'>Review individual answers and filter to the questions you need.</p>",
