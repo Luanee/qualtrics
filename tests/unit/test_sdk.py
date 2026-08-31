@@ -104,7 +104,11 @@ def test_surveys_crud_paths_and_update_model() -> None:
         assert json.loads(request.content) == {"name": "Renamed", "isActive": True}
         return httpx.Response(200, json={"result": {}})
 
-    with QualtricsClient("token", base_url="https://example.test/API/v3", transport=httpx.MockTransport(handler)) as client:
+    with QualtricsClient(
+        "token",
+        base_url="https://example.test/API/v3",
+        transport=httpx.MockTransport(handler),
+    ) as client:
         assert client.surveys.get("SV_1")["name"] == "Annual"
         client.surveys.update("SV_1", SurveyUpdateRequest(name="Renamed", isActive=True))
 
@@ -157,7 +161,11 @@ def test_survey_quotas_list_and_iterate_pages() -> None:
             },
         )
 
-    with QualtricsClient("token", base_url="https://example.test/API/v3", transport=httpx.MockTransport(handler)) as client:
+    with QualtricsClient(
+        "token",
+        base_url="https://example.test/API/v3",
+        transport=httpx.MockTransport(handler),
+    ) as client:
         page = client.survey_quotas.list("SV_1", offset=25)
         assert page.elements[0].logic_type == "Simple"
         assert client.quotas is client.survey_quotas
@@ -190,7 +198,11 @@ def test_survey_definition_reads_direct_api_metadata() -> None:
             json={"result": {"SurveyID": "SV_1", "SurveyName": "Annual", "Questions": {}, "Blocks": {}}},
         )
 
-    with QualtricsClient("token", base_url="https://example.test/API/v3", transport=httpx.MockTransport(handler)) as client:
+    with QualtricsClient(
+        "token",
+        base_url="https://example.test/API/v3",
+        transport=httpx.MockTransport(handler),
+    ) as client:
         definition = client.survey_definitions.get("SV_1")
 
     assert definition.survey_id == "SV_1"
@@ -218,7 +230,11 @@ def test_response_filters_and_imports(tmp_path: Path) -> None:
             json={"result": {"progressId": "IM_1", "percentComplete": 100, "status": "complete"}},
         )
 
-    with QualtricsClient("token", base_url="https://example.test/API/v3", transport=httpx.MockTransport(handler)) as client:
+    with QualtricsClient(
+        "token",
+        base_url="https://example.test/API/v3",
+        transport=httpx.MockTransport(handler),
+    ) as client:
         assert client.responses.list_filters("SV_1").elements[0].filter_id == "FL_1"
         assert client.responses.import_file("SV_1", source).progress_id == "IM_1"
         assert client.responses.import_url("SV_1", "https://example.test/r.csv").progress_id == "IM_2"
