@@ -80,19 +80,21 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         f"{html.escape(str(item.get('survey_name') or item['survey_id']))}</option>"
         for item in entities.surveys
     )
+    question_catalog_lookup = {str(item["question_catalog_id"]): item for item in entities.question_catalog}
     question_choices = []
-    coverage_rows = []
+    coverage_by_catalog: dict[str, dict[str, Any]] = {}
     for key, question in response_questions.items():
-        question_id = question["question_id"]
+        question_id = str(question["question_id"])
         survey_id = str(key[0])
         question_token = f"{survey_id}::{question_id}"
         label = str(question.get("question_text") or question_id)
         block_name = str(question.get("block_name") or "")
+        survey_label = str(survey_lookup.get(survey_id, {}).get("survey_name") or survey_id)
+        catalog_id = str(question.get("question_catalog_id") or question_token)
+        catalog_label = str(question_catalog_lookup.get(catalog_id, {}).get("question_text") or label)
         choice_label = html.escape(label)
         if len(entities.surveys) > 1:
-            choice_label += (
-                f"<em>{html.escape(str(survey_lookup.get(survey_id, {}).get('survey_name') or survey_id))}</em>"
-            )
+            choice_label += f"<em>{html.escape(survey_label)}</em>"
         count = len(question_responses.get(key, set()))
         question_response_total = survey_response_counts.get(survey_id, 0)
         rate = round((count / question_response_total * 100) if question_response_total else 0)
@@ -101,57 +103,74 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             f"type='checkbox' value='{html.escape(question_token, quote=True)}' "
             f"checked><span>{choice_label}</span><small>{count}/{question_response_total}</small></label>"
         )
-        coverage_rows.append(
-            f"<tr data-survey='{html.escape(survey_id, quote=True)}'><td><strong>{html.escape(label)}</strong>"
-            f"<small>{html.escape(question_id)}"
-            f"{f' · {html.escape(block_name)}' if block_name else ''}"
-            "</small></td>"
+        occurrence_metadata = f"Import ID: {question_id}"
+        if block_name:
+            occurrence_metadata += f" · Section: {block_name}"
+        coverage_row = (
+            f"<tr class='coverage-survey-row survey-occurrence' data-survey='{html.escape(survey_id, quote=True)}'>"
+            f"<td><strong>{html.escape(survey_label)}</strong><small>{html.escape(occurrence_metadata)}</small></td>"
             f"<td>{count:,}</td><td><div class='meter'><i style='width:{rate}%'></i></div>{rate}%</td></tr>"
         )
+        group = coverage_by_catalog.setdefault(catalog_id, {"label": catalog_label, "rows": []})
+        group["rows"].append(coverage_row)
 
-    def issue_list(items: list[dict[str, Any]], label_key: str, empty: str) -> str:
+    coverage_groups = []
+    for catalog_id, group in coverage_by_catalog.items():
+        rows = group["rows"]
+        occurrence_label = "survey occurrence" if len(rows) == 1 else "survey occurrences"
+        coverage_groups.append(
+            f"<details class='coverage-question catalog-group' data-catalog='{html.escape(catalog_id, quote=True)}'>"
+            f"<summary><span class='analysis-title'>{html.escape(str(group['label']))}"
+            f"<small>{len(rows)} {occurrence_label}</small></span></summary>"
+            "<div class='catalog-body'><table><thead><tr><th>Survey occurrence</th><th>Responses</th>"
+            f"<th>Coverage</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div></details>"
+        )
+
+    def issue_groups(items: list[dict[str, Any]], label_key: str, empty: str) -> str:
         if not items:
             return f"<p class='meta'>{empty}</p>"
-        labels = [str(item.get(label_key) or item.get("question_id") or "Unknown") for item in items]
-        preview = "".join(f"<li>{html.escape(label)}</li>" for label in labels[:8])
-        remaining = f"<li>…and {len(labels) - 8} more</li>" if len(labels) > 8 else ""
-        return f"<ul>{preview}{remaining}</ul>"
+        grouped: dict[str, list[dict[str, Any]]] = {}
+        for item in items:
+            grouped.setdefault(str(item.get("question_id") or "Unknown"), []).append(item)
+        groups = []
+        for question_id, question_items in grouped.items():
+            survey_id = str(question_items[0].get("survey_id") or "")
+            question = questions.get((survey_id, question_id), {})
+            question_label = str(question.get("question_text") or question_id)
+            block_name = str(question.get("block_name") or "")
+            metadata = question_id + (f" · Section: {block_name}" if block_name else "")
+            labels = "".join(
+                f"<li>{html.escape(str(item.get(label_key) or item.get('field_id') or item.get('answer_id') or 'Unknown'))}</li>"
+                for item in question_items
+            )
+            groups.append(
+                "<div class='quality-question'>"
+                f"<strong>{html.escape(question_label)}</strong><small>{html.escape(metadata)}</small>"
+                f"<ul>{labels}</ul></div>"
+            )
+        return "".join(groups)
 
     quality_panels = []
     for survey_id, survey in survey_lookup.items():
-        quality_groups = [
-            (
-                "Questions without responses",
-                [item for item in unanswered_questions if str(item["survey_id"]) == survey_id],
-                "question_text",
-            ),
-            (
-                "Fields without values",
-                [item for item in unused_fields if str(item["survey_id"]) == survey_id],
-                "field_text",
-            ),
-            (
-                "Defined options not observed",
-                [item for item in unused_options if str(item["survey_id"]) == survey_id],
-                "answer_text",
-            ),
-        ]
-        quality_html = "".join(
-            f"<div class='quality-group'><strong>{html.escape(title)}</strong>{issue_list(items, label_key, '')}</div>"
-            for title, items, label_key in quality_groups
-            if items
-        )
-        if not quality_html:
-            quality_html = (
-                "<div class='healthy'><strong>No coverage gaps detected</strong>"
-                "<span>Every response question and concrete field has data.</span></div>"
-            )
+        survey_unused_fields = [item for item in unused_fields if str(item["survey_id"]) == survey_id]
+        survey_unused_options = [item for item in unused_options if str(item["survey_id"]) == survey_id]
+        field_count = len(survey_unused_fields)
+        option_count = len(survey_unused_options)
+        field_summary = "field without values" if field_count == 1 else "fields without values"
+        option_summary = "defined option not observed" if option_count == 1 else "defined options not observed"
         survey_label = str(survey.get("survey_name") or survey_id)
         quality_panels.append(
-            f"<div class='quality' data-survey='{html.escape(survey_id, quote=True)}'>"
-            "<div class='quality-head'><i></i><strong>Data quality"
-            f"{f' · {html.escape(survey_label)}' if len(entities.surveys) > 1 else ''}</strong></div>"
-            f"<div class='quality-groups'>{quality_html}</div></div>"
+            f"<details class='quality' data-survey='{html.escape(survey_id, quote=True)}'>"
+            "<summary class='quality-head'><i></i><span class='quality-title'><strong>Data quality"
+            f"{f' · {html.escape(survey_label)}' if len(entities.surveys) > 1 else ''}</strong></span>"
+            f"<span class='quality-summary'><span><b>{field_count}</b> {field_summary}</span>"
+            f"<span><b>{option_count}</b> {option_summary}</span></span></summary>"
+            "<div class='quality-body'><div class='quality-groups'>"
+            "<div class='quality-group'><h4>Fields without values</h4>"
+            f"{issue_groups(survey_unused_fields, 'field_text', 'No fields without values.')}</div>"
+            "<div class='quality-group'><h4>Defined options not observed</h4>"
+            f"{issue_groups(survey_unused_options, 'answer_text', 'Every defined option was observed.')}</div>"
+            "</div></div></details>"
         )
 
     def distribution(values: list[str], denominator: int) -> str:
@@ -207,7 +226,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             )
         return "".join(rows) or "<p class='meta'>No answer options defined or observed.</p>"
 
-    question_analytics = []
+    analytics_by_catalog: dict[str, dict[str, Any]] = {}
     categorical_types = {"MC", "MATRIX", "SBS", "DD", "DRILLDOWN", "RO", "RANKORDER"}
     numeric_types = {"SLIDER", "CS", "CONSTANTSUM"}
     for key, question in response_questions.items():
@@ -321,14 +340,35 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         )
         block_label = str(question.get("block_name") or "")
         analysis_body = "".join(bodies) or '<p class="meta">No values observed.</p>'
-        question_analytics.append(
-            f"<details class='question-analysis' data-survey='{html.escape(str(key[0]), quote=True)}' "
+        survey_id = str(key[0])
+        survey_label = str(survey_lookup.get(survey_id, {}).get("survey_name") or survey_id)
+        catalog_id = str(question.get("question_catalog_id") or f"{survey_id}::{question_id}")
+        catalog_label = str(question_catalog_lookup.get(catalog_id, {}).get("question_text") or label)
+        occurrence_metadata = f"Import ID: {question_id} · {type_label}"
+        if selector:
+            occurrence_metadata += f" · {selector}"
+        if block_label:
+            occurrence_metadata += f" · Section: {block_label}"
+        occurrence = (
+            f"<details class='survey-analysis survey-occurrence' data-survey='{html.escape(survey_id, quote=True)}' "
             f"data-question='{html.escape(question_id)}'>"
-            f"<summary><span class='analysis-title'>{html.escape(label)}<small>{html.escape(question_id)}"
-            f" · {html.escape(type_label)}{f' · {html.escape(selector)}' if selector else ''}"
-            f"{f' · Block: {html.escape(block_label)}' if block_label else ''}</small></span>"
+            f"<summary><span class='analysis-title'>{html.escape(survey_label)}"
+            f"<small>{html.escape(occurrence_metadata)}</small></span>"
             f"<span class='analysis-summary'>{summary}</span></summary>"
             f"<div class='analysis-body'>{analysis_body}</div></details>"
+        )
+        group = analytics_by_catalog.setdefault(catalog_id, {"label": catalog_label, "occurrences": []})
+        group["occurrences"].append(occurrence)
+
+    question_analytics = []
+    for catalog_id, group in analytics_by_catalog.items():
+        occurrences = group["occurrences"]
+        survey_label = "survey" if len(occurrences) == 1 else "surveys"
+        question_analytics.append(
+            f"<details class='question-analysis catalog-group' data-catalog='{html.escape(catalog_id, quote=True)}'>"
+            f"<summary><span class='analysis-title'>{html.escape(str(group['label']))}"
+            f"<small>{len(occurrences)} {survey_label}</small></span></summary>"
+            f"<div class='catalog-body'>{''.join(occurrences)}</div></details>"
         )
 
     parts = [
@@ -358,12 +398,15 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         f"<div class='analytic'><strong id='overview-unanswered'>{len(unanswered_questions):,}</strong><span>Unanswered questions</span></div>"
         f"<div class='analytic'><strong id='overview-unused-fields'>{len(unused_fields):,}</strong><span>Unused fields</span></div></div>",
         f"{''.join(quality_panels)}",
-        "<div class='panel'><h3>Question coverage</h3><table><thead><tr><th>Question</th>"
-        f"<th>Responses</th><th>Coverage</th></tr></thead><tbody>{''.join(coverage_rows)}</tbody></table></div>"
-        "</section><section id='question-analytics'><h2>Question analytics</h2>"
-        "<p class='section-intro'>Answer patterns summarized according to each question type. "
-        "Expand a question to inspect its fields and distributions.</p>"
-        f"{''.join(question_analytics)}</section><section id='by-responses'><h2>By responses</h2>"
+        "<details id='question-coverage' class='panel report-section'><summary class='section-summary'>"
+        "<span><strong>Question coverage</strong><small>Compare response coverage across survey occurrences.</small></span>"
+        f"<span class='section-count'>{len(coverage_groups)} canonical questions</span></summary>"
+        f"<div class='section-body'>{''.join(coverage_groups)}</div></details></section>"
+        "<details id='question-analytics' class='report-section'><summary class='section-summary'>"
+        "<span><strong>Question analytics</strong><small>Type-aware answer patterns grouped across surveys.</small></span>"
+        f"<span class='section-count'>{len(question_analytics)} canonical questions</span></summary>"
+        f"<div class='section-body'>{''.join(question_analytics)}</div></details>"
+        "<section id='by-responses'><h2>By responses</h2>"
         "<p class='section-intro'>Review individual answers and filter to the questions you need.</p>",
         "<div class='toolbar'><input id='search' type='search' "
         "placeholder='Search responses, questions, or answers…'><span id='count'></span>"
