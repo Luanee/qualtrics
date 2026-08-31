@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import httpx
+import pytest
 
 from qualtrics import QualtricsClient as RootQualtricsClient
 from qualtrics.api import (
@@ -104,12 +105,88 @@ def test_surveys_crud_paths_and_update_model() -> None:
         return httpx.Response(200, json={"result": {}})
 
     with QualtricsClient(
-        "token", base_url="https://example.test/API/v3", transport=httpx.MockTransport(handler)
+        "token",
+        base_url="https://example.test/API/v3",
+        transport=httpx.MockTransport(handler),
     ) as client:
         assert client.surveys.get("SV_1")["name"] == "Annual"
         client.surveys.update("SV_1", SurveyUpdateRequest(name="Renamed", isActive=True))
 
     assert seen == [("GET", "/API/v3/surveys/SV_1"), ("PUT", "/API/v3/surveys/SV_1")]
+
+
+def test_survey_quotas_list_and_iterate_pages() -> None:
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        assert request.url.path == "/API/v3/surveys/SV_1/quotas"
+        offset = request.url.params.get("offset")
+        if offset == "25":
+            return httpx.Response(
+                200,
+                json={
+                    "result": {
+                        "elements": [
+                            {
+                                "id": "QO_2",
+                                "name": "Returning customers",
+                                "count": 4,
+                                "quota": 10,
+                                "logicType": "Simple",
+                                "combinations": [],
+                            }
+                        ],
+                        "nextPage": None,
+                    }
+                },
+            )
+        next_page = "https://example.test/API/v3/surveys/SV_1/quotas?offset=25"
+        return httpx.Response(
+            200,
+            json={
+                "result": {
+                    "elements": [
+                        {
+                            "id": "QO_1",
+                            "name": "Country",
+                            "count": 8,
+                            "quota": 20,
+                            "logicType": "Cross",
+                            "combinations": [{"count": 3, "quota": 5, "description": "Country is Germany"}],
+                        }
+                    ],
+                    "nextPage": next_page,
+                }
+            },
+        )
+
+    with QualtricsClient(
+        "token",
+        base_url="https://example.test/API/v3",
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        page = client.survey_quotas.list("SV_1", offset=25)
+        assert page.elements[0].logic_type == "Simple"
+        assert client.quotas is client.survey_quotas
+        quotas = list(client.iter_survey_quotas("SV_1"))
+        assert quotas[1].id == "QO_2"
+
+    assert [quota.id for quota in quotas] == ["QO_1", "QO_2"]
+    assert quotas[0].combinations[0].description == "Country is Germany"
+    assert seen == [
+        "https://example.test/API/v3/surveys/SV_1/quotas?offset=25",
+        "https://example.test/API/v3/surveys/SV_1/quotas",
+        "https://example.test/API/v3/surveys/SV_1/quotas?offset=25",
+    ]
+
+
+def test_survey_quotas_reject_negative_offset() -> None:
+    with (
+        QualtricsClient("token", base_url="https://example.test/API/v3") as client,
+        pytest.raises(ValueError, match="offset"),
+    ):
+        client.survey_quotas.list("SV_1", offset=-1)
 
 
 def test_survey_definition_reads_direct_api_metadata() -> None:
@@ -121,7 +198,9 @@ def test_survey_definition_reads_direct_api_metadata() -> None:
         )
 
     with QualtricsClient(
-        "token", base_url="https://example.test/API/v3", transport=httpx.MockTransport(handler)
+        "token",
+        base_url="https://example.test/API/v3",
+        transport=httpx.MockTransport(handler),
     ) as client:
         definition = client.survey_definitions.get("SV_1")
 
@@ -151,7 +230,9 @@ def test_response_filters_and_imports(tmp_path: Path) -> None:
         )
 
     with QualtricsClient(
-        "token", base_url="https://example.test/API/v3", transport=httpx.MockTransport(handler)
+        "token",
+        base_url="https://example.test/API/v3",
+        transport=httpx.MockTransport(handler),
     ) as client:
         assert client.responses.list_filters("SV_1").elements[0].filter_id == "FL_1"
         assert client.responses.import_file("SV_1", source).progress_id == "IM_1"

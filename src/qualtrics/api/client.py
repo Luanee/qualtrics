@@ -6,7 +6,7 @@ from typing import Any
 
 import httpx
 
-from .domains import ResponseImportsExportsAPI, SurveyDefinitionsAPI, SurveysAPI
+from .domains import ResponseImportsExportsAPI, SurveyDefinitionsAPI, SurveyQuotasAPI, SurveysAPI
 from .exceptions import QualtricsAPIError
 from .models import (
     ExportProgress,
@@ -15,6 +15,8 @@ from .models import (
     HTTPMethod,
     ResponseExportRequest,
     SurveyPage,
+    SurveyQuota,
+    SurveyQuotaPage,
     SurveySummary,
 )
 from .settings import QualtricsSettings
@@ -56,6 +58,8 @@ class QualtricsClient:
         )
         self.surveys = SurveysAPI(self)
         self.survey_definitions = SurveyDefinitionsAPI(self)
+        self.survey_quotas = SurveyQuotasAPI(self)
+        self.quotas = self.survey_quotas
         self.responses = ResponseImportsExportsAPI(self)
         self.response_exports = self.responses
 
@@ -84,7 +88,14 @@ class QualtricsClient:
         headers: dict[str, str] | None = None,
     ) -> Any:
         """Call an arbitrary JSON API endpoint using the configured transport."""
-        response = self._http.request(method, path, params=params, json=json, content=content, headers=headers)
+        response = self._http.request(
+            method,
+            path,
+            params=params,
+            json=json,
+            content=content,
+            headers=headers,
+        )
         self._raise_for_error(response)
         if response.status_code == 204:
             return None
@@ -124,6 +135,12 @@ class QualtricsClient:
 
     def get_survey(self, survey_id: str) -> dict[str, Any]:
         return self.surveys.get(survey_id)
+
+    def list_survey_quotas(self, survey_id: str, *, offset: int | None = None) -> SurveyQuotaPage:
+        return self.survey_quotas.list(survey_id, offset=offset)
+
+    def iter_survey_quotas(self, survey_id: str) -> Iterator[SurveyQuota]:
+        return self.survey_quotas.iter(survey_id)
 
     def start_response_export(self, survey_id: str, options: ResponseExportRequest | None = None) -> ExportProgress:
         return self.response_exports.start(survey_id, options)
