@@ -27,8 +27,10 @@ def _write_survey_folders(root: Path, survey_files: tuple[Path, Path]) -> tuple[
 
 def _assert_combined_report(path: Path) -> None:
     report = path.read_text(encoding="utf-8")
-    assert "id='survey-select'" in report
-    assert ">Sample</option>" in report
+    assert "id='survey-toggle'" in report
+    assert "id='survey-menu'" in report
+    assert report.count("class='survey-choice'") == 2
+    assert ">Sample</span>" in report
     assert "Second survey" in report
     assert "data-survey='SV_SAMPLE'" in report
     assert "data-survey='SV_SECOND'" in report
