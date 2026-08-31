@@ -20,6 +20,7 @@
         color:var(--muted);font-size:.72rem;margin-top:.08rem}
         .type{color:var(--muted);background:var(--wash);border-radius:999px;padding:.12rem .45rem;font-size:.7rem}
         .field-answer{display:grid;grid-template-columns:minmax(150px,34%) 1fr;gap:1rem;padding:.4rem 0}
+        .field-answer.value-only{grid-template-columns:1fr}
         .field{color:var(--muted);font-size:.82rem;overflow-wrap:anywhere}.value{white-space:pre-wrap;overflow-wrap:anywhere}
         .text-field .field{font-weight:700;color:#475569}.text-field .value{border-left:3px solid #93b4ff;
         background:#f8faff;border-radius:0 8px 8px 0;padding:.55rem .7rem}
@@ -43,7 +44,7 @@
         border-radius:15px;margin:1rem 0}.quality-head{align-items:center}.quality-head i{width:10px;height:10px;
         border-radius:50%;background:#f59e0b;flex:none}.quality-title{flex:1}.quality-summary{display:flex;gap:1rem;
         color:var(--muted);font-size:.82rem;flex-wrap:wrap}.quality-summary b{color:var(--ink)}.quality-body{border-top:1px solid var(--line);
-        padding:1rem}.quality-groups{display:grid;grid-template-columns:repeat(2,1fr);gap:.8rem}.quality-group{background:#fff8e8;
+        padding:1rem}.quality-groups{display:grid;grid-template-columns:1fr;gap:.8rem}.quality-group{background:#fff8e8;
         border-radius:10px;padding:.9rem}.quality-group h4{margin:0 0 .7rem}.quality-group ul{margin:.4rem 0 0;padding-left:1.2rem}
         .quality-question+.quality-question{border-top:1px solid #f4dfae;margin-top:.7rem;padding-top:.7rem}
         .quality-question strong,.quality-question small{display:block}.quality-question small{color:var(--muted);font-size:.75rem}
@@ -75,8 +76,8 @@
         display:flex;gap:.9rem;flex-wrap:wrap}.response-meta b{color:#475569;font-weight:700}
         border-top:1px solid #edf1f6;background:#fbfcfe}
         .hidden{display:none}.empty{text-align:center;padding:3rem}@media(max-width:700px){.stats{grid-template-columns:1fr}
-        .analytics,.quality-groups{grid-template-columns:1fr 1fr}.toolbar{flex-wrap:wrap}.analysis-summary{display:none}}
-        @media(max-width:480px){.analytics,.quality-groups,.numeric-summary{grid-template-columns:1fr}
+        .analytics{grid-template-columns:1fr 1fr}.toolbar{flex-wrap:wrap}.analysis-summary{display:none}}
+        @media(max-width:480px){.analytics,.numeric-summary{grid-template-columns:1fr}
         .distribution-row{grid-template-columns:minmax(90px,1fr) 1fr 42px}.distribution-row small{display:none}}
         @media print{.toolbar{display:none}
         body{background:#fff}header{background:#fff;color:#000;padding:1rem}.stats{margin-top:0}}

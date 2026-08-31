@@ -229,6 +229,7 @@ def test_data_quality_is_collapsible_and_groups_issues_by_question(
     assert "<b>1</b> defined option not observed" in report
     assert "<h4>Fields without values</h4>" in report
     assert "<h4>Defined options not observed</h4>" in report
+    assert ".quality-groups{display:grid;grid-template-columns:1fr;gap:.8rem}" in report
     assert "<strong>PRACTICE QUESTION</strong><small>QID30 · Section: Training</small>" in report
     assert "<li>Item 1</li>" in report
     assert "<li>Never selected</li>" in report
@@ -262,6 +263,25 @@ def test_report_labels_all_text_fields_as_written_answers(tmp_path: Path, survey
 
     assert "<div class='field-answer text-field'><span class='field'>Other (please indicate)</span>" in report
     assert "<div class='field-answer text-field'><span class='field'>Written response</span>" in report
+
+
+def test_response_does_not_repeat_question_as_single_field_label(
+    tmp_path: Path,
+    survey_files: tuple[Path, Path],
+) -> None:
+    entities = parse_survey(*survey_files)
+    question = next(item for item in entities.questions if item["question_id"] == "QID30")
+    field = next(item for item in entities.question_fields if item["question_id"] == "QID30")
+    field["field_text"] = question["question_text"]
+
+    output = tmp_path / "response-field-label.html"
+    render_report(entities, output)
+    report = output.read_text(encoding="utf-8")
+    response_answer = report.split("<div class='answers'>", 1)[1].split("</div></details>", 1)[0]
+
+    assert response_answer.count(str(question["question_text"])) == 1
+    assert "<div class='field-answer value-only'><span class='value'>" in response_answer
+    assert ".field-answer.value-only{grid-template-columns:1fr}" in report
 
 
 def test_mc_analytics_consolidates_options_and_includes_zero_counts(

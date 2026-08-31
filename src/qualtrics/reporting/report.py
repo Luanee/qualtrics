@@ -23,7 +23,10 @@ def _display_field_label(
     answer_options: dict[tuple[str, str, str], dict[str, Any]],
 ) -> str:
     label = str(field.get("field_text") or field.get("field_id") or "Answer")
+    question_text = str(question.get("question_text") or "")
     if not field.get("is_text_field"):
+        if _normalized_label(label) == _normalized_label(question_text):
+            return ""
         return label
 
     suffix = str(field.get("source_field_suffix") or "")
@@ -33,7 +36,6 @@ def _display_field_label(
         if option and option.get("answer_text"):
             label = str(option["answer_text"])
     label = re.sub(r"\s*-\s*Text\s*$", "", label, flags=re.IGNORECASE).strip()
-    question_text = str(question.get("question_text") or "")
     if not label or _normalized_label(label) == _normalized_label(question_text):
         return "Written response"
     return label
@@ -468,10 +470,16 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             for answer, field_definition in grouped_answers:
                 field_label = _display_field_label(field_definition, q, answer_options)
                 text_class = " text-field" if field_definition.get("is_text_field") else ""
-                field_rows.append(
-                    f"<div class='field-answer{text_class}'><span class='field'>{html.escape(field_label)}</span>"
-                    f"<span class='value'>{html.escape(str(answer['answer_text']))}</span></div>"
-                )
+                if field_label:
+                    field_rows.append(
+                        f"<div class='field-answer{text_class}'><span class='field'>{html.escape(field_label)}</span>"
+                        f"<span class='value'>{html.escape(str(answer['answer_text']))}</span></div>"
+                    )
+                else:
+                    field_rows.append(
+                        "<div class='field-answer value-only'>"
+                        f"<span class='value'>{html.escape(str(answer['answer_text']))}</span></div>"
+                    )
             question_meta = " · ".join(
                 item for item in (type_label, f"Block: {block_name}" if block_name else "") if item
             )
