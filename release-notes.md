@@ -1,5 +1,17 @@
 # Release Notes
 
+## 0.1.2 (2026-08-31)
+
+### Internal
+
+* 👷 ci: automate pull request based releases. PR [#7](https://github.com/Luanee/qualtrics/pull/7) by [@Luanee](https://github.com/Luanee).
+
+### Other changes
+
+* 🔖 Load dotenv configuration and preserve survey definition metadata. PR [#8](https://github.com/Luanee/qualtrics/pull/8) by [@Luanee](https://github.com/Luanee).
+* 🔖 Parse Qualtrics exports and improve question analytics. PR [#9](https://github.com/Luanee/qualtrics/pull/9) by [@Luanee](https://github.com/Luanee).
+* 🔖 Add end-to-end survey export workflow and simplify documentation. PR [#10](https://github.com/Luanee/qualtrics/pull/10) by [@Luanee](https://github.com/Luanee).
+
 ## 0.1.1 (2026-08-30)
 
 ### Features
