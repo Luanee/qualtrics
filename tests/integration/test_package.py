@@ -94,7 +94,7 @@ def test_sample_preserves_multifield_identity(tmp_path: Path, survey_files: tupl
     assert "By responses" in report
     assert "Data quality" in report
     assert "Question analytics" in report
-    assert "class='question-analysis'" in report
+    assert "class='question-analysis catalog-group'" in report
     assert "class='distribution-row" in report
     assert "Multiple choice" in report
     assert "class='question-choice'" in report
@@ -181,18 +181,71 @@ def test_combined_report_has_survey_selector(tmp_path: Path, survey_files: tuple
     output = tmp_path / "combined.html"
     render_report(combined, output)
     report = output.read_text()
-    assert "id='survey-select'" in report
+    assert "id='survey-toggle'" in report
+    assert "id='survey-menu'" in report
+    assert report.count("class='survey-choice'") == 2
+    assert "id='survey-select-all'" in report
+    assert "id='survey-clear'" in report
     assert "Second survey" in report
     assert "data-survey='SV_SECOND'" in report
     assert "SV_SECOND::QID30" in report
-    assert "surveySelect.addEventListener('change',filter)" in report
+    assert "surveyChoices.forEach(choice=>choice.addEventListener('change',filter))" in report
+    assert "surveySelectedCount.textContent=surveys.size===surveyChoices.length?'All':" in report
+    assert "function selectedSurveys(){return new Set(surveyChoices.filter(choice=>choice.checked)" in report
+    assert "surveys=selectedSurveys()" in report
+    assert "surveyChoices.filter(choice=>surveys.has(choice.value)).reduce" in report
     assert "count.textContent=visible+' of '+eligibleCards.length" in report
     assert "id='overview-finished'" in report
     assert "data-responses='2'" in report
     assert report.count("class='quality' data-survey=") == 2
     assert "card.hidden=!show" in report
-    assert "visibleChoices().forEach(c=>c.checked=true)" in report
-    assert "visibleChoices().forEach(c=>c.checked=false)" in report
+    assert "surveyChoices.forEach(choice=>choice.checked=true)" in report
+    assert "surveyChoices.forEach(choice=>choice.checked=false)" in report
+    assert "<details id='question-coverage' class='panel report-section'>" in report
+    assert "<details id='question-analytics' class='report-section'>" in report
+    assert report.count("class='coverage-question catalog-group'") == 2
+    assert report.count("class='question-analysis catalog-group'") == 2
+    assert report.count("class='coverage-survey-row survey-occurrence'") == 4
+    assert report.count("class='survey-analysis survey-occurrence'") == 4
+    assert "<strong>Sample</strong><small>Import ID: QID30 · Section: Training</small>" in report
+    assert "<strong>Second survey</strong><small>Import ID: QID30 · Section: Training</small>" in report
+    assert report.count("class='occurrence-count'") == 4
+    assert "new Set(visibleRows.map(row=>row.dataset.survey)).size" in report
+    assert "group.hidden=visibleRows.length===0" in report
+    assert "document.querySelector('#coverage-count').textContent=visibleCoverageGroups" in report
+    assert "document.querySelector('#analytics-count').textContent=visibleAnalyticsGroups" in report
+
+
+def test_data_quality_is_collapsible_and_groups_issues_by_question(
+    tmp_path: Path,
+    survey_files: tuple[Path, Path],
+) -> None:
+    entities = parse_survey(*survey_files)
+    unused_field = next(item for item in entities.question_fields if item["question_id"] == "QID30")
+    entities.response_answers = [
+        answer for answer in entities.response_answers if answer["field_id"] != unused_field["field_id"]
+    ]
+    entities.answer_options.append({
+        "survey_id": "SV_SAMPLE",
+        "question_id": "QID30",
+        "answer_id": "unused",
+        "answer_text": "Never selected",
+    })
+
+    output = tmp_path / "quality.html"
+    render_report(entities, output)
+    report = output.read_text(encoding="utf-8")
+
+    assert "<details class='quality' data-survey='SV_SAMPLE'>" in report
+    assert "<b>1</b> field without values" in report
+    assert "<b>1</b> defined option not observed" in report
+    assert "<h4>Fields without values</h4>" in report
+    assert "<h4>Defined options not observed</h4>" in report
+    assert ".quality-groups{display:grid;grid-template-columns:1fr;gap:.8rem}" in report
+    assert "<strong>PRACTICE QUESTION</strong><small>QID30 · Section: Training</small>" in report
+    assert "<li>Item 1</li>" in report
+    assert "<li>Never selected</li>" in report
+    assert "…and" not in report
 
 
 def test_report_labels_all_text_fields_as_written_answers(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
@@ -224,6 +277,25 @@ def test_report_labels_all_text_fields_as_written_answers(tmp_path: Path, survey
     assert "<div class='field-answer text-field'><span class='field'>Written response</span>" in report
 
 
+def test_response_does_not_repeat_question_as_single_field_label(
+    tmp_path: Path,
+    survey_files: tuple[Path, Path],
+) -> None:
+    entities = parse_survey(*survey_files)
+    question = next(item for item in entities.questions if item["question_id"] == "QID30")
+    field = next(item for item in entities.question_fields if item["question_id"] == "QID30")
+    field["field_text"] = question["question_text"]
+
+    output = tmp_path / "response-field-label.html"
+    render_report(entities, output)
+    report = output.read_text(encoding="utf-8")
+    response_answer = report.split("<div class='answers'>", 1)[1].split("</div></details>", 1)[0]
+
+    assert response_answer.count(str(question["question_text"])) == 1
+    assert "<div class='field-answer value-only'><span class='value'>" in response_answer
+    assert ".field-answer.value-only{grid-template-columns:1fr}" in report
+
+
 def test_mc_analytics_consolidates_options_and_includes_zero_counts(
     tmp_path: Path, survey_files: tuple[Path, Path]
 ) -> None:
@@ -239,9 +311,10 @@ def test_mc_analytics_consolidates_options_and_includes_zero_counts(
     output = tmp_path / "mc-analytics.html"
     render_report(entities, output)
     report = output.read_text(encoding="utf-8")
-    analytics = report.split("<details class='question-analysis' data-survey='SV_SAMPLE' data-question='QID18'>", 1)[
-        1
-    ].split("</details>", 1)[0]
+    analytics = report.split(
+        "<details class='survey-analysis survey-occurrence' data-survey='SV_SAMPLE' data-question='QID18'>",
+        1,
+    )[1].split("</details>", 1)[0]
 
     assert analytics.count(">Robot</span>") == 1
     assert analytics.count(">Human</span>") == 1
