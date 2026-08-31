@@ -4,7 +4,9 @@ import contextlib
 import csv
 import json
 from collections.abc import Sequence
+from io import TextIOWrapper
 from pathlib import Path
+from zipfile import BadZipFile, ZipFile
 
 from ..models.entities import EntitySet
 from ..models.entity_set import merge_entity_sets
@@ -31,27 +33,68 @@ META = {
 }
 
 
+def _choice_items(definition: dict[str, object]) -> list[tuple[str, object]]:
+    choices = definition.get("Choices") or {}
+    if isinstance(choices, dict):
+        return [(str(option_id), option) for option_id, option in choices.items()]
+    if isinstance(choices, list):
+        choice_order = definition.get("ChoiceOrder") or []
+        option_ids = (
+            choice_order
+            if isinstance(choice_order, list) and len(choice_order) == len(choices)
+            else range(1, len(choices) + 1)
+        )
+        return [(str(option_id), option) for option_id, option in zip(option_ids, choices, strict=True)]
+    return []
+
+
+def _read_response_rows(source_path: Path) -> list[list[str]]:
+    if source_path.suffix.casefold() != ".zip":
+        with source_path.open(encoding="utf-8-sig", newline="") as handle:
+            return list(csv.reader(handle))
+
+    try:
+        with ZipFile(source_path) as archive:
+            csv_members = [
+                member
+                for member in archive.infolist()
+                if not member.is_dir()
+                and Path(member.filename).suffix.casefold() == ".csv"
+                and "__MACOSX" not in Path(member.filename).parts
+            ]
+            if len(csv_members) != 1:
+                raise ValueError(
+                    f"Qualtrics response ZIP must contain exactly one CSV; found {len(csv_members)} in {source_path}"
+                )
+            with (
+                archive.open(csv_members[0]) as raw_handle,
+                TextIOWrapper(raw_handle, encoding="utf-8-sig", newline="") as text_handle,
+            ):
+                return list(csv.reader(text_handle))
+    except BadZipFile as error:
+        raise ValueError(f"Invalid Qualtrics response ZIP: {source_path}") from error
+
+
 def _parse_survey_file(
-    csv_path: str | Path,
+    source_path: str | Path,
     qsf_path: str | Path | None = None,
     survey_id: str | None = None,
 ) -> EntitySet:
-    csv_path = Path(csv_path)
-    qsf_path = Path(qsf_path) if qsf_path else _matching_definition(csv_path)
-    with csv_path.open(encoding="utf-8-sig", newline="") as handle:
-        rows = list(csv.reader(handle))
+    source_path = Path(source_path)
+    qsf_path = Path(qsf_path) if qsf_path else _matching_definition(source_path)
+    rows = _read_response_rows(source_path)
     if len(rows) < 2:
         raise ValueError("Qualtrics CSV must contain column and question-text rows")
     columns, headers = rows[0], rows[1]
     metadata = rows[2] if len(rows) > 2 else [""] * len(columns)
     has_import = any("ImportId" in value for value in metadata)
     entry, qsf_questions, question_blocks, sections = _qsf(qsf_path)
-    sid = survey_id or entry.get("SurveyID") or csv_path.stem
+    sid = survey_id or entry.get("SurveyID") or source_path.stem
     entities = EntitySet(
         surveys=[
             {
                 "survey_id": sid,
-                "survey_name": entry.get("SurveyName") or csv_path.stem,
+                "survey_name": entry.get("SurveyName") or source_path.stem,
                 "survey_status": entry.get("SurveyStatus"),
                 "default_language": entry.get("SurveyLanguage"),
             }
@@ -101,7 +144,7 @@ def _parse_survey_file(
             })
             # Meta Info and Timing choices describe captured fields, not respondent
             # answer options. Treating them as options creates false "unused" alerts.
-            for option_id, option in (definition.get("Choices") or {}).items() if role == "response" else []:
+            for option_id, option in _choice_items(definition) if role == "response" else []:
                 entities.answer_options.append({
                     "survey_id": sid,
                     "question_id": question_id,
@@ -174,40 +217,40 @@ def _parse_survey_file(
 
 
 def parse_survey(
-    csv_path: str | Path,
+    source_path: str | Path,
     qsf_path: str | Path | None = None,
     survey_id: str | None = None,
 ) -> EntitySet:
-    """Parse one CSV or merge every survey matched by a wildcard path."""
-    csv_files = _expand_paths([csv_path])
+    """Parse one CSV/ZIP or merge every survey matched by a wildcard path."""
+    source_files = _expand_paths([source_path])
     definition_files = _expand_paths([qsf_path]) if qsf_path else []
-    if len(csv_files) == 1 and len(definition_files) <= 1:
+    if len(source_files) == 1 and len(definition_files) <= 1:
         return _parse_survey_file(
-            csv_files[0],
+            source_files[0],
             definition_files[0] if definition_files else None,
             survey_id=survey_id,
         )
     if survey_id:
-        raise ValueError("survey_id cannot be forced when a wildcard matches multiple CSV files")
-    return parse_surveys(csv_files, definition_files or None)
+        raise ValueError("survey_id cannot be forced when a wildcard matches multiple survey files")
+    return parse_surveys(source_files, definition_files or None)
 
 
 def parse_surveys(
-    csv_paths: Sequence[str | Path],
+    source_paths: Sequence[str | Path],
     qsf_paths: Sequence[str | Path] | None = None,
 ) -> EntitySet:
-    """Parse multiple CSV/QSF pairs into one consistent entity collection."""
-    csv_files = _expand_paths(csv_paths)
+    """Parse multiple CSV-or-ZIP/QSF pairs into one entity collection."""
+    source_files = _expand_paths(source_paths)
     qsf_files = _expand_paths(qsf_paths or [])
-    if qsf_files and len(qsf_files) not in {1, len(csv_files)}:
-        raise ValueError("Provide no QSF files, one QSF for one CSV, or one QSF per CSV")
-    if len(qsf_files) == 1 and len(csv_files) > 1:
-        raise ValueError("A single QSF cannot be applied to multiple CSV files")
+    if qsf_files and len(qsf_files) not in {1, len(source_files)}:
+        raise ValueError("Provide no QSF files, one QSF for one survey, or one QSF per survey")
+    if len(qsf_files) == 1 and len(source_files) > 1:
+        raise ValueError("A single QSF cannot be applied to multiple survey files")
     parsed = [
         _parse_survey_file(
-            csv_path,
+            source_path,
             qsf_files[index] if qsf_files else None,
         )
-        for index, csv_path in enumerate(csv_files)
+        for index, source_path in enumerate(source_files)
     ]
     return merge_entity_sets(parsed)
