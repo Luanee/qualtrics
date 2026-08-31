@@ -1,5 +1,7 @@
+import json
 from copy import deepcopy
 from pathlib import Path
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from qualtrics import (
     load_entities,
@@ -68,7 +70,7 @@ def test_sample_preserves_multifield_identity(tmp_path: Path, survey_files: tupl
     assert "Data quality" in report
     assert "Question analytics" in report
     assert "class='question-analysis'" in report
-    assert "class='distribution-row'" in report
+    assert "class='distribution-row" in report
     assert "Multiple choice" in report
     assert "class='question-choice'" in report
     assert "response-meta" in report
@@ -109,6 +111,62 @@ def test_combined_report_has_survey_selector(tmp_path: Path, survey_files: tuple
     assert "visibleChoices().forEach(c=>c.checked=false)" in report
 
 
+def test_report_labels_all_text_fields_as_written_answers(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
+    entities = parse_survey(*survey_files)
+    linked_field = next(item for item in entities.question_fields if item["question_id"] == "QID30")
+    linked_field.update({
+        "field_text": "Other (please indicate) - Text",
+        "source_field_suffix": "1_TEXT",
+        "is_text_field": True,
+    })
+    duplicate_field = next(item for item in entities.question_fields if item["question_id"] == "QID18")
+    duplicate_field.update({
+        "field_text": "Cat - Text",
+        "source_field_suffix": "TEXT",
+        "is_text_field": True,
+    })
+    entities.answer_options.append({
+        "survey_id": "SV_SAMPLE",
+        "question_id": "QID30",
+        "answer_id": "1",
+        "answer_text": "Other (please indicate)",
+    })
+
+    output = tmp_path / "text-fields.html"
+    render_report(entities, output)
+    report = output.read_text(encoding="utf-8")
+
+    assert "<div class='field-answer text-field'><span class='field'>Other (please indicate)</span>" in report
+    assert "<div class='field-answer text-field'><span class='field'>Written response</span>" in report
+
+
+def test_mc_analytics_consolidates_options_and_includes_zero_counts(
+    tmp_path: Path, survey_files: tuple[Path, Path]
+) -> None:
+    entities = parse_survey(*survey_files)
+    question = next(item for item in entities.questions if item["question_id"] == "QID18")
+    question["selector"] = "MAVR"
+    entities.answer_options.extend([
+        {"survey_id": "SV_SAMPLE", "question_id": "QID18", "answer_id": "1", "answer_text": "Robot"},
+        {"survey_id": "SV_SAMPLE", "question_id": "QID18", "answer_id": "2", "answer_text": "Human"},
+        {"survey_id": "SV_SAMPLE", "question_id": "QID18", "answer_id": "3", "answer_text": "Not selected"},
+    ])
+
+    output = tmp_path / "mc-analytics.html"
+    render_report(entities, output)
+    report = output.read_text(encoding="utf-8")
+    analytics = report.split("<details class='question-analysis' data-survey='SV_SAMPLE' data-question='QID18'>", 1)[
+        1
+    ].split("</details>", 1)[0]
+
+    assert analytics.count(">Robot</span>") == 1
+    assert analytics.count(">Human</span>") == 1
+    assert analytics.count(">Not selected</span>") == 1
+    assert "<b>1</b><small>50%</small>" in analytics
+    assert "<b>0</b><small>0%</small>" in analytics
+    assert "Selected Choice" not in analytics
+
+
 def test_parse_multiple_csv_files(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
     source = survey_files[0]
     first_path = tmp_path / "first.csv"
@@ -146,3 +204,72 @@ def test_discovers_matching_qsf_beside_csv(tmp_path: Path, survey_files: tuple[P
     assert survey["survey_id"] == "SV_SAMPLE"
     assert qid37["question_role"] == "metadata"
     assert qid37["block_name"] == "Instructions"
+
+
+def test_parse_survey_accepts_response_export_zip(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
+    zip_path = tmp_path / "automatic.zip"
+    qsf_path = tmp_path / "automatic.qsf"
+    qsf_path.write_bytes(survey_files[1].read_bytes())
+    with ZipFile(zip_path, "w", ZIP_DEFLATED) as archive:
+        archive.write(survey_files[0], "nested/survey responses.csv")
+
+    entities = parse_survey(zip_path)
+
+    assert entities.surveys[0]["survey_id"] == "SV_SAMPLE"
+    assert len(entities.responses) == 2
+
+
+def test_response_export_zip_requires_one_csv(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
+    zip_path = tmp_path / "ambiguous.zip"
+    with ZipFile(zip_path, "w", ZIP_DEFLATED) as archive:
+        archive.write(survey_files[0], "first.csv")
+        archive.write(survey_files[0], "second.csv")
+
+    try:
+        parse_survey(zip_path)
+    except ValueError as error:
+        assert "exactly one CSV" in str(error)
+    else:
+        raise AssertionError("Expected an ambiguous response ZIP to be rejected")
+
+
+def test_parse_survey_accepts_api_definition_wrapper(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
+    native_definition = json.loads(survey_files[1].read_text(encoding="utf-8"))
+    questions = {
+        element["PrimaryAttribute"]: element["Payload"]
+        for element in native_definition["SurveyElements"]
+        if element["Element"] == "SQ"
+    }
+    questions["QID30"]["Choices"] = {
+        "1": {"Display": "Robot"},
+        "2": {"Display": "Human"},
+    }
+    questions["QID18"]["Choices"] = [{"Display": "Robot"}, {"Display": "Human"}]
+    questions["QID18"]["ChoiceOrder"] = ["R", "H"]
+    blocks = next(element["Payload"] for element in native_definition["SurveyElements"] if element["Element"] == "BL")
+    definition_path = tmp_path / "definition.qsf"
+    definition_path.write_text(
+        json.dumps({
+            "survey_id": "SV_SAMPLE",
+            "survey_name": None,
+            "payload": {
+                "SurveyID": "SV_SAMPLE",
+                "SurveyName": "API definition survey",
+                "SurveyStatus": "Active",
+                "Questions": questions,
+                "Blocks": blocks,
+            },
+        }),
+        encoding="utf-8",
+    )
+
+    entities = parse_survey(survey_files[0], definition_path)
+
+    assert entities.surveys[0]["survey_name"] == "API definition survey"
+    assert len(entities.sections) == 3
+    assert next(item for item in entities.questions if item["question_id"] == "QID30")["question_type"] == "MC"
+    assert [item["answer_text"] for item in entities.answer_options if item["question_id"] == "QID30"] == [
+        "Robot",
+        "Human",
+    ]
+    assert [item["answer_id"] for item in entities.answer_options if item["question_id"] == "QID18"] == ["R", "H"]

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import contextlib
 import html
+import re
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,32 @@ from typing import Any
 from ..analytics import analyze_entities
 from ..models.entities import EntitySet
 from .assets import load_asset
+
+
+def _normalized_label(value: object) -> str:
+    return " ".join(str(value or "").split()).casefold()
+
+
+def _display_field_label(
+    field: dict[str, Any],
+    question: dict[str, Any],
+    answer_options: dict[tuple[str, str, str], dict[str, Any]],
+) -> str:
+    label = str(field.get("field_text") or field.get("field_id") or "Answer")
+    if not field.get("is_text_field"):
+        return label
+
+    suffix = str(field.get("source_field_suffix") or "")
+    option_match = re.fullmatch(r"(.+)_TEXT", suffix, flags=re.IGNORECASE)
+    if option_match:
+        option = answer_options.get((str(field.get("survey_id")), str(field.get("question_id")), option_match.group(1)))
+        if option and option.get("answer_text"):
+            label = str(option["answer_text"])
+    label = re.sub(r"\s*-\s*Text\s*$", "", label, flags=re.IGNORECASE).strip()
+    question_text = str(question.get("question_text") or "")
+    if not label or _normalized_label(label) == _normalized_label(question_text):
+        return "Written response"
+    return label
 
 
 def render_report(entities: EntitySet, output: str | Path) -> None:
@@ -23,6 +50,13 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
     response_questions = analysis.response_questions
     question_responses = analysis.question_responses
     question_answers = analysis.question_answers
+    answer_options = {
+        (str(option["survey_id"]), str(option["question_id"]), str(option["answer_id"])): option
+        for option in entities.answer_options
+    }
+    question_options: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for option in entities.answer_options:
+        question_options.setdefault((str(option["survey_id"]), str(option["question_id"])), []).append(option)
     unanswered_questions = analysis.unanswered_questions
     unused_fields = analysis.unused_fields
     unused_options = analysis.unused_options
@@ -135,6 +169,44 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             rows.append(f"<p class='meta'>Other values: {hidden_count:,}</p>")
         return "".join(rows) or "<p class='meta'>No values observed.</p>"
 
+    def option_distribution(
+        observed_answers: list[dict[str, Any]],
+        defined_options: list[dict[str, Any]],
+        denominator: int,
+    ) -> str:
+        aliases = {
+            str(alias).casefold(): str(option["answer_id"])
+            for option in defined_options
+            for alias in (option["answer_id"], option["answer_text"])
+        }
+        labels = {str(option["answer_id"]): str(option["answer_text"]) for option in defined_options}
+        selections: set[tuple[str, str]] = set()
+        unknown_labels: dict[str, str] = {}
+        for answer in observed_answers:
+            raw_value = str(answer["answer_text"])
+            option_id = aliases.get(raw_value.casefold())
+            if option_id is None:
+                option_id = f"unknown:{raw_value.casefold()}"
+                unknown_labels.setdefault(option_id, raw_value)
+            selections.add((str(answer["response_id"]), option_id))
+        counts = Counter(option_id for _, option_id in selections)
+        option_ids = [str(option["answer_id"]) for option in defined_options]
+        option_ids.extend(
+            option_id for option_id, _ in sorted(unknown_labels.items(), key=lambda item: item[1].casefold())
+        )
+        rows = []
+        for option_id in option_ids:
+            label = labels.get(option_id) or unknown_labels[option_id]
+            count = counts[option_id]
+            rate = count / denominator * 100 if denominator else 0
+            zero_class = " option-zero" if not count else ""
+            rows.append(
+                f"<div class='distribution-row option-row{zero_class}'><span title='{html.escape(label, quote=True)}'>"
+                f"{html.escape(label)}</span><div class='distribution-bar'><i style='width:{min(rate, 100):.1f}%'></i>"
+                f"</div><b>{count:,}</b><small>{rate:.0f}%</small></div>"
+            )
+        return "".join(rows) or "<p class='meta'>No answer options defined or observed.</p>"
+
     question_analytics = []
     categorical_types = {"MC", "MATRIX", "SBS", "DD", "DRILLDOWN", "RO", "RANKORDER"}
     numeric_types = {"SLIDER", "CS", "CONSTANTSUM"}
@@ -148,21 +220,66 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         question_response_total = survey_response_counts.get(str(key[0]), 0)
         coverage = respondent_count / question_response_total * 100 if question_response_total else 0
         field_groups: dict[str, list[str]] = {}
+        answers_by_field: dict[str, list[dict[str, Any]]] = {}
         for answer in observed:
-            field_groups.setdefault(str(answer["field_id"]), []).append(str(answer["answer_text"]))
+            field_id = str(answer["field_id"])
+            field_groups.setdefault(field_id, []).append(str(answer["answer_text"]))
+            answers_by_field.setdefault(field_id, []).append(answer)
+        categorical_observed = [
+            answer
+            for answer in observed
+            if not fields.get((key[0], key[1], str(answer["field_id"])), {}).get("is_text_field")
+        ]
+        value_count = len(categorical_observed) if question_type == "MC" else len(observed)
+        value_label = "selections" if question_type == "MC" else "values"
         summary = (
             f"<span><b>{respondent_count:,}</b> respondents</span>"
             f"<span><b>{coverage:.0f}%</b> coverage</span>"
-            f"<span><b>{len(observed):,}</b> values</span>"
+            f"<span><b>{value_count:,}</b> {value_label}</span>"
         )
         bodies = []
-        if question_type == "TE":
+        if question_type == "MC":
+            defined_options = question_options.get(key, [])
+            choice_field_ids = [
+                field_id
+                for field_id in field_groups
+                if not fields.get((key[0], key[1], field_id), {}).get("is_text_field")
+            ]
+            if selector.upper().startswith("MA"):
+                bodies.append(
+                    "<div class='field-analysis option-analysis'>"
+                    + option_distribution(categorical_observed, defined_options, respondent_count)
+                    + "</div>"
+                )
+            else:
+                for field_id in choice_field_ids:
+                    field_definition = fields.get((key[0], key[1], field_id), {})
+                    field_label = _display_field_label(field_definition, question, answer_options)
+                    heading = f"<h4>{html.escape(field_label)}</h4>" if len(choice_field_ids) > 1 else ""
+                    bodies.append(
+                        f"<div class='field-analysis option-analysis'>{heading}"
+                        f"{option_distribution(answers_by_field[field_id], defined_options, respondent_count)}</div>"
+                    )
+            for field_id, values in field_groups.items():
+                field_definition = fields.get((key[0], key[1], field_id), {})
+                if not field_definition.get("is_text_field"):
+                    continue
+                field_label = _display_field_label(field_definition, question, answer_options)
+                content = (
+                    f"<p class='meta'>{len(values):,} written responses · {len(set(values)):,} unique. "
+                    "Most frequent values:</p>" + distribution(values, len(values))
+                )
+                bodies.append(
+                    f"<div class='field-analysis text-analysis'><h4>{html.escape(field_label)}</h4>{content}</div>"
+                )
+        elif question_type == "TE":
             for field_id, values in field_groups.items():
                 numeric_values = []
                 for value in values:
                     with contextlib.suppress(ValueError):
                         numeric_values.append(float(value.replace(",", "")))
-                field_label = fields.get((key[0], key[1], field_id), {}).get("field_text") or field_id
+                field_definition = fields.get((key[0], key[1], field_id), {})
+                field_label = _display_field_label(field_definition, question, answer_options)
                 heading = f"<h4>{html.escape(str(field_label))}</h4>" if len(field_groups) > 1 else ""
                 if values and len(numeric_values) / len(values) >= 0.8:
                     content = (
@@ -183,7 +300,8 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
                 for value in values:
                     with contextlib.suppress(ValueError):
                         numeric_values.append(float(value.replace(",", "")))
-                field_label = fields.get((key[0], key[1], field_id), {}).get("field_text") or field_id
+                field_definition = fields.get((key[0], key[1], field_id), {})
+                field_label = _display_field_label(field_definition, question, answer_options)
                 if numeric_values:
                     bodies.append(
                         f"<div class='field-analysis'><h4>{html.escape(str(field_label))}</h4>"
@@ -193,7 +311,8 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
                     )
         else:
             for field_id, values in field_groups.items():
-                field_label = fields.get((key[0], key[1], field_id), {}).get("field_text") or field_id
+                field_definition = fields.get((key[0], key[1], field_id), {})
+                field_label = _display_field_label(field_definition, question, answer_options)
                 show_field = len(field_groups) > 1 or question_type in categorical_types
                 heading = f"<h4>{html.escape(str(field_label))}</h4>" if show_field else ""
                 bodies.append(f"<div class='field-analysis'>{heading}{distribution(values, len(values))}</div>")
@@ -290,9 +409,10 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             block_name = str(q.get("block_name") or "")
             field_rows = []
             for answer, field_definition in grouped_answers:
-                field_label = field_definition.get("field_text") or field_definition.get("field_id") or "Answer"
+                field_label = _display_field_label(field_definition, q, answer_options)
+                text_class = " text-field" if field_definition.get("is_text_field") else ""
                 field_rows.append(
-                    f"<div class='field-answer'><span class='field'>{html.escape(str(field_label))}</span>"
+                    f"<div class='field-answer{text_class}'><span class='field'>{html.escape(field_label)}</span>"
                     f"<span class='value'>{html.escape(str(answer['answer_text']))}</span></div>"
                 )
             question_meta = " · ".join(

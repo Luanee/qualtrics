@@ -21,6 +21,8 @@
         .type{color:var(--muted);background:var(--wash);border-radius:999px;padding:.12rem .45rem;font-size:.7rem}
         .field-answer{display:grid;grid-template-columns:minmax(150px,34%) 1fr;gap:1rem;padding:.4rem 0}
         .field{color:var(--muted);font-size:.82rem;overflow-wrap:anywhere}.value{white-space:pre-wrap;overflow-wrap:anywhere}
+        .text-field .field{font-weight:700;color:#475569}.text-field .value{border-left:3px solid #93b4ff;
+        background:#f8faff;border-radius:0 8px 8px 0;padding:.55rem .7rem}
         .no-selected{margin:.7rem 1rem;padding:.8rem;border-radius:9px;background:var(--wash);color:var(--muted);
         font-size:.82rem;text-align:center}
         nav{display:flex;gap:.5rem;margin:1.3rem 0}nav a{text-decoration:none;color:var(--brand);
@@ -47,6 +49,7 @@
         .field-analysis h4{margin:0 0 .5rem}.distribution-row{display:grid;grid-template-columns:minmax(120px,26%) 1fr 55px 45px;
         gap:.65rem;align-items:center;padding:.28rem 0}.distribution-row>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .distribution-row b,.distribution-row small{text-align:right}.distribution-row small{color:var(--muted)}
+        .option-zero{opacity:.58}.option-zero .distribution-bar i{min-width:0}
         .distribution-bar{height:9px;background:#e8eef8;border-radius:999px;overflow:hidden}.distribution-bar i{display:block;
         height:100%;background:linear-gradient(90deg,#155eef,#65a2ff);border-radius:999px}.numeric-summary{display:grid;
         grid-template-columns:repeat(3,1fr);gap:.7rem}.numeric-summary span{background:var(--wash);padding:.7rem;border-radius:9px;
