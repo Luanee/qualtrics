@@ -18,10 +18,18 @@ def main(
         for survey in client.surveys.iter():
             typer.echo(f"{survey.id}\t{survey.name}")
         if survey_id:
+            definition = client.survey_definitions.get(survey_id)
+            definition_file = output / f"{survey_id}.qsf"
+            output.mkdir(parents=True, exist_ok=True)
+            definition_file.write_text(definition.model_dump_json(indent=2), encoding="utf-8")
             result = client.responses.export(
                 survey_id,
                 output,
-                options=ResponseExportRequest(format="csv", use_labels=True),  # pyright: ignore[reportCallIssue]
+                options=ResponseExportRequest(
+                    format="csv",
+                    useLabels=True,
+                    newlineReplacement="//",
+                ),
                 naming=FilenameStrategy.SURVEY_ID,
             )
             typer.echo(f"Downloaded {result.path}")

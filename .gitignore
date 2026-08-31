@@ -199,3 +199,5 @@ pip-selfcheck.json
 # Repository maintenance scripts are source files, not virtualenv scripts.
 !/scripts/
 !/scripts/*.py
+
+data/
