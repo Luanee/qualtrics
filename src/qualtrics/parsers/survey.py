@@ -32,6 +32,30 @@ META = {
     "Duration (in seconds)",
 }
 
+RESPONSE_METADATA_COLUMNS = {
+    "Status": "status",
+    "IPAddress": "ip_address",
+    "Progress": "progress",
+    "Duration (in seconds)": "duration_seconds",
+    "RecipientLastName": "recipient_last_name",
+    "RecipientFirstName": "recipient_first_name",
+    "RecipientEmail": "recipient_email",
+    "ExternalReference": "external_reference",
+    "DistributionChannel": "distribution_channel",
+}
+
+BROWSER_METADATA_FIELDS = {
+    "BROWSER": "browser",
+    "VERSION": "browser_version",
+    "OS": "operating_system",
+    "RESOLUTION": "screen_resolution",
+    "USERAGENT": "user_agent",
+}
+
+
+def _optional_value(value: str | None) -> str | None:
+    return value if value is not None and value.strip() else None
+
 
 def _choice_items(definition: dict[str, object]) -> list[tuple[str, object]]:
     choices = definition.get("Choices") or {}
@@ -167,6 +191,13 @@ def _parse_survey_file(
             "is_text_field": bool(suffix and "TEXT" in suffix),
         })
     field_map = {row["field_id"]: row["question_id"] for row in entities.question_fields}
+    question_roles = {row["question_id"]: row["question_role"] for row in entities.questions}
+    browser_field_map = {
+        row["field_id"]: BROWSER_METADATA_FIELDS[row["source_field_suffix"]]
+        for row in entities.question_fields
+        if question_roles.get(row["question_id"]) == "metadata"
+        and row.get("source_field_suffix") in BROWSER_METADATA_FIELDS
+    }
     entities.question_catalog = list(
         {
             item["question_catalog_id"]: {
@@ -193,16 +224,25 @@ def _parse_survey_file(
         response_id = record.get("ResponseId", "")
         if not response_id:
             continue
-        entities.responses.append({
+        response = {
             "survey_id": sid,
             "response_id": response_id,
-            "started_at": record.get("StartDate"),
-            "ended_at": record.get("EndDate"),
-            "recorded_at": record.get("RecordedDate"),
-            "is_finished": record.get("Finished"),
-            "user_language": record.get("UserLanguage"),
-        })
+            "started_at": _optional_value(record.get("StartDate")),
+            "ended_at": _optional_value(record.get("EndDate")),
+            "recorded_at": _optional_value(record.get("RecordedDate")),
+            "is_finished": _optional_value(record.get("Finished")),
+            "user_language": _optional_value(record.get("UserLanguage")),
+            **{target: _optional_value(record.get(source)) for source, target in RESPONSE_METADATA_COLUMNS.items()},
+            **dict.fromkeys(BROWSER_METADATA_FIELDS.values()),
+        }
+        for column, target in browser_field_map.items():
+            value = _optional_value(record.get(column))
+            if value and not response[target]:
+                response[target] = value
+        entities.responses.append(response)
         for column, question_id in field_map.items():
+            if column in browser_field_map:
+                continue
             value = record.get(column, "")
             if value:
                 entities.response_answers.append({

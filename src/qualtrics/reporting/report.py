@@ -380,9 +380,23 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         response_survey_id = str(response["survey_id"])
         response_survey_name = str(survey_lookup.get(response_survey_id, {}).get("survey_name") or response_survey_id)
         response_answers = answers.get(key, [])
-        search_terms = [str(response["response_id"])]
+        stable_metadata = [
+            ("Browser", response.get("browser")),
+            ("Version", response.get("browser_version")),
+            ("Operating System", response.get("operating_system")),
+            ("Resolution", response.get("screen_resolution")),
+            ("User Agent", response.get("user_agent")),
+        ]
+        search_terms = [
+            str(response["response_id"]),
+            *(str(value) for _, value in stable_metadata if value),
+        ]
         rows = []
-        metadata_values = []
+        metadata_values = [
+            f"<span><b>{html.escape(label)}</b> {html.escape(str(value))}</span>"
+            for label, value in stable_metadata
+            if value
+        ]
         grouped_response_answers: dict[str, list[tuple[dict[str, Any], dict[str, Any]]]] = {}
         for answer in response_answers:
             q = questions.get((answer["survey_id"], answer["question_id"]), {})
