@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
+      actions: write
       contents: write
     outputs:
       created: ${{ steps.release.outputs.created }}
@@ -78,15 +79,9 @@ jobs:
             --notes-file "$NOTES_PATH"
           echo "created=true" >> "$GITHUB_OUTPUT"
 
-  publish:
-    name: Publish release
-    needs: create-release
-    if: needs.create-release.outputs.created == 'true'
-    permissions:
-      attestations: write
-      contents: read
-      id-token: write
-    uses: ./.github/workflows/publish.yml
-    with:
-      release_tag: ${{ needs.create-release.outputs.tag }}
-    secrets: inherit
+      - name: Dispatch publication workflow
+        if: steps.release.outputs.created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.metadata.outputs.tag }}
+        run: gh workflow run publish.yml --ref main --field release_tag="$RELEASE_TAG"
