@@ -300,11 +300,16 @@ before commits; the complete pytest suite additionally runs before pushes.
 
 Run the **Prepare Release** workflow from GitHub Actions and choose a patch,
 minor, or major bump. The workflow updates `pyproject.toml` and `uv.lock`,
-prepends a dated section to [`release-notes.md`](release-notes.md), validates the
-package, and opens a release pull request. After merging it, publish a GitHub
-release using the matching `vX.Y.Z` tag; the **Publish** workflow then verifies
-the tag, builds and attests the distributions, and publishes them through the
-PyPI `pypi` environment.
+prepends a dated section to [`release-notes.md`](release-notes.md) containing the
+merged pull requests since the previous tag, validates the package, and opens a
+release pull request. Merging that labeled pull request automatically creates
+the matching `vX.Y.Z` tag and GitHub Release using only the new version's notes.
+The release pipeline then verifies the tag, builds and attests the distributions,
+and publishes them through the PyPI `pypi` environment.
+
+Release-note entries use the pull-request title and attribution format
+`<icon> <title>. PR <number> by <author>.` Direct commits are deliberately not
+included, so user-facing changes should reach `main` through pull requests.
 
 ## Examples
 
