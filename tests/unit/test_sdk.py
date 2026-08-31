@@ -19,6 +19,7 @@ def test_client_is_exported_at_package_root() -> None:
 def test_client_reads_environment_and_explicit_values_override(monkeypatch) -> None:
     monkeypatch.setenv("QUALTRICS_API_TOKEN", "environment-token")
     monkeypatch.setenv("QUALTRICS_DATA_CENTER", "fra1")
+    monkeypatch.setenv("QUALTRICS_BASE_URL", "")
 
     with QualtricsClient() as environment_client:
         assert environment_client._http.headers["X-API-TOKEN"] == "environment-token"
@@ -27,6 +28,21 @@ def test_client_reads_environment_and_explicit_values_override(monkeypatch) -> N
     with QualtricsClient(api_token="explicit-token", data_center="ca1") as explicit_client:
         assert explicit_client._http.headers["X-API-TOKEN"] == "explicit-token"
         assert str(explicit_client._http.base_url) == "https://ca1.qualtrics.com/API/v3/"
+
+
+def test_client_reads_dotenv_settings(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("QUALTRICS_API_TOKEN", raising=False)
+    monkeypatch.delenv("QUALTRICS_DATA_CENTER", raising=False)
+    monkeypatch.delenv("QUALTRICS_BASE_URL", raising=False)
+    (tmp_path / ".env").write_text(
+        "QUALTRICS_API_TOKEN=dotenv-token\nQUALTRICS_BASE_URL=https://example.qualtrics.com/API/v3\n",
+        encoding="utf-8",
+    )
+
+    with QualtricsClient() as client:
+        assert client._http.headers["X-API-TOKEN"] == "dotenv-token"
+        assert str(client._http.base_url) == "https://example.qualtrics.com/API/v3/"
 
 
 def test_export_responses_with_survey_id_filename(tmp_path: Path) -> None:
@@ -94,6 +110,23 @@ def test_surveys_crud_paths_and_update_model() -> None:
         client.surveys.update("SV_1", SurveyUpdateRequest(name="Renamed", isActive=True))
 
     assert seen == [("GET", "/API/v3/surveys/SV_1"), ("PUT", "/API/v3/surveys/SV_1")]
+
+
+def test_survey_definition_reads_direct_api_metadata() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/API/v3/survey-definitions/SV_1"
+        return httpx.Response(
+            200,
+            json={"result": {"SurveyID": "SV_1", "SurveyName": "Annual", "Questions": {}, "Blocks": {}}},
+        )
+
+    with QualtricsClient(
+        "token", base_url="https://example.test/API/v3", transport=httpx.MockTransport(handler)
+    ) as client:
+        definition = client.survey_definitions.get("SV_1")
+
+    assert definition.survey_id == "SV_1"
+    assert definition.survey_name == "Annual"
 
 
 def test_response_filters_and_imports(tmp_path: Path) -> None:
