@@ -56,6 +56,7 @@ jobs:
         id: release
         env:
           BUMP: ${{ inputs.bump }}
+          GH_TOKEN: ${{ github.token }}
           INPUT_DATE: ${{ inputs.date }}
           REPOSITORY: ${{ github.repository }}
         run: |
@@ -66,11 +67,11 @@ jobs:
           version="$(uv version --short)"
           printf '__version__ = "%s"\n' "$version" > "$PREPARE_RELEASE_RUNTIME_VERSION_FILE"
           latest_tag="$(git describe --tags --abbrev=0 2>/dev/null || true)"
-          args=(--version "$version" --date "$release_date" --repository "$REPOSITORY")
+          args=(generate --version "$version" --date "$release_date" --repository "$REPOSITORY")
           if [[ -n "$latest_tag" ]]; then
             args+=(--from-ref "$latest_tag")
           fi
-          uv run --no-project python scripts/prepare_release.py "${args[@]}"
+          uv run python scripts/prepare_release.py "${args[@]}"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "date=$release_date" >> "$GITHUB_OUTPUT"
 
