@@ -55,6 +55,7 @@ HTML report:
 
 ```bash
 uv run python examples/export_parse_and_report.py SV_123
+uv run python examples/export_parse_and_report.py SV_123 SV_456
 ```
 
 It creates:
@@ -163,6 +164,13 @@ response_answer
 Pipeline lineage such as an ingestion run ID belongs in the surrounding data
 platform, not in the parser entities.
 
+Each `responses` row contains the stable response metadata exported by
+Qualtrics: status, IP address, progress, duration, recipient details, external
+reference, distribution channel, language, and browser/device information.
+Browser Meta Info fields are promoted to the response row and are not repeated
+as answers. Repeating Timing fields remain in `response_answers`, where their
+question and concrete field identities are preserved.
+
 ## SDK and CLI
 
 ```python
@@ -181,8 +189,19 @@ Common CLI commands:
 uv run qualtrics api surveys
 uv run qualtrics api export SV_123 --output exports --labels
 uv run qualtrics api import SV_123 responses.csv
+uv run qualtrics entities combine exports/run-1 exports/run-2 --output combined
 uv run qualtrics report --folder entities --output report.html
+uv run qualtrics report --folder data --output combined-report.html
 ```
+
+`entities combine` accepts entity directories, survey directories containing an
+`entities/` directory, and batch roots containing multiple `<survey-id>/entities/`
+directories. Inputs may mix JSON, CSV, and Parquet files. Combined output uses
+Parquet by default; select another format with `--format json` or `--format csv`.
+
+The report command accepts repeated `--folder` options. It also discovers the
+`<survey-id>/entities/` directories created by the complete export example when
+its shared `data/` root is supplied.
 
 `client.surveys` covers survey CRUD. `client.survey_definitions` handles survey
 structure, `client.survey_quotas` reads quota progress and definitions, and
