@@ -141,7 +141,7 @@ def test_survey_quotas_list_and_iterate_pages() -> None:
                     }
                 },
             )
-        next_page = "https://example.test/API/v3/surveys/SV_1/quotas"
+        next_page = "https://example.test/API/v3/surveys/SV_1/quotas?offset=25"
         return httpx.Response(
             200,
             json={
@@ -175,7 +175,6 @@ def test_survey_quotas_list_and_iterate_pages() -> None:
     assert [quota.id for quota in quotas] == ["QO_1", "QO_2"]
     assert quotas[0].combinations[0].description == "Country is Germany"
     assert seen == [
-        "https://example.test/API/v3/surveys/SV_1/quotas?offset=25",
         "https://example.test/API/v3/surveys/SV_1/quotas?offset=25",
         "https://example.test/API/v3/surveys/SV_1/quotas",
         "https://example.test/API/v3/surveys/SV_1/quotas?offset=25",
