@@ -1,3 +1,4 @@
+import csv
 import json
 from copy import deepcopy
 from pathlib import Path
@@ -18,7 +19,7 @@ def test_sample_preserves_multifield_identity(tmp_path: Path, survey_files: tupl
     counts = {
         qid: sum(item["question_id"] == qid for item in entities.question_fields) for qid in ("QID18", "QID30", "QID37")
     }
-    assert counts == {"QID18": 10, "QID30": 6, "QID37": 4}
+    assert counts == {"QID18": 10, "QID30": 6, "QID37": 5}
     assert entities.question_catalog
     assert entities.question_field_catalog
     assert entities.sections
@@ -38,14 +39,38 @@ def test_sample_preserves_multifield_identity(tmp_path: Path, survey_files: tupl
     assert qid18["block_name"] == "Categorize faces"
     assert qid18["block_id"] == "BL_FACES"
     assert next(item["question_role"] for item in entities.questions if item["question_id"] == "QID37") == "metadata"
-    assert any(
-        item["question_id"] == "QID37" and item["field_id"] == "browser_Browser" for item in entities.response_answers
-    )
+    first_response = entities.responses[0]
+    assert first_response == {
+        "survey_id": "SV_SAMPLE",
+        "response_id": "R_1",
+        "started_at": "2026-01-01 10:00:00",
+        "ended_at": "2026-01-01 10:00:42",
+        "recorded_at": "2026-01-01 10:00:43",
+        "is_finished": "True",
+        "user_language": "EN",
+        "status": "0",
+        "ip_address": "192.0.2.1",
+        "progress": "100",
+        "duration_seconds": "42",
+        "recipient_last_name": "Lovelace",
+        "recipient_first_name": "Ada",
+        "recipient_email": "ada@example.test",
+        "external_reference": "EXT_1",
+        "distribution_channel": "anonymous",
+        "browser": "Chrome",
+        "browser_version": "120",
+        "operating_system": "TestOS",
+        "screen_resolution": "1920x1080",
+        "user_agent": "ExampleAgent/1.0",
+    }
+    assert not any(item["question_id"] == "QID37" for item in entities.response_answers)
     write_entities(entities, tmp_path, "json")
     loaded = load_entities(tmp_path)
+    assert loaded.responses[0]["browser"] == "Chrome"
     render_report(loaded, tmp_path / "report.html")
     report = (tmp_path / "report.html").read_text()
     assert "<b>Browser</b>" in report
+    assert "<b>User Agent</b> ExampleAgent/1.0" in report
     assert "value='QID37'" not in report
     assert not any(item["question_id"] == "QID37" for item in entities.answer_options)
     assert "class='question-menu' hidden" in report
@@ -74,6 +99,65 @@ def test_sample_preserves_multifield_identity(tmp_path: Path, survey_files: tupl
     assert "Multiple choice" in report
     assert "class='question-choice'" in report
     assert "response-meta" in report
+
+
+def test_blank_optional_response_metadata_is_null(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
+    source_path, definition_path = survey_files
+    rows = list(csv.reader(source_path.open(encoding="utf-8", newline="")))
+    optional_columns = {
+        "StartDate",
+        "EndDate",
+        "Status",
+        "IPAddress",
+        "Progress",
+        "Finished",
+        "RecordedDate",
+        "RecipientLastName",
+        "RecipientFirstName",
+        "RecipientEmail",
+        "ExternalReference",
+        "DistributionChannel",
+        "UserLanguage",
+        "Duration (in seconds)",
+        "browser_Browser",
+        "browser_Version",
+        "browser_Operating System",
+        "browser_Resolution",
+        "browser_User Agent",
+    }
+    for index, column in enumerate(rows[0]):
+        if column in optional_columns:
+            rows[3][index] = ""
+    blank_path = tmp_path / "blank-metadata.csv"
+    with blank_path.open("w", encoding="utf-8", newline="") as handle:
+        csv.writer(handle).writerows(rows)
+
+    response = parse_survey(blank_path, definition_path).responses[0]
+
+    assert response["response_id"] == "R_1"
+    assert response == {
+        "survey_id": "SV_SAMPLE",
+        "response_id": "R_1",
+        "started_at": None,
+        "ended_at": None,
+        "recorded_at": None,
+        "is_finished": None,
+        "user_language": None,
+        "status": None,
+        "ip_address": None,
+        "progress": None,
+        "duration_seconds": None,
+        "recipient_last_name": None,
+        "recipient_first_name": None,
+        "recipient_email": None,
+        "external_reference": None,
+        "distribution_channel": None,
+        "browser": None,
+        "browser_version": None,
+        "operating_system": None,
+        "screen_resolution": None,
+        "user_agent": None,
+    }
 
 
 def test_combined_report_has_survey_selector(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
