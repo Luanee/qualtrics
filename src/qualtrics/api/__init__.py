@@ -3,6 +3,7 @@ from .domains import (
     ResponseExportsAPI,
     ResponseImportsExportsAPI,
     SurveyDefinitionsAPI,
+    SurveyQuotasAPI,
     SurveysAPI,
 )
 from .exceptions import QualtricsAPIError, QualtricsError, QualtricsExportError
@@ -18,6 +19,9 @@ from .models import (
     ResponseImportRequest,
     SurveyDefinition,
     SurveyPage,
+    SurveyQuota,
+    SurveyQuotaCombination,
+    SurveyQuotaPage,
     SurveySummary,
     SurveyUpdateRequest,
 )
@@ -43,6 +47,10 @@ __all__ = [
     "SurveyDefinitionsAPI",
     "SurveyDefinition",
     "SurveyPage",
+    "SurveyQuota",
+    "SurveyQuotaCombination",
+    "SurveyQuotaPage",
+    "SurveyQuotasAPI",
     "SurveySummary",
     "SurveyUpdateRequest",
     "SurveysAPI",

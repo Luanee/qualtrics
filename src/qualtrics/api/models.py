@@ -41,6 +41,26 @@ class SurveyUpdateRequest(APIModel):
     owner_id: str | None = Field(default=None, alias="ownerId")
 
 
+class SurveyQuotaCombination(APIModel):
+    count: int
+    quota: int
+    description: str
+
+
+class SurveyQuota(APIModel):
+    id: str
+    name: str
+    count: int
+    quota: int
+    logic_type: str = Field(alias="logicType")
+    combinations: list[SurveyQuotaCombination] = Field(default_factory=list)
+
+
+class SurveyQuotaPage(APIModel):
+    elements: list[SurveyQuota] = Field(default_factory=list)
+    next_page: str | None = Field(default=None, alias="nextPage")
+
+
 class SurveyDefinition(APIModel):
     survey_id: str | None = Field(default=None, alias="SurveyID")
     survey_name: str | None = Field(default=None, alias="SurveyName")

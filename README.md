@@ -185,8 +185,16 @@ uv run qualtrics report --folder entities --output report.html
 ```
 
 `client.surveys` covers survey CRUD. `client.survey_definitions` handles survey
-structure, while `client.responses` handles imports, exports, progress, and
-saved response filters.
+structure, `client.survey_quotas` reads quota progress and definitions, and
+`client.responses` handles imports, exports, progress, and saved response
+filters.
+
+```python
+with QualtricsClient() as client:
+    page = client.survey_quotas.list("SV_123")
+    for quota in client.survey_quotas.iter("SV_123"):
+        print(quota.name, quota.count, quota.quota)
+```
 
 ## Development
 
