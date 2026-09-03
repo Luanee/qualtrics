@@ -20,7 +20,7 @@ REQUIRED_COLUMNS = {
     "question_catalog": {"question_catalog_id", "question_text", "canonical_question_type"},
     "question_field_catalog": {"question_field_catalog_id", "question_catalog_id", "field_text"},
     "questions": {"question_id", "question_external_id", "survey_id", "question_catalog_id"},
-    "answer_options": {"answer_option_id", "question_id", "answer_option_catalog_id"},
+    "answer_options": {"answer_option_id", "question_id"},
     "question_fields": {"question_field_id", "question_id", "question_field_catalog_id", "answer_value_type"},
     "responses": {"response_id", "response_external_id", "survey_id"},
     "response_answers": {
@@ -34,7 +34,6 @@ REQUIRED_COLUMNS = {
         "answer_text",
         "survey_id",
         "answer_option_id",
-        "answer_option_catalog_id",
         "answer_numeric",
         "answer_boolean",
         "is_selected",
@@ -52,7 +51,6 @@ RELATIONSHIPS = (
     ("question_fields", "question_catalog_id", "question_catalog", "question_catalog_id"),
     ("answer_options", "question_id", "questions", "question_id"),
     ("answer_options", "survey_id", "surveys", "survey_id"),
-    ("answer_options", "answer_option_catalog_id", "answer_options", "answer_option_catalog_id"),
     ("responses", "survey_id", "surveys", "survey_id"),
     ("response_answers", "response_id", "responses", "response_id"),
     ("response_answers", "survey_id", "surveys", "survey_id"),
@@ -61,7 +59,6 @@ RELATIONSHIPS = (
     ("response_answers", "question_catalog_id", "question_catalog", "question_catalog_id"),
     ("response_answers", "question_field_catalog_id", "question_field_catalog", "question_field_catalog_id"),
     ("response_answers", "answer_option_id", "answer_options", "answer_option_id"),
-    ("response_answers", "answer_option_catalog_id", "answer_options", "answer_option_catalog_id"),
 )
 
 
