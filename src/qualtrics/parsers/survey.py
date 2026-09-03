@@ -113,6 +113,7 @@ def _field_contract(field: dict[str, object], question_type: str, default_type: 
 
 
 def _apply_identity_contract(entities: EntitySet) -> None:
+    entities._present_entities = set(entities.__dataclass_fields__) - {"_present_entities"}
     sid = str(entities.surveys[0]["survey_id"])
     section_ids: dict[str, str] = {}
     for section in entities.sections:
