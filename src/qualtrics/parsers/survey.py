@@ -56,11 +56,23 @@ BROWSER_METADATA_FIELDS = {
 }
 
 
-def populate_typed_answer(answer: dict[str, object], options: dict[str, list[dict[str, object]]]) -> None:
+def populate_typed_answer(
+    answer: dict[str, object],
+    options: dict[str, list[dict[str, object]]],
+    *,
+    select_only_option: bool = False,
+) -> None:
     value = str(answer.get("answer_text") or "")
     value_type = str(answer.get("answer_value_type") or "unsupported")
     candidates = options.get(value.casefold(), [])
     option = candidates[0] if len(candidates) == 1 else None
+    if select_only_option and value:
+        unique_options = {
+            str(candidate["answer_option_id"]): candidate
+            for alias_candidates in options.values()
+            for candidate in alias_candidates
+        }
+        option = next(iter(unique_options.values())) if len(unique_options) == 1 else None
     answer["answer_option_id"] = option.get("answer_option_id") if option else None
     answer["answer_numeric"] = None
     answer["answer_boolean"] = None
@@ -216,6 +228,7 @@ def _apply_identity_contract(entities: EntitySet) -> None:
 
     question_ids: dict[str, str] = {}
     catalog_ids: dict[str, str] = {}
+    canonical_types: dict[str, str] = {}
     catalog_rows: dict[str, dict[str, object]] = {}
     raw_fields = {str(row["question_id"]): [] for row in entities.questions}
     for field in entities.question_fields:
@@ -251,6 +264,7 @@ def _apply_identity_contract(entities: EntitySet) -> None:
         internal_id = entity_id("question", sid, external_id)
         question_ids[external_id] = internal_id
         catalog_ids[external_id] = catalog_id
+        canonical_types[external_id] = resolved.canonical_question_type
         question["question_external_id"] = external_id
         question["question_id"] = internal_id
         question["question_catalog_id"] = catalog_id
@@ -364,7 +378,11 @@ def _apply_identity_contract(entities: EntitySet) -> None:
         answer["question_field_catalog_id"] = field["question_field_catalog_id"]
         answer["answer_value_type"] = field["answer_value_type"]
         answer["response_answer_id"] = entity_id("response-answer", answer["response_id"], answer["question_field_id"])
-        populate_typed_answer(answer, option_lookup.get(str(answer["question_field_id"]), {}))
+        populate_typed_answer(
+            answer,
+            option_lookup.get(str(answer["question_field_id"]), {}),
+            select_only_option=canonical_types[external_question_id] == "multiple_choice_multiple",
+        )
 
 
 def _optional_value(value: str | None) -> str | None:

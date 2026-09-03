@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 from pathlib import Path
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
 
@@ -36,7 +37,7 @@ def definition_answer_files(tmp_path: Path) -> tuple[Path, Path]:
         {"ImportId": "QID4"},
         {"ImportId": "QID5"},
     ]
-    response = ["R1", "Red", "Fast", "", "because", "Good", "Bad", "free text", "73"]
+    response = ["R1", "Red", "Selected", "", "because", "Good", "Bad", "free text", "73"]
     with csv_path.open("w", encoding="utf-8", newline="") as handle:
         csv.writer(handle).writerows([columns, headers, [json.dumps(item) for item in metadata], response])
 
@@ -160,3 +161,61 @@ def test_matrix_answers_are_materialized_for_each_row_in_answer_order(
 def test_text_and_slider_fields_have_no_answer_options(definition_answer_files: tuple[Path, Path]) -> None:
     entities = parse_survey(*definition_answer_files)
     assert not [row for row in entities.answer_options if row["question_external_id"] in {"QID4", "QID5"}]
+
+
+def test_responses_resolve_only_against_their_field_domain(
+    definition_answer_files: tuple[Path, Path],
+) -> None:
+    entities = parse_survey(*definition_answer_files)
+    fields = {str(row["field_external_id"]): row for row in entities.question_fields}
+    options = {str(row["answer_option_id"]): row for row in entities.answer_options}
+    answers = {str(row["field_external_id"]): row for row in entities.response_answers}
+
+    assert options[str(answers["QID1"]["answer_option_id"])]["answer_id"] == "1"
+    assert options[str(answers["one"]["answer_option_id"])]["answer_id"] == "1"
+    assert options[str(answers["matrix_one"]["answer_option_id"])]["answer_id"] == "3"
+    assert options[str(answers["matrix_two"]["answer_option_id"])]["answer_id"] == "1"
+    assert answers["two_TEXT"]["answer_option_id"] is None
+    assert answers["QID4"]["answer_option_id"] is None
+    assert answers["QID5"]["answer_option_id"] is None
+    assert answers["one"]["question_field_id"] == fields["one"]["question_field_id"]
+
+
+def test_unknown_and_ambiguous_values_remain_raw(
+    definition_answer_files: tuple[Path, Path],
+) -> None:
+    csv_path, qsf_path = definition_answer_files
+    rows = list(csv.reader(csv_path.open(encoding="utf-8")))
+    rows[3][1] = "Same"
+    with csv_path.open("w", encoding="utf-8", newline="") as handle:
+        csv.writer(handle).writerows(rows)
+    qsf = json.loads(qsf_path.read_text(encoding="utf-8"))
+    question = next(item["Payload"] for item in qsf["SurveyElements"] if item.get("PrimaryAttribute") == "QID1")
+    question["Choices"]["1"]["Display"] = "Same"
+    question["Choices"]["2"]["Display"] = "Same"
+    qsf_path.write_text(json.dumps(qsf), encoding="utf-8")
+
+    answer = next(
+        row for row in parse_survey(csv_path, qsf_path).response_answers if row["field_external_id"] == "QID1"
+    )
+    assert answer["answer_text"] == "Same"
+    assert answer["answer_option_id"] is None
+
+
+def test_csv_and_zip_produce_identical_entities(definition_answer_files: tuple[Path, Path], tmp_path: Path) -> None:
+    csv_path, qsf_path = definition_answer_files
+    zip_path = tmp_path / "answers.zip"
+    with ZipFile(zip_path, "w", ZIP_DEFLATED) as archive:
+        archive.write(csv_path, csv_path.name)
+
+    csv_entities = parse_survey(csv_path, qsf_path)
+    zip_entities = parse_survey(zip_path, qsf_path)
+    assert zip_entities == csv_entities
+
+
+def test_option_identity_is_scoped_to_survey_and_field(definition_answer_files: tuple[Path, Path]) -> None:
+    first = parse_survey(*definition_answer_files, survey_id="SV_FIRST")
+    second = parse_survey(*definition_answer_files, survey_id="SV_SECOND")
+    assert {row["answer_option_id"] for row in first.answer_options}.isdisjoint({
+        row["answer_option_id"] for row in second.answer_options
+    })
