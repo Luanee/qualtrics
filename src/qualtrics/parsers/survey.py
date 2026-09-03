@@ -74,17 +74,18 @@ def populate_typed_answer(answer: dict[str, object], options: dict[str, list[dic
 
 def _question_structure(definition: dict[str, object], fields: list[dict[str, object]]) -> dict[str, object]:
     """Keep respondent-visible compound structure while excluding QSF presentation noise."""
-    structural_keys = (
-        "Choices",
-        "Answers",
-        "AdditionalQuestions",
-        "ChoiceOrder",
-        "AnswerOrder",
-        "ChoiceDataExportTags",
-        "VariableNaming",
-    )
+    structural_keys = ("Choices", "Answers", "AdditionalQuestions")
+
+    def semantic_values(value: object) -> object:
+        if isinstance(value, dict):
+            values = [semantic_values(item) for item in value.values()]
+            return sorted(values, key=lambda item: json.dumps(canonicalize(item), sort_keys=True))
+        if isinstance(value, list):
+            return [semantic_values(item) for item in value]
+        return value
+
     return {
-        "definition": {key: definition[key] for key in structural_keys if key in definition},
+        "definition": {key: semantic_values(definition[key]) for key in structural_keys if key in definition},
         "fields": [
             {
                 "text": field.get("field_text"),
@@ -193,10 +194,19 @@ def _apply_identity_contract(entities: EntitySet) -> None:
 
     option_lookup: dict[str, dict[str, list[dict[str, object]]]] = {}
     for option in entities.answer_options:
-        aliases = (str(option["answer_id"]), str(option.get("answer_text") or ""))
+        aliases = (
+            str(option["answer_id"]),
+            str(option.get("answer_text") or ""),
+            str(option.get("answer_recode") or ""),
+            str(option.get("answer_export_tag") or ""),
+        )
         lookup = option_lookup.setdefault(str(option["question_id"]), {})
         for alias in aliases:
-            lookup.setdefault(alias.casefold(), []).append(option)
+            if not alias:
+                continue
+            candidates = lookup.setdefault(alias.casefold(), [])
+            if all(candidate["answer_option_id"] != option["answer_option_id"] for candidate in candidates):
+                candidates.append(option)
 
     field_ids: dict[str, str] = {}
     field_catalog_rows: dict[str, dict[str, object]] = {}
@@ -209,7 +219,12 @@ def _apply_identity_contract(entities: EntitySet) -> None:
         value_type = str(field["answer_value_type"])
         catalog_id = semantic_id(
             "question-field",
-            {"question": catalog_ids[external_question_id], "text": field.get("field_text"), "value_type": value_type},
+            {
+                "question": catalog_ids[external_question_id],
+                "text": field.get("field_text"),
+                "role": field.get("field_role"),
+                "value_type": value_type,
+            },
         )
         field_ids[external_id] = internal_id
         field["question_external_id"] = external_question_id
@@ -226,7 +241,11 @@ def _apply_identity_contract(entities: EntitySet) -> None:
             "question_catalog_id": catalog_ids[external_question_id],
             "field_text": field.get("field_text"),
             "normalized_field_content": json.dumps(
-                canonicalize({"text": field.get("field_text"), "value_type": value_type}),
+                canonicalize({
+                    "text": field.get("field_text"),
+                    "role": field.get("field_role"),
+                    "value_type": value_type,
+                }),
                 ensure_ascii=False,
                 sort_keys=True,
             ),
@@ -267,7 +286,7 @@ def _optional_value(value: str | None) -> str | None:
 
 
 def _choice_items(definition: dict[str, object]) -> list[tuple[str, object]]:
-    choices = definition.get("Choices") or {}
+    choices = definition.get("Answers") or definition.get("Choices") or {}
     if isinstance(choices, dict):
         return [(str(option_id), option) for option_id, option in choices.items()]
     if isinstance(choices, list):
@@ -379,11 +398,15 @@ def _parse_survey_file(
             # Meta Info and Timing choices describe captured fields, not respondent
             # answer options. Treating them as options creates false "unused" alerts.
             for option_id, option in _choice_items(definition) if role == "response" else []:
+                recodes = definition.get("RecodeValues") or {}
+                export_tags = definition.get("ChoiceDataExportTags") or {}
                 entities.answer_options.append({
                     "survey_id": sid,
                     "question_id": question_id,
                     "answer_id": str(option_id),
                     "answer_text": _clean(option.get("Display") if isinstance(option, dict) else option),
+                    "answer_recode": recodes.get(str(option_id)) if isinstance(recodes, dict) else None,
+                    "answer_export_tag": export_tags.get(str(option_id)) if isinstance(export_tags, dict) else None,
                 })
             seen.add(question_id)
         suffix = (import_id.replace(question_id, "", 1).strip("_") or None) if import_id else None

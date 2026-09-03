@@ -66,8 +66,10 @@ def resolve_question_type(
             resolved = ("nps", "numeric")
         elif normalized_selector in {"mavr", "mahr", "macol", "mabox"}:
             resolved = ("multiple_choice_multiple", "categorical")
-        else:
+        elif normalized_selector in {"", "savr", "sahr", "sacol", "dropdown", "selectbox"}:
             resolved = ("multiple_choice_single", "categorical")
+        else:
+            resolved = ("unsupported", "unsupported")
     elif normalized_type == "te" and normalized_selector == "form":
         resolved = ("form_field", "text")
     elif normalized_type == "te" and normalized_selector == "calendar":

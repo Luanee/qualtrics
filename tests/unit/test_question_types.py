@@ -53,3 +53,9 @@ def test_unknown_type_is_lossless_and_unsupported() -> None:
     assert result.raw == ("FutureType", "NewSelector", "NewSub")
     assert result.canonical_question_type == "unsupported"
     assert result.answer_value_type == "unsupported"
+
+
+def test_unknown_multiple_choice_selector_is_not_guessed() -> None:
+    result = resolve_question_type("MC", "FutureSelector")
+    assert result.canonical_question_type == "unsupported"
+    assert result.raw == ("MC", "FutureSelector", None)
