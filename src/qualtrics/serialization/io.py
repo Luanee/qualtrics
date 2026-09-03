@@ -16,6 +16,11 @@ CSV_FIELD_TYPES: dict[str, dict[str, type[object]]] = {
         "source_column_index": int,
         "is_text_field": bool,
     },
+    "response_answers": {
+        "answer_numeric": float,
+        "answer_boolean": bool,
+        "is_selected": bool,
+    },
 }
 
 
