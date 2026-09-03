@@ -1,5 +1,7 @@
 # Qualtrics
 
+See the [entity and semantic model](docs/entity-model.md) and [DBML contract](docs/entity-model.dbml) for analytical use and Power BI relationships.
+
 [![Python](https://img.shields.io/pypi/pyversions/qualtrics?logo=python&logoColor=white)](https://pypi.org/project/qualtrics/)
 [![Ruff](https://img.shields.io/badge/code%20style-Ruff-D7FF64?logo=ruff&logoColor=261230)](https://docs.astral.sh/ruff/)
 [![Coverage](https://img.shields.io/badge/coverage-%E2%89%A575%25-brightgreen)](#development)

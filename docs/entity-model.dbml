@@ -1,0 +1,78 @@
+Table surveys {
+  survey_id varchar [pk]
+  survey_name varchar
+}
+
+Table sections {
+  section_id varchar [pk]
+  section_external_id varchar
+  survey_id varchar [not null, ref: > surveys.survey_id]
+}
+
+Table question_catalog {
+  question_catalog_id varchar [pk]
+  normalized_question_content varchar [not null]
+}
+
+Table question_field_catalog {
+  question_field_catalog_id varchar [pk]
+  question_catalog_id varchar [not null, ref: > question_catalog.question_catalog_id]
+  normalized_field_content varchar [not null]
+}
+
+Table questions {
+  question_id varchar [pk]
+  question_external_id varchar [not null]
+  survey_id varchar [not null, ref: > surveys.survey_id]
+  section_id varchar [ref: > sections.section_id]
+  question_catalog_id varchar [not null, ref: > question_catalog.question_catalog_id]
+  question_type varchar
+  selector varchar
+  sub_selector varchar
+  canonical_question_type varchar [not null]
+  answer_value_type varchar [not null]
+}
+
+Table answer_options {
+  answer_option_id varchar [pk]
+  answer_option_catalog_id varchar [not null]
+  answer_external_id varchar [not null]
+  question_id varchar [not null, ref: > questions.question_id]
+  survey_id varchar [not null, ref: > surveys.survey_id]
+  answer_text varchar
+}
+
+Table question_fields {
+  question_field_id varchar [pk]
+  field_external_id varchar [not null]
+  import_external_id varchar
+  survey_id varchar [not null, ref: > surveys.survey_id]
+  question_id varchar [not null, ref: > questions.question_id]
+  question_catalog_id varchar [not null, ref: > question_catalog.question_catalog_id]
+  question_field_catalog_id varchar [not null, ref: > question_field_catalog.question_field_catalog_id]
+  answer_value_type varchar [not null]
+}
+
+Table responses {
+  response_id varchar [pk]
+  response_external_id varchar [not null]
+  survey_id varchar [not null, ref: > surveys.survey_id]
+  recorded_at varchar
+}
+
+Table response_answers {
+  response_answer_id varchar [pk]
+  survey_id varchar [not null, ref: > surveys.survey_id]
+  response_id varchar [not null, ref: > responses.response_id]
+  question_id varchar [not null, ref: > questions.question_id]
+  question_catalog_id varchar [not null, ref: > question_catalog.question_catalog_id]
+  question_field_id varchar [not null, ref: > question_fields.question_field_id]
+  question_field_catalog_id varchar [not null, ref: > question_field_catalog.question_field_catalog_id]
+  answer_option_id varchar [ref: > answer_options.answer_option_id]
+  answer_option_catalog_id varchar
+  answer_text varchar [not null]
+  answer_numeric double
+  answer_boolean boolean
+  is_selected boolean
+  answer_value_type varchar [not null]
+}
