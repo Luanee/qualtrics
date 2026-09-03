@@ -8,6 +8,7 @@ from qualtrics.models.question_types import resolve_question_type
     [
         ("MC", "SAVR", "multiple_choice_single", "categorical"),
         ("MC", "MAVR", "multiple_choice_multiple", "categorical"),
+        ("MC", "MAHR", "multiple_choice_multiple", "categorical"),
         ("MC", "NPS", "nps", "numeric"),
         ("TE", "SL", "text_entry", "text"),
         ("TE", "FORM", "form_field", "text"),

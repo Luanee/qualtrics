@@ -64,7 +64,7 @@ def resolve_question_type(
     if normalized_type == "mc":
         if normalized_selector == "nps":
             resolved = ("nps", "numeric")
-        elif normalized_selector in {"mavr", "macol", "mabox"}:
+        elif normalized_selector in {"mavr", "mahr", "macol", "mabox"}:
             resolved = ("multiple_choice_multiple", "categorical")
         else:
             resolved = ("multiple_choice_single", "categorical")

@@ -126,7 +126,7 @@ def test_response_answers_have_typed_values_and_option_ids(survey_files: tuple[P
         "answer_option_id": "option-1",
         "answer_option_catalog_id": "catalog-option-1",
     }
-    populate_typed_answer(categorical, {"robot": option})
+    populate_typed_answer(categorical, {"robot": [option]})
     assert categorical["answer_option_id"] == "option-1"
     assert categorical["answer_option_catalog_id"] == "catalog-option-1"
     assert categorical["is_selected"] is True

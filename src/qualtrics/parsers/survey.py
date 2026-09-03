@@ -10,7 +10,7 @@ from zipfile import BadZipFile, ZipFile
 
 from ..models.entities import EntitySet
 from ..models.entity_set import merge_entity_sets
-from ..models.identity import entity_id, semantic_id
+from ..models.identity import canonicalize, entity_id, semantic_id
 from ..models.question_types import resolve_question_type
 from .identity import _clean, _field_text, _hash, _qid, _question_role
 from .paths import _expand_paths
@@ -55,7 +55,65 @@ BROWSER_METADATA_FIELDS = {
 }
 
 
+def populate_typed_answer(answer: dict[str, object], options: dict[str, list[dict[str, object]]]) -> None:
+    value = str(answer.get("answer_text") or "")
+    value_type = str(answer.get("answer_value_type") or "unsupported")
+    candidates = options.get(value.casefold(), [])
+    option = candidates[0] if len(candidates) == 1 else None
+    answer["answer_option_id"] = option.get("answer_option_id") if option else None
+    answer["answer_option_catalog_id"] = option.get("answer_option_catalog_id") if option else None
+    answer["answer_numeric"] = None
+    answer["answer_boolean"] = None
+    answer["is_selected"] = bool(value) if value_type == "categorical" else None
+    if value_type == "numeric":
+        with contextlib.suppress(ValueError):
+            answer["answer_numeric"] = float(value.replace(",", ""))
+    if value_type == "boolean" and value.casefold() in {"true", "false"}:
+        answer["answer_boolean"] = value.casefold() == "true"
+
+
+def _question_structure(definition: dict[str, object], fields: list[dict[str, object]]) -> dict[str, object]:
+    """Keep respondent-visible compound structure while excluding QSF presentation noise."""
+    structural_keys = (
+        "Choices",
+        "Answers",
+        "AdditionalQuestions",
+        "ChoiceOrder",
+        "AnswerOrder",
+        "ChoiceDataExportTags",
+        "VariableNaming",
+    )
+    return {
+        "definition": {key: definition[key] for key in structural_keys if key in definition},
+        "fields": [
+            {
+                "text": field.get("field_text"),
+                "role": field.get("field_role"),
+                "value_type": field.get("answer_value_type"),
+            }
+            for field in fields
+        ],
+    }
+
+
+def _field_contract(field: dict[str, object], question_type: str, default_type: str) -> tuple[str, str]:
+    suffix = str(field.get("source_field_suffix") or "").casefold()
+    text = str(field.get("field_text") or "").casefold()
+    if field.get("is_text_field") or "text" in suffix:
+        return "text", "text"
+    if question_type == "side_by_side":
+        if any(token in suffix or token in text for token in ("text", "open")):
+            return "subquestion", "text"
+        if any(token in suffix or token in text for token in ("cs", "sum", "number", "slider")):
+            return "subquestion", "numeric"
+        return "subquestion", "categorical"
+    if question_type == "matrix":
+        return "statement", default_type
+    return "answer", default_type
+
+
 def _apply_identity_contract(entities: EntitySet) -> None:
+    entities._present_entities = set(entities.__dataclass_fields__) - {"_present_entities"}
     sid = str(entities.surveys[0]["survey_id"])
     section_ids: dict[str, str] = {}
     for section in entities.sections:
@@ -72,16 +130,35 @@ def _apply_identity_contract(entities: EntitySet) -> None:
     question_ids: dict[str, str] = {}
     catalog_ids: dict[str, str] = {}
     catalog_rows: dict[str, dict[str, object]] = {}
+    raw_fields = {str(row["question_id"]): [] for row in entities.questions}
+    for field in entities.question_fields:
+        raw_fields.setdefault(str(field["question_id"]), []).append(field)
     for question in entities.questions:
         external_id = str(question["question_id"])
         resolved = resolve_question_type(
             question.get("question_type"), question.get("selector"), question.get("sub_selector")
         )
+        question_fields = raw_fields.get(external_id, [])
+        for field in question_fields:
+            role, value_type = _field_contract(field, resolved.canonical_question_type, resolved.answer_value_type)
+            field["field_role"] = role
+            field["answer_value_type"] = value_type
         content = {
             "text": question.get("question_text"),
             "type": resolved.canonical_question_type,
             "role": question.get("question_role"),
             "answers": [item.get("answer_text") for item in options_by_question.get(external_id, [])],
+            "structure": {
+                **dict(question.get("semantic_structure") or {}),
+                "fields": [
+                    {
+                        "text": field.get("field_text"),
+                        "role": field.get("field_role"),
+                        "value_type": field.get("answer_value_type"),
+                    }
+                    for field in question_fields
+                ],
+            },
         }
         catalog_id = semantic_id("question", content)
         internal_id = entity_id("question", sid, external_id)
@@ -92,13 +169,14 @@ def _apply_identity_contract(entities: EntitySet) -> None:
         question["question_catalog_id"] = catalog_id
         question["canonical_question_type"] = resolved.canonical_question_type
         question["answer_value_type"] = resolved.answer_value_type
+        question.pop("semantic_structure", None)
         if question.get("section_id") is not None:
             question["section_external_id"] = str(question["section_id"])
             question["section_id"] = section_ids.get(str(question["section_id"]))
         catalog_rows[catalog_id] = {
             "question_catalog_id": catalog_id,
             "question_text": question.get("question_text"),
-            "normalized_question_content": content,
+            "normalized_question_content": json.dumps(canonicalize(content), ensure_ascii=False, sort_keys=True),
             "canonical_question_type": resolved.canonical_question_type,
         }
     entities.question_catalog = list(catalog_rows.values())
@@ -114,6 +192,13 @@ def _apply_identity_contract(entities: EntitySet) -> None:
             "answer-option", {"question": catalog_ids[external_question_id], "text": option.get("answer_text")}
         )
 
+    option_lookup: dict[str, dict[str, list[dict[str, object]]]] = {}
+    for option in entities.answer_options:
+        aliases = (str(option["answer_id"]), str(option.get("answer_text") or ""))
+        lookup = option_lookup.setdefault(str(option["question_id"]), {})
+        for alias in aliases:
+            lookup.setdefault(alias.casefold(), []).append(option)
+
     field_ids: dict[str, str] = {}
     field_catalog_rows: dict[str, dict[str, object]] = {}
     for field in entities.question_fields:
@@ -122,11 +207,7 @@ def _apply_identity_contract(entities: EntitySet) -> None:
         question_id = question_ids[external_question_id]
         stable_source = external_id
         internal_id = entity_id("question-field", question_id, stable_source)
-        value_type = (
-            "text"
-            if field.get("is_text_field")
-            else next(item["answer_value_type"] for item in entities.questions if item["question_id"] == question_id)
-        )
+        value_type = str(field["answer_value_type"])
         catalog_id = semantic_id(
             "question-field",
             {"question": catalog_ids[external_question_id], "text": field.get("field_text"), "value_type": value_type},
@@ -141,15 +222,15 @@ def _apply_identity_contract(entities: EntitySet) -> None:
         field["question_catalog_id"] = catalog_ids[external_question_id]
         field["question_field_catalog_id"] = catalog_id
         field["answer_value_type"] = value_type
-        field["field_role"] = "text" if field.get("is_text_field") else "answer"
         field_catalog_rows[catalog_id] = {
             "question_field_catalog_id": catalog_id,
             "question_catalog_id": catalog_ids[external_question_id],
             "field_text": field.get("field_text"),
-            "normalized_field_content": {
-                "text": field.get("field_text"),
-                "value_type": value_type,
-            },
+            "normalized_field_content": json.dumps(
+                canonicalize({"text": field.get("field_text"), "value_type": value_type}),
+                ensure_ascii=False,
+                sort_keys=True,
+            ),
         }
     entities.question_field_catalog = list(field_catalog_rows.values())
 
@@ -179,6 +260,7 @@ def _apply_identity_contract(entities: EntitySet) -> None:
         answer["question_field_catalog_id"] = field["question_field_catalog_id"]
         answer["answer_value_type"] = field["answer_value_type"]
         answer["response_answer_id"] = entity_id("response-answer", answer["response_id"], answer["question_field_id"])
+        populate_typed_answer(answer, option_lookup.get(str(answer["question_id"]), {}))
 
 
 def _optional_value(value: str | None) -> str | None:
@@ -292,6 +374,7 @@ def _parse_survey_file(
                 "selector": definition.get("Selector"),
                 "sub_selector": definition.get("SubSelector"),
                 "question_role": role,
+                "semantic_structure": _question_structure(definition, []),
                 **question_blocks.get(question_id, {}),
             })
             # Meta Info and Timing choices describe captured fields, not respondent
