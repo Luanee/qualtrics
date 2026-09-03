@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import csv
 import json
+import re
 from collections.abc import Sequence
 from io import TextIOWrapper
 from pathlib import Path
@@ -110,6 +111,22 @@ def _field_contract(field: dict[str, object], question_type: str, default_type: 
     if question_type == "matrix":
         return "statement", default_type
     return "answer", default_type
+
+
+def _field_choice_id(
+    metadata: dict[str, object], import_id: str, column: str, question_id: str, definition: dict[str, object]
+) -> str | None:
+    choices = definition.get("Choices") or {}
+    valid_ids = {str(choice_id) for choice_id in choices} if isinstance(choices, dict) else set()
+    explicit = metadata.get("choiceId") or metadata.get("ChoiceId") or metadata.get("choiceID")
+    if explicit is not None and str(explicit) in valid_ids:
+        return str(explicit)
+    for source in (import_id, column):
+        without_question = source.upper().replace(question_id.upper(), "")
+        for token in re.findall(r"[A-Za-z0-9]+", without_question):
+            if token in valid_ids:
+                return token
+    return None
 
 
 def _apply_identity_contract(entities: EntitySet) -> None:
@@ -350,20 +367,24 @@ def _parse_survey_file(
         ]
     )
     entities.sections = [{"survey_id": sid, **section} for section in sections]
-    field_specs: list[tuple[int, str, str, str]] = []
+    field_specs: list[tuple[int, str, str, str, dict[str, object]]] = []
     grouped_headers: dict[str, list[str]] = {}
     for index, (column, header, raw_meta) in enumerate(zip(columns, headers, metadata, strict=True)):
         import_id = ""
+        field_metadata: dict[str, object] = {}
         if has_import:
             with contextlib.suppress(json.JSONDecodeError, AttributeError):
-                import_id = str(json.loads(raw_meta).get("ImportId") or "")
-        question_id = _qid(import_id or column)
+                parsed_metadata = json.loads(raw_meta)
+                if isinstance(parsed_metadata, dict):
+                    field_metadata = parsed_metadata
+                    import_id = str(field_metadata.get("ImportId") or "")
+        question_id = _qid(import_id or column) or _qid(str(field_metadata.get("questionId") or ""))
         if question_id and column not in META:
-            field_specs.append((index, column, header, import_id))
+            field_specs.append((index, column, header, import_id, field_metadata))
             grouped_headers.setdefault(question_id, []).append(header)
     seen = set()
-    for index, column, header, import_id in field_specs:
-        question_id = _qid(import_id or column)
+    for index, column, header, import_id, field_metadata in field_specs:
+        question_id = _qid(import_id or column) or _qid(str(field_metadata.get("questionId") or ""))
         if question_id is None:
             continue
         definition = qsf_questions.get(question_id, {})
@@ -377,7 +398,11 @@ def _parse_survey_file(
                 question_text = prefixes[0] if len(set(prefixes)) == 1 else header
         catalog_id = _hash(question_text.casefold())
         if question_id not in seen:
-            question_import_ids = [item[3] for item in field_specs if _qid(item[3] or item[1]) == question_id]
+            question_import_ids = [
+                item[3]
+                for item in field_specs
+                if (_qid(item[3] or item[1]) or _qid(str(item[4].get("questionId") or ""))) == question_id
+            ]
             role = _question_role(definition, question_import_ids)
             entities.questions.append({
                 "survey_id": sid,
@@ -408,6 +433,7 @@ def _parse_survey_file(
             seen.add(question_id)
         suffix = (import_id.replace(question_id, "", 1).strip("_") or None) if import_id else None
         field_text = _field_text(header, question_text, column, suffix)
+        choice_external_id = _field_choice_id(field_metadata, import_id, column, question_id, definition)
         entities.question_fields.append({
             "survey_id": sid,
             "question_id": question_id,
@@ -419,6 +445,7 @@ def _parse_survey_file(
             "question_field_catalog_id": _hash(catalog_id, _clean(field_text).casefold()),
             "field_text": field_text,
             "is_text_field": bool(suffix and "TEXT" in suffix),
+            "choice_external_id": choice_external_id,
         })
     field_map = {row["field_id"]: row["question_id"] for row in entities.question_fields}
     question_roles = {row["question_id"]: row["question_role"] for row in entities.questions}
