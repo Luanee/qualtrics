@@ -20,7 +20,7 @@ def test_semantic_model_cli_writes_five_json_tables(tmp_path: Path, survey_files
         "fact_responses.json",
         "fact_response_answers.json",
         "dim_surveys.json",
-        "dim_question_fields.json",
+        "dim_questions.json",
         "dim_answer_options.json",
     }
 

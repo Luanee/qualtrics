@@ -14,7 +14,7 @@ def test_entity_documentation_names_every_normalized_entity_and_semantic_table()
         "fact_responses",
         "fact_response_answers",
         "dim_surveys",
-        "dim_question_fields",
+        "dim_questions",
         "dim_answer_options",
     ):
         assert name in contract

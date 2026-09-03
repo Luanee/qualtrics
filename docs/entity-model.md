@@ -25,15 +25,15 @@ Questions retain `question_type`, `selector`, and `sub_selector` exactly and add
 - `fact_responses`
 - `fact_response_answers`
 - `dim_surveys`
-- `dim_question_fields`
+- `dim_questions`
 - `dim_answer_options`
 
-`dim_question_fields` flattens section, question, field, and catalog attributes. Create these active single-direction relationships in Power BI:
+`dim_questions` has one row per analyzable exported question field and flattens section, question, field, and catalog attributes. Create these active single-direction relationships in Power BI:
 
 ```text
 dim_surveys[survey_id] 1 -> * fact_responses[survey_id]
 fact_responses[response_id] 1 -> * fact_response_answers[response_id]
-dim_question_fields[question_field_id] 1 -> * fact_response_answers[question_field_id]
+dim_questions[question_field_id] 1 -> * fact_response_answers[question_field_id]
 dim_answer_options[answer_option_id] 1 -> * fact_response_answers[answer_option_id]
 ```
 
@@ -51,7 +51,7 @@ Answer Rows := COUNTROWS(fact_response_answers)
 Question-scoped Responses :=
 CALCULATE(
     [Responses],
-    TREATAS(VALUES(dim_question_fields[survey_id]), fact_responses[survey_id])
+    TREATAS(VALUES(dim_questions[survey_id]), fact_responses[survey_id])
 )
 
 Question Response Rate := DIVIDE([Respondents With Answer], [Question-scoped Responses])

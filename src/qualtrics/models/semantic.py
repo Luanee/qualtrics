@@ -10,7 +10,7 @@ SEMANTIC_TABLE_NAMES = (
     "fact_responses",
     "fact_response_answers",
     "dim_surveys",
-    "dim_question_fields",
+    "dim_questions",
     "dim_answer_options",
 )
 
@@ -20,7 +20,7 @@ class SemanticModel:
     fact_responses: list[dict[str, Any]] = field(default_factory=list)
     fact_response_answers: list[dict[str, Any]] = field(default_factory=list)
     dim_surveys: list[dict[str, Any]] = field(default_factory=list)
-    dim_question_fields: list[dict[str, Any]] = field(default_factory=list)
+    dim_questions: list[dict[str, Any]] = field(default_factory=list)
     dim_answer_options: list[dict[str, Any]] = field(default_factory=list)
 
 
@@ -41,6 +41,6 @@ def build_semantic_model(entities: EntitySet) -> SemanticModel:
         fact_responses=[dict(row) for row in entities.responses],
         fact_response_answers=[dict(row) for row in entities.response_answers],
         dim_surveys=[dict(row) for row in entities.surveys],
-        dim_question_fields=dimensions,
+        dim_questions=dimensions,
         dim_answer_options=[dict(row) for row in entities.answer_options],
     )

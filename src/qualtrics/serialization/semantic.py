@@ -52,7 +52,7 @@ SEMANTIC_COLUMNS = {
         "user_language",
     ),
     "dim_surveys": ("survey_id", "survey_name", "survey_status", "default_language"),
-    "dim_question_fields": (
+    "dim_questions": (
         "question_field_id",
         "field_id",
         "field_external_id",
