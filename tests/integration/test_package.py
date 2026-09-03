@@ -137,6 +137,21 @@ def test_response_answers_have_typed_values_and_option_ids(survey_files: tuple[P
     assert numeric["answer_text"] == "42"
 
 
+def test_typed_answers_do_not_guess_ambiguous_options_or_boolean_text() -> None:
+    from qualtrics.parsers.survey import populate_typed_answer
+
+    ambiguous = {"answer_text": "Same", "answer_value_type": "categorical"}
+    populate_typed_answer(
+        ambiguous,
+        {"same": [{"answer_option_id": "one"}, {"answer_option_id": "two"}]},
+    )
+    assert ambiguous["answer_option_id"] is None
+
+    free_text = {"answer_text": "true", "answer_value_type": "text"}
+    populate_typed_answer(free_text, {})
+    assert free_text["answer_boolean"] is None
+
+
 def test_field_identity_uses_the_export_column_with_or_without_import_metadata(
     survey_files: tuple[Path, Path],
 ) -> None:
