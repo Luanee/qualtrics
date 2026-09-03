@@ -106,3 +106,57 @@ def test_export_fields_map_to_definition_choices(definition_answer_files: tuple[
     assert fields["matrix_one"]["choice_external_id"] == "1"
     assert fields["matrix_two"]["choice_external_id"] == "2"
     assert fields["QID1"]["choice_external_id"] is None
+
+
+def test_single_choice_domain_includes_unobserved_choices_order_and_recodes(
+    definition_answer_files: tuple[Path, Path],
+) -> None:
+    entities = parse_survey(*definition_answer_files)
+    question = next(row for row in entities.questions if row["question_external_id"] == "QID1")
+    field = next(row for row in entities.question_fields if row["question_external_id"] == "QID1")
+    options = [row for row in entities.answer_options if row["question_id"] == question["question_id"]]
+    assert [(row["answer_id"], row["answer_code"], row["answer_text"], row["answer_order"]) for row in options] == [
+        ("2", "B", "Blue", 1),
+        ("1", "R", "Red", 2),
+        ("10", "10", "Green", 3),
+    ]
+    assert {row["question_field_id"] for row in options} == {field["question_field_id"]}
+    assert {row["field_id"] for row in options} == {field["question_field_id"]}
+
+
+def test_multiple_choice_has_one_option_per_selection_field_and_none_for_text(
+    definition_answer_files: tuple[Path, Path],
+) -> None:
+    entities = parse_survey(*definition_answer_files)
+    fields = {str(row["field_external_id"]): row for row in entities.question_fields}
+    options = [row for row in entities.answer_options if row["question_external_id"] == "QID2"]
+    assert {(row["source_import_id"], row["answer_id"], row["answer_text"]) for row in options} == {
+        ("1_QID2", "1", "Fast"),
+        ("unexpected", "2", "Safe"),
+    }
+    assert {row["question_field_id"] for row in options} == {
+        fields["one"]["question_field_id"],
+        fields["two"]["question_field_id"],
+    }
+    assert fields["two_TEXT"]["question_field_id"] not in {row["question_field_id"] for row in options}
+
+
+def test_matrix_answers_are_materialized_for_each_row_in_answer_order(
+    definition_answer_files: tuple[Path, Path],
+) -> None:
+    entities = parse_survey(*definition_answer_files)
+    fields = {str(row["field_external_id"]): row for row in entities.question_fields}
+    options = [row for row in entities.answer_options if row["question_external_id"] == "QID3"]
+    assert len(options) == 6
+    for field_name in ("matrix_one", "matrix_two"):
+        field_options = [row for row in options if row["question_field_id"] == fields[field_name]["question_field_id"]]
+        assert [(row["answer_id"], row["answer_code"], row["answer_order"]) for row in field_options] == [
+            ("3", "1", 1),
+            ("1", "-1", 2),
+            ("2", "0", 3),
+        ]
+
+
+def test_text_and_slider_fields_have_no_answer_options(definition_answer_files: tuple[Path, Path]) -> None:
+    entities = parse_survey(*definition_answer_files)
+    assert not [row for row in entities.answer_options if row["question_external_id"] in {"QID4", "QID5"}]
