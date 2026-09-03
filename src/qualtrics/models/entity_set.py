@@ -14,6 +14,27 @@ PRIMARY_KEYS = {
     "response_answers": "response_answer_id",
 }
 
+REQUIRED_COLUMNS = {
+    "surveys": {"survey_id", "survey_name"},
+    "sections": {"section_id", "survey_id", "section_external_id"},
+    "question_catalog": {"question_catalog_id", "question_text", "canonical_question_type"},
+    "question_field_catalog": {"question_field_catalog_id", "question_catalog_id", "field_text"},
+    "questions": {"question_id", "question_external_id", "survey_id", "question_catalog_id"},
+    "answer_options": {"answer_option_id", "question_id", "answer_option_catalog_id"},
+    "question_fields": {"question_field_id", "question_id", "question_field_catalog_id", "answer_value_type"},
+    "responses": {"response_id", "response_external_id", "survey_id"},
+    "response_answers": {
+        "response_answer_id",
+        "response_id",
+        "question_id",
+        "question_field_id",
+        "question_catalog_id",
+        "question_field_catalog_id",
+        "answer_value_type",
+        "answer_text",
+    },
+}
+
 RELATIONSHIPS = (
     ("sections", "survey_id", "surveys", "survey_id"),
     ("questions", "survey_id", "surveys", "survey_id"),
@@ -21,23 +42,33 @@ RELATIONSHIPS = (
     ("questions", "question_catalog_id", "question_catalog", "question_catalog_id"),
     ("question_fields", "question_id", "questions", "question_id"),
     ("question_fields", "question_field_catalog_id", "question_field_catalog", "question_field_catalog_id"),
+    ("question_fields", "question_catalog_id", "question_catalog", "question_catalog_id"),
     ("answer_options", "question_id", "questions", "question_id"),
+    ("answer_options", "answer_option_catalog_id", "answer_options", "answer_option_catalog_id"),
     ("responses", "survey_id", "surveys", "survey_id"),
     ("response_answers", "response_id", "responses", "response_id"),
     ("response_answers", "question_id", "questions", "question_id"),
     ("response_answers", "question_field_id", "question_fields", "question_field_id"),
+    ("response_answers", "question_catalog_id", "question_catalog", "question_catalog_id"),
+    ("response_answers", "question_field_catalog_id", "question_field_catalog", "question_field_catalog_id"),
+    ("response_answers", "answer_option_id", "answer_options", "answer_option_id"),
+    ("response_answers", "answer_option_catalog_id", "answer_options", "answer_option_catalog_id"),
 )
 
 
 def validate_entity_set(entities: EntitySet, *, strict: bool = False) -> None:
     if strict:
-        missing = [name for name in ENTITY_NAMES if not getattr(entities, name)]
+        missing = [name for name in ENTITY_NAMES if name not in entities._present_entities]
         if missing:
             raise ValueError(f"Incomplete strict entity contract: {', '.join(missing)}")
     for name, key in PRIMARY_KEYS.items():
         rows = getattr(entities, name)
         seen: set[str] = set()
         for row in rows:
+            if strict:
+                missing_columns = REQUIRED_COLUMNS[name] - row.keys()
+                if missing_columns:
+                    raise ValueError(f"{name} row is missing required columns: {', '.join(sorted(missing_columns))}")
             value = str(row.get(key) or "")
             if not value:
                 raise ValueError(f"{name} row is missing {key}")
@@ -59,6 +90,8 @@ def validate_entity_set(entities: EntitySet, *, strict: bool = False) -> None:
 def merge_entity_sets(entity_sets: list[EntitySet]) -> EntitySet:
     """Combine surveys while de-duplicating the two canonical catalogs."""
     result = EntitySet()
+    if entity_sets:
+        result._present_entities = set.intersection(*(item._present_entities for item in entity_sets))
     survey_ids = [str(survey["survey_id"]) for item in entity_sets for survey in item.surveys]
     duplicates = {survey_id for survey_id in survey_ids if survey_ids.count(survey_id) > 1}
     if duplicates:

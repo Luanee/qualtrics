@@ -24,6 +24,13 @@ def test_strict_validation_requires_all_entities() -> None:
         validate_entity_set(EntitySet(surveys=[{"survey_id": "SV_1"}]), strict=True)
 
 
+def test_strict_validation_names_missing_columns() -> None:
+    entities = EntitySet(surveys=[{"survey_id": "SV_1"}])
+    entities._present_entities = set(entities.__dataclass_fields__) - {"_present_entities"}
+    with pytest.raises(ValueError, match="surveys.*survey_name"):
+        validate_entity_set(entities, strict=True)
+
+
 def test_merge_rejects_catalog_payload_collision() -> None:
     first = EntitySet(question_catalog=[{"question_catalog_id": "same", "question_text": "One"}])
     second = EntitySet(question_catalog=[{"question_catalog_id": "same", "question_text": "Two"}])

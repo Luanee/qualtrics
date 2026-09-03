@@ -97,6 +97,8 @@ def write_entities(entities: EntitySet, folder: str | Path, format: str = "json"
 
 
 def load_entities(folder: str | Path | None = None, **paths: str | Path) -> EntitySet:
+    from ..models.entity_set import validate_entity_set
+
     folder = Path(folder) if folder else None
     result = EntitySet()
     for name in ENTITY_NAMES:
@@ -122,4 +124,6 @@ def load_entities(folder: str | Path | None = None, **paths: str | Path) -> Enti
                 raise RuntimeError("Install qualtrics[parquet]") from exc
             records = pq.read_table(path).to_pylist()
         setattr(result, name, records)
+        result._present_entities.add(name)
+    validate_entity_set(result, strict=folder is not None)
     return result

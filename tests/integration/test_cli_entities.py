@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from copy import deepcopy
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -14,17 +13,10 @@ def test_entities_combine_merges_mixed_formats_as_parquet_by_default(
     survey_files: tuple[Path, Path],
 ) -> None:
     first = parse_survey(*survey_files)
-    second = deepcopy(first)
-    third = deepcopy(first)
-    for entities, survey_id, survey_name in (
-        (second, "SV_SECOND", "Second survey"),
-        (third, "SV_THIRD", "Third survey"),
-    ):
-        for rows in vars(entities).values():
-            for row in rows:
-                if "survey_id" in row:
-                    row["survey_id"] = survey_id
-        entities.surveys[0]["survey_name"] = survey_name
+    second = parse_survey(*survey_files, survey_id="SV_SECOND")
+    third = parse_survey(*survey_files, survey_id="SV_THIRD")
+    second.surveys[0]["survey_name"] = "Second survey"
+    third.surveys[0]["survey_name"] = "Third survey"
 
     json_folder = tmp_path / "json-entities"
     csv_folder = tmp_path / "csv-entities"
