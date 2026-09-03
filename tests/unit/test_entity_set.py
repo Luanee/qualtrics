@@ -31,6 +31,12 @@ def test_strict_validation_names_missing_columns() -> None:
         validate_entity_set(entities, strict=True)
 
 
+def test_validation_rejects_child_rows_when_parent_table_is_empty() -> None:
+    entities = EntitySet(responses=[{"response_id": "R1", "survey_id": "SV1"}])
+    with pytest.raises(ValueError, match="responses.*survey_id.*SV1"):
+        validate_entity_set(entities)
+
+
 def test_merge_rejects_catalog_payload_collision() -> None:
     first = EntitySet(question_catalog=[{"question_catalog_id": "same", "question_text": "One"}])
     second = EntitySet(question_catalog=[{"question_catalog_id": "same", "question_text": "Two"}])

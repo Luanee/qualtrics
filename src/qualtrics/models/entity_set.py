@@ -32,6 +32,12 @@ REQUIRED_COLUMNS = {
         "question_field_catalog_id",
         "answer_value_type",
         "answer_text",
+        "survey_id",
+        "answer_option_id",
+        "answer_option_catalog_id",
+        "answer_numeric",
+        "answer_boolean",
+        "is_selected",
     },
 }
 
@@ -41,12 +47,15 @@ RELATIONSHIPS = (
     ("questions", "section_id", "sections", "section_id"),
     ("questions", "question_catalog_id", "question_catalog", "question_catalog_id"),
     ("question_fields", "question_id", "questions", "question_id"),
+    ("question_fields", "survey_id", "surveys", "survey_id"),
     ("question_fields", "question_field_catalog_id", "question_field_catalog", "question_field_catalog_id"),
     ("question_fields", "question_catalog_id", "question_catalog", "question_catalog_id"),
     ("answer_options", "question_id", "questions", "question_id"),
+    ("answer_options", "survey_id", "surveys", "survey_id"),
     ("answer_options", "answer_option_catalog_id", "answer_options", "answer_option_catalog_id"),
     ("responses", "survey_id", "surveys", "survey_id"),
     ("response_answers", "response_id", "responses", "response_id"),
+    ("response_answers", "survey_id", "surveys", "survey_id"),
     ("response_answers", "question_id", "questions", "question_id"),
     ("response_answers", "question_field_id", "question_fields", "question_field_id"),
     ("response_answers", "question_catalog_id", "question_catalog", "question_catalog_id"),
@@ -61,6 +70,8 @@ def validate_entity_set(entities: EntitySet, *, strict: bool = False) -> None:
         missing = [name for name in ENTITY_NAMES if name not in entities._present_entities]
         if missing:
             raise ValueError(f"Incomplete strict entity contract: {', '.join(missing)}")
+        if not entities.surveys:
+            raise ValueError("Incomplete strict entity contract: surveys must contain one or more rows")
     for name, key in PRIMARY_KEYS.items():
         rows = getattr(entities, name)
         seen: set[str] = set()
@@ -78,7 +89,7 @@ def validate_entity_set(entities: EntitySet, *, strict: bool = False) -> None:
     for child, foreign_key, parent, parent_key in RELATIONSHIPS:
         child_rows = getattr(entities, child)
         parent_rows = getattr(entities, parent)
-        if not child_rows or not parent_rows:
+        if not child_rows:
             continue
         parent_ids = {str(row[parent_key]) for row in parent_rows}
         for row in child_rows:
