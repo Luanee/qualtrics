@@ -61,7 +61,6 @@ def populate_typed_answer(answer: dict[str, object], options: dict[str, list[dic
     candidates = options.get(value.casefold(), [])
     option = candidates[0] if len(candidates) == 1 else None
     answer["answer_option_id"] = option.get("answer_option_id") if option else None
-    answer["answer_option_catalog_id"] = option.get("answer_option_catalog_id") if option else None
     answer["answer_numeric"] = None
     answer["answer_boolean"] = None
     answer["is_selected"] = bool(value) if value_type == "categorical" else None
@@ -188,9 +187,6 @@ def _apply_identity_contract(entities: EntitySet) -> None:
         option["question_id"] = question_ids[external_question_id]
         option["answer_external_id"] = external_id
         option["answer_option_id"] = entity_id("answer-option", option["question_id"], external_id)
-        option["answer_option_catalog_id"] = semantic_id(
-            "answer-option", {"question": catalog_ids[external_question_id], "text": option.get("answer_text")}
-        )
 
     option_lookup: dict[str, dict[str, list[dict[str, object]]]] = {}
     for option in entities.answer_options:
