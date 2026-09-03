@@ -88,8 +88,9 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
     coverage_by_catalog: dict[str, dict[str, Any]] = {}
     for key, question in response_questions.items():
         question_id = str(question["question_id"])
+        question_external_id = str(question.get("question_external_id") or question_id)
         survey_id = str(key[0])
-        question_token = f"{survey_id}::{question_id}"
+        question_token = f"{survey_id}::{question_external_id}"
         label = str(question.get("question_text") or question_id)
         block_name = str(question.get("block_name") or "")
         survey_label = str(survey_lookup.get(survey_id, {}).get("survey_name") or survey_id)
@@ -106,7 +107,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             f"type='checkbox' value='{html.escape(question_token, quote=True)}' "
             f"checked><span>{choice_label}</span><small>{count}/{question_response_total}</small></label>"
         )
-        occurrence_metadata = f"Import ID: {question_id}"
+        occurrence_metadata = f"Import ID: {question_external_id}"
         if block_name:
             occurrence_metadata += f" · Section: {block_name}"
         coverage_row = (
@@ -141,7 +142,8 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             question = questions.get((survey_id, question_id), {})
             question_label = str(question.get("question_text") or question_id)
             block_name = str(question.get("block_name") or "")
-            metadata = question_id + (f" · Section: {block_name}" if block_name else "")
+            external_id = str(question.get("question_external_id") or question_id)
+            metadata = external_id + (f" · Section: {block_name}" if block_name else "")
             labels = "".join(
                 f"<li>{html.escape(str(item.get(label_key) or item.get('field_id') or item.get('answer_id') or 'Unknown'))}</li>"
                 for item in question_items
@@ -234,6 +236,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
     numeric_types = {"SLIDER", "CS", "CONSTANTSUM"}
     for key, question in response_questions.items():
         question_id = str(question["question_id"])
+        question_external_id = str(question.get("question_external_id") or question_id)
         label = str(question.get("question_text") or question_id)
         question_type = str(question.get("question_type") or "Unknown").upper()
         selector = str(question.get("selector") or "")
@@ -347,14 +350,14 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         survey_label = str(survey_lookup.get(survey_id, {}).get("survey_name") or survey_id)
         catalog_id = str(question.get("question_catalog_id") or f"{survey_id}::{question_id}")
         catalog_label = str(question_catalog_lookup.get(catalog_id, {}).get("question_text") or label)
-        occurrence_metadata = f"Import ID: {question_id} · {type_label}"
+        occurrence_metadata = f"Import ID: {question_external_id} · {type_label}"
         if selector:
             occurrence_metadata += f" · {selector}"
         if block_label:
             occurrence_metadata += f" · Section: {block_label}"
         occurrence = (
             f"<details class='survey-analysis survey-occurrence' data-survey='{html.escape(survey_id, quote=True)}' "
-            f"data-question='{html.escape(question_id)}'>"
+            f"data-question='{html.escape(question_external_id)}'>"
             f"<summary><span class='analysis-title'>{html.escape(survey_label)}"
             f"<small>{html.escape(occurrence_metadata)}</small></span>"
             f"<span class='analysis-summary'>{summary}</span></summary>"
@@ -435,7 +438,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             ("User Agent", response.get("user_agent")),
         ]
         search_terms = [
-            str(response["response_id"]),
+            str(response.get("response_external_id") or response["response_id"]),
             *(str(value) for _, value in stable_metadata if value),
         ]
         rows = []
@@ -462,6 +465,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         for question_id, grouped_answers in grouped_response_answers.items():
             first_answer = grouped_answers[0][0]
             q = questions.get((first_answer["survey_id"], question_id), {})
+            question_external_id = str(q.get("question_external_id") or question_id)
             label = q.get("question_text") or question_id
             question_type = str(q.get("question_type") or "").upper()
             type_label = {"MC": "Multiple choice", "TE": "Text entry"}.get(
@@ -487,7 +491,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             )
             rows.append(
                 f"<div class='answer' data-question='"
-                f"{html.escape(f'{response_survey_id}::{question_id}', quote=True)}'>"
+                f"{html.escape(f'{response_survey_id}::{question_external_id}', quote=True)}'>"
                 f"<div class='question-head'><span class='question'>{html.escape(str(label))}</span>"
                 f"<span class='question-meta'>{html.escape(question_meta)}</span></div>"
                 f"{''.join(field_rows)}</div>"
@@ -508,7 +512,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         parts.append(
             f"<details class='respondent' data-survey='{html.escape(response_survey_id, quote=True)}' "
             f"data-total-answers='{len(rows)}' data-search='{searchable}'{' open' if index == 0 else ''}>"
-            f"<summary><span class='identity'>{html.escape(str(response['response_id']))}</span>"
+            f"<summary><span class='identity'>{html.escape(str(response.get('response_external_id') or response['response_id']))}</span>"
             f"<span class='badge'>{len(rows)} answers</span></summary>"
             f"<div class='response-meta'>{''.join(metadata_values)}</div>"
             f"<div class='answers'>{''.join(rows)}"

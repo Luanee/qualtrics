@@ -16,33 +16,41 @@ from qualtrics import (
 
 def test_sample_preserves_multifield_identity(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
     entities = parse_survey(*survey_files)
+
+    question = next(item for item in entities.questions if item.get("question_external_id") == "QID18")
+    assert question["question_id"] != "QID18"
+    assert question["canonical_question_type"] == "multiple_choice_single"
+    field = next(item for item in entities.question_fields if item.get("question_id") == question["question_id"])
+    assert field["question_external_id"] == "QID18"
+    assert len(str(field["question_field_id"])) == 64
     counts = {
-        qid: sum(item["question_id"] == qid for item in entities.question_fields) for qid in ("QID18", "QID30", "QID37")
+        qid: sum(item["question_external_id"] == qid for item in entities.question_fields)
+        for qid in ("QID18", "QID30", "QID37")
     }
     assert counts == {"QID18": 10, "QID30": 6, "QID37": 5}
     assert entities.question_catalog
     assert entities.question_field_catalog
     assert entities.sections
     training = next(item for item in entities.sections if item["section_name"] == "Training")
-    assert training == {
-        "survey_id": "SV_SAMPLE",
-        "section_id": "BL_TRAINING",
-        "section_name": "Training",
-        "section_type": "Standard",
-        "section_order": 1,
-    }
+    assert training["survey_id"] == "SV_SAMPLE"
+    assert training["section_external_id"] == "BL_TRAINING"
+    assert len(training["section_id"]) == 64
     for rows in vars(entities).values():
         assert all("ingestion_run_id" not in row for row in rows)
     assert len(entities.question_catalog) == len(entities.questions)
-    qid18 = next(item for item in entities.questions if item["question_id"] == "QID18")
+    qid18 = next(item for item in entities.questions if item["question_external_id"] == "QID18")
     assert qid18["question_text"] == "Cat"
     assert qid18["block_name"] == "Categorize faces"
     assert qid18["block_id"] == "BL_FACES"
-    assert next(item["question_role"] for item in entities.questions if item["question_id"] == "QID37") == "metadata"
+    assert (
+        next(item["question_role"] for item in entities.questions if item["question_external_id"] == "QID37")
+        == "metadata"
+    )
     first_response = entities.responses[0]
-    assert first_response == {
+    assert first_response | {"response_id": "R_1", "response_external_id": "R_1"} == {
         "survey_id": "SV_SAMPLE",
         "response_id": "R_1",
+        "response_external_id": "R_1",
         "started_at": "2026-01-01 10:00:00",
         "ended_at": "2026-01-01 10:00:42",
         "recorded_at": "2026-01-01 10:00:43",
@@ -63,7 +71,7 @@ def test_sample_preserves_multifield_identity(tmp_path: Path, survey_files: tupl
         "screen_resolution": "1920x1080",
         "user_agent": "ExampleAgent/1.0",
     }
-    assert not any(item["question_id"] == "QID37" for item in entities.response_answers)
+    assert not any(item["question_external_id"] == "QID37" for item in entities.response_answers)
     write_entities(entities, tmp_path, "json")
     loaded = load_entities(tmp_path)
     assert loaded.responses[0]["browser"] == "Chrome"
@@ -72,7 +80,7 @@ def test_sample_preserves_multifield_identity(tmp_path: Path, survey_files: tupl
     assert "<b>Browser</b>" in report
     assert "<b>User Agent</b> ExampleAgent/1.0" in report
     assert "value='QID37'" not in report
-    assert not any(item["question_id"] == "QID37" for item in entities.answer_options)
+    assert not any(item["question_external_id"] == "QID37" for item in entities.answer_options)
     assert "class='question-menu' hidden" in report
     assert "No selected questions were answered in this response." in report
     assert "class='no-selected' hidden" in report
@@ -99,6 +107,44 @@ def test_sample_preserves_multifield_identity(tmp_path: Path, survey_files: tupl
     assert "Multiple choice" in report
     assert "class='question-choice'" in report
     assert "response-meta" in report
+
+
+def test_response_answers_have_typed_values_and_option_ids(survey_files: tuple[Path, Path]) -> None:
+    entities = parse_survey(*survey_files)
+    categorical = next(
+        item
+        for item in entities.response_answers
+        if item["question_external_id"] == "QID18" and item["answer_text"] == "Robot"
+    )
+    assert categorical["answer_option_id"] is None
+    assert categorical["answer_numeric"] is None
+    assert categorical["is_selected"] is True
+
+    from qualtrics.parsers.survey import populate_typed_answer
+
+    option: dict[str, object] = {
+        "answer_option_id": "option-1",
+        "answer_option_catalog_id": "catalog-option-1",
+    }
+    populate_typed_answer(categorical, {"robot": [option]})
+    assert categorical["answer_option_id"] == "option-1"
+    assert categorical["answer_option_catalog_id"] == "catalog-option-1"
+    assert categorical["is_selected"] is True
+
+    numeric = dict(categorical, answer_text="42", answer_value_type="numeric")
+    populate_typed_answer(numeric, {})
+    assert numeric["answer_numeric"] == 42.0
+    assert numeric["answer_text"] == "42"
+
+
+def test_field_identity_uses_the_export_column_with_or_without_import_metadata(
+    survey_files: tuple[Path, Path],
+) -> None:
+    entities = parse_survey(*survey_files)
+    field = entities.question_fields[0]
+    from qualtrics.models.identity import entity_id
+
+    assert field["question_field_id"] == entity_id("question-field", field["question_id"], field["field_external_id"])
 
 
 def test_blank_optional_response_metadata_is_null(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
@@ -134,10 +180,11 @@ def test_blank_optional_response_metadata_is_null(tmp_path: Path, survey_files: 
 
     response = parse_survey(blank_path, definition_path).responses[0]
 
-    assert response["response_id"] == "R_1"
-    assert response == {
+    assert response["response_external_id"] == "R_1"
+    assert response | {"response_id": "R_1"} == {
         "survey_id": "SV_SAMPLE",
         "response_id": "R_1",
+        "response_external_id": "R_1",
         "started_at": None,
         "ended_at": None,
         "recorded_at": None,
@@ -188,7 +235,7 @@ def test_combined_report_has_survey_selector(tmp_path: Path, survey_files: tuple
     assert "id='survey-clear'" in report
     assert "Second survey" in report
     assert "data-survey='SV_SECOND'" in report
-    assert "SV_SECOND::QID30" in report
+    assert "QID30" in report
     assert "surveyChoices.forEach(choice=>choice.addEventListener('change',filter))" in report
     assert "surveySelectedCount.textContent=surveys.size===surveyChoices.length?'All':" in report
     assert "function selectedSurveys(){return new Set(surveyChoices.filter(choice=>choice.checked)" in report
@@ -221,13 +268,13 @@ def test_data_quality_is_collapsible_and_groups_issues_by_question(
     survey_files: tuple[Path, Path],
 ) -> None:
     entities = parse_survey(*survey_files)
-    unused_field = next(item for item in entities.question_fields if item["question_id"] == "QID30")
+    unused_field = next(item for item in entities.question_fields if item["question_external_id"] == "QID30")
     entities.response_answers = [
         answer for answer in entities.response_answers if answer["field_id"] != unused_field["field_id"]
     ]
     entities.answer_options.append({
         "survey_id": "SV_SAMPLE",
-        "question_id": "QID30",
+        "question_id": unused_field["question_id"],
         "answer_id": "unused",
         "answer_text": "Never selected",
     })
@@ -250,13 +297,13 @@ def test_data_quality_is_collapsible_and_groups_issues_by_question(
 
 def test_report_labels_all_text_fields_as_written_answers(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
     entities = parse_survey(*survey_files)
-    linked_field = next(item for item in entities.question_fields if item["question_id"] == "QID30")
+    linked_field = next(item for item in entities.question_fields if item["question_external_id"] == "QID30")
     linked_field.update({
         "field_text": "Other (please indicate) - Text",
         "source_field_suffix": "1_TEXT",
         "is_text_field": True,
     })
-    duplicate_field = next(item for item in entities.question_fields if item["question_id"] == "QID18")
+    duplicate_field = next(item for item in entities.question_fields if item["question_external_id"] == "QID18")
     duplicate_field.update({
         "field_text": "Cat - Text",
         "source_field_suffix": "TEXT",
@@ -264,7 +311,7 @@ def test_report_labels_all_text_fields_as_written_answers(tmp_path: Path, survey
     })
     entities.answer_options.append({
         "survey_id": "SV_SAMPLE",
-        "question_id": "QID30",
+        "question_id": linked_field["question_id"],
         "answer_id": "1",
         "answer_text": "Other (please indicate)",
     })
@@ -282,8 +329,8 @@ def test_response_does_not_repeat_question_as_single_field_label(
     survey_files: tuple[Path, Path],
 ) -> None:
     entities = parse_survey(*survey_files)
-    question = next(item for item in entities.questions if item["question_id"] == "QID30")
-    field = next(item for item in entities.question_fields if item["question_id"] == "QID30")
+    question = next(item for item in entities.questions if item["question_external_id"] == "QID30")
+    field = next(item for item in entities.question_fields if item["question_external_id"] == "QID30")
     field["field_text"] = question["question_text"]
 
     output = tmp_path / "response-field-label.html"
@@ -300,12 +347,17 @@ def test_mc_analytics_consolidates_options_and_includes_zero_counts(
     tmp_path: Path, survey_files: tuple[Path, Path]
 ) -> None:
     entities = parse_survey(*survey_files)
-    question = next(item for item in entities.questions if item["question_id"] == "QID18")
+    question = next(item for item in entities.questions if item["question_external_id"] == "QID18")
     question["selector"] = "MAVR"
     entities.answer_options.extend([
-        {"survey_id": "SV_SAMPLE", "question_id": "QID18", "answer_id": "1", "answer_text": "Robot"},
-        {"survey_id": "SV_SAMPLE", "question_id": "QID18", "answer_id": "2", "answer_text": "Human"},
-        {"survey_id": "SV_SAMPLE", "question_id": "QID18", "answer_id": "3", "answer_text": "Not selected"},
+        {"survey_id": "SV_SAMPLE", "question_id": question["question_id"], "answer_id": "1", "answer_text": "Robot"},
+        {"survey_id": "SV_SAMPLE", "question_id": question["question_id"], "answer_id": "2", "answer_text": "Human"},
+        {
+            "survey_id": "SV_SAMPLE",
+            "question_id": question["question_id"],
+            "answer_id": "3",
+            "answer_text": "Not selected",
+        },
     ])
 
     output = tmp_path / "mc-analytics.html"
@@ -357,7 +409,7 @@ def test_discovers_matching_qsf_beside_csv(tmp_path: Path, survey_files: tuple[P
     entities = parse_survey(csv_path)
 
     survey = entities.surveys[0]
-    qid37 = next(item for item in entities.questions if item["question_id"] == "QID37")
+    qid37 = next(item for item in entities.questions if item["question_external_id"] == "QID37")
     assert survey["survey_id"] == "SV_SAMPLE"
     assert qid37["question_role"] == "metadata"
     assert qid37["block_name"] == "Instructions"
@@ -424,9 +476,12 @@ def test_parse_survey_accepts_api_definition_wrapper(tmp_path: Path, survey_file
 
     assert entities.surveys[0]["survey_name"] == "API definition survey"
     assert len(entities.sections) == 3
-    assert next(item for item in entities.questions if item["question_id"] == "QID30")["question_type"] == "MC"
-    assert [item["answer_text"] for item in entities.answer_options if item["question_id"] == "QID30"] == [
+    assert next(item for item in entities.questions if item["question_external_id"] == "QID30")["question_type"] == "MC"
+    assert [item["answer_text"] for item in entities.answer_options if item["question_external_id"] == "QID30"] == [
         "Robot",
         "Human",
     ]
-    assert [item["answer_id"] for item in entities.answer_options if item["question_id"] == "QID18"] == ["R", "H"]
+    assert [item["answer_id"] for item in entities.answer_options if item["question_external_id"] == "QID18"] == [
+        "R",
+        "H",
+    ]
