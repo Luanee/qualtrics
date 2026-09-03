@@ -62,11 +62,18 @@ def resolve_question_type(
     normalized_type = _normalized(question_type)
     normalized_selector = _normalized(selector)
     if normalized_type == "mc":
-        resolved = (
-            ("multiple_choice_multiple", "categorical")
-            if normalized_selector in {"mavr", "macol", "mabox"}
-            else ("multiple_choice_single", "categorical")
-        )
+        if normalized_selector == "nps":
+            resolved = ("nps", "numeric")
+        elif normalized_selector in {"mavr", "macol", "mabox"}:
+            resolved = ("multiple_choice_multiple", "categorical")
+        else:
+            resolved = ("multiple_choice_single", "categorical")
+    elif normalized_type == "te" and normalized_selector == "form":
+        resolved = ("form_field", "text")
+    elif normalized_type == "te" and normalized_selector == "calendar":
+        resolved = ("calendar", "datetime")
+    elif normalized_type == "matrix" and normalized_selector in {"cs", "constantsum", "te"}:
+        resolved = ("matrix", "numeric" if normalized_selector != "te" else "text")
     else:
         resolved = _TYPES.get(normalized_type, ("unsupported", "unsupported"))
     return QuestionTypeDefinition(*resolved, raw=(question_type, selector, sub_selector))

@@ -120,7 +120,7 @@ def _apply_identity_contract(entities: EntitySet) -> None:
         external_question_id = str(field["question_id"])
         external_id = str(field["field_id"])
         question_id = question_ids[external_question_id]
-        stable_source = field.get("source_import_id") or external_id
+        stable_source = external_id
         internal_id = entity_id("question-field", question_id, stable_source)
         value_type = (
             "text"

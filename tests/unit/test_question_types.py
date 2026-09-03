@@ -8,9 +8,13 @@ from qualtrics.models.question_types import resolve_question_type
     [
         ("MC", "SAVR", "multiple_choice_single", "categorical"),
         ("MC", "MAVR", "multiple_choice_multiple", "categorical"),
+        ("MC", "NPS", "nps", "numeric"),
         ("TE", "SL", "text_entry", "text"),
+        ("TE", "FORM", "form_field", "text"),
+        ("TE", "Calendar", "calendar", "datetime"),
         ("DB", None, "descriptive_text", "non_response"),
         ("Matrix", "Likert", "matrix", "categorical"),
+        ("Matrix", "CS", "matrix", "numeric"),
         ("SBS", None, "side_by_side", "structured"),
         ("Slider", None, "slider", "numeric"),
         ("RO", None, "rank_order", "numeric"),

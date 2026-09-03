@@ -109,6 +109,44 @@ def test_sample_preserves_multifield_identity(tmp_path: Path, survey_files: tupl
     assert "response-meta" in report
 
 
+def test_response_answers_have_typed_values_and_option_ids(survey_files: tuple[Path, Path]) -> None:
+    entities = parse_survey(*survey_files)
+    categorical = next(
+        item
+        for item in entities.response_answers
+        if item["question_external_id"] == "QID18" and item["answer_text"] == "Robot"
+    )
+    assert categorical["answer_option_id"] is None
+    assert categorical["answer_numeric"] is None
+    assert categorical["is_selected"] is True
+
+    from qualtrics.parsers.survey import populate_typed_answer
+
+    option: dict[str, object] = {
+        "answer_option_id": "option-1",
+        "answer_option_catalog_id": "catalog-option-1",
+    }
+    populate_typed_answer(categorical, {"robot": option})
+    assert categorical["answer_option_id"] == "option-1"
+    assert categorical["answer_option_catalog_id"] == "catalog-option-1"
+    assert categorical["is_selected"] is True
+
+    numeric = dict(categorical, answer_text="42", answer_value_type="numeric")
+    populate_typed_answer(numeric, {})
+    assert numeric["answer_numeric"] == 42.0
+    assert numeric["answer_text"] == "42"
+
+
+def test_field_identity_uses_the_export_column_with_or_without_import_metadata(
+    survey_files: tuple[Path, Path],
+) -> None:
+    entities = parse_survey(*survey_files)
+    field = entities.question_fields[0]
+    from qualtrics.models.identity import entity_id
+
+    assert field["question_field_id"] == entity_id("question-field", field["question_id"], field["field_external_id"])
+
+
 def test_blank_optional_response_metadata_is_null(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
     source_path, definition_path = survey_files
     rows = list(csv.reader(source_path.open(encoding="utf-8", newline="")))
