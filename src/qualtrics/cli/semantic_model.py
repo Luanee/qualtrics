@@ -20,7 +20,12 @@ def build_semantic(
     if format not in {"csv", "json", "parquet"}:
         raise typer.BadParameter("format must be csv, json, or parquet")
     validate_entity_collection(folder)
-    existing = [output / f"{name}.{format}" for name in SEMANTIC_TABLE_NAMES if (output / f"{name}.{format}").exists()]
+    existing = [
+        output / f"{name}.{extension}"
+        for name in SEMANTIC_TABLE_NAMES
+        for extension in ("csv", "json", "parquet")
+        if (output / f"{name}.{extension}").exists()
+    ]
     if existing:
         raise typer.BadParameter(f"output already contains semantic tables: {output}")
     try:

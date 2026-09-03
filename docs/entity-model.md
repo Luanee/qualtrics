@@ -48,7 +48,13 @@ Respondents With Answer := DISTINCTCOUNT(fact_response_answers[response_id])
 
 Answer Rows := COUNTROWS(fact_response_answers)
 
-Question Response Rate := DIVIDE([Respondents With Answer], [Responses])
+Question-scoped Responses :=
+CALCULATE(
+    [Responses],
+    TREATAS(VALUES(dim_question_fields[survey_id]), fact_responses[survey_id])
+)
+
+Question Response Rate := DIVIDE([Respondents With Answer], [Question-scoped Responses])
 
 Numeric Answer Average := AVERAGE(fact_response_answers[answer_numeric])
 ```

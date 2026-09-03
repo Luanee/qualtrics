@@ -25,7 +25,7 @@ class SemanticModel:
 
 
 def build_semantic_model(entities: EntitySet) -> SemanticModel:
-    validate_entity_set(entities)
+    validate_entity_set(entities, strict=True)
     questions = {str(row["question_id"]): row for row in entities.questions}
     sections = {str(row["section_id"]): row for row in entities.sections}
     question_catalog = {str(row["question_catalog_id"]): row for row in entities.question_catalog}
