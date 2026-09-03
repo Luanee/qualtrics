@@ -124,17 +124,30 @@ def test_response_answers_have_typed_values_and_option_ids(survey_files: tuple[P
 
     option: dict[str, object] = {
         "answer_option_id": "option-1",
-        "answer_option_catalog_id": "catalog-option-1",
     }
     populate_typed_answer(categorical, {"robot": [option]})
     assert categorical["answer_option_id"] == "option-1"
-    assert categorical["answer_option_catalog_id"] == "catalog-option-1"
     assert categorical["is_selected"] is True
 
     numeric = dict(categorical, answer_text="42", answer_value_type="numeric")
     populate_typed_answer(numeric, {})
     assert numeric["answer_numeric"] == 42.0
     assert numeric["answer_text"] == "42"
+
+
+def test_typed_answers_do_not_guess_ambiguous_options_or_boolean_text() -> None:
+    from qualtrics.parsers.survey import populate_typed_answer
+
+    ambiguous: dict[str, object] = {"answer_text": "Same", "answer_value_type": "categorical"}
+    populate_typed_answer(
+        ambiguous,
+        {"same": [{"answer_option_id": "one"}, {"answer_option_id": "two"}]},
+    )
+    assert ambiguous["answer_option_id"] is None
+
+    free_text: dict[str, object] = {"answer_text": "true", "answer_value_type": "text"}
+    populate_typed_answer(free_text, {})
+    assert free_text["answer_boolean"] is None
 
 
 def test_field_identity_uses_the_export_column_with_or_without_import_metadata(
