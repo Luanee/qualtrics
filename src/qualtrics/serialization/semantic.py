@@ -44,7 +44,6 @@ SEMANTIC_COLUMNS = {
         "question_catalog_id",
         "question_field_catalog_id",
         "answer_option_id",
-        "answer_option_catalog_id",
         "answer_value_type",
         "answer_text",
         "answer_numeric",
@@ -85,7 +84,6 @@ SEMANTIC_COLUMNS = {
     ),
     "dim_answer_options": (
         "answer_option_id",
-        "answer_option_catalog_id",
         "answer_external_id",
         "answer_id",
         "answer_text",

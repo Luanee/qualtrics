@@ -89,7 +89,6 @@ Tests use API-shaped and QSF-shaped fixtures, cover every documented type and se
 - `question_field_id`
 - `question_field_catalog_id`
 - nullable `answer_option_id`
-- nullable `answer_option_catalog_id`
 - `answer_text`
 - nullable `answer_numeric`
 - nullable `answer_boolean`

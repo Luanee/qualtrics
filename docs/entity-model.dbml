@@ -35,7 +35,6 @@ Table questions {
 
 Table answer_options {
   answer_option_id varchar [pk]
-  answer_option_catalog_id varchar [not null]
   answer_external_id varchar [not null]
   question_id varchar [not null, ref: > questions.question_id]
   survey_id varchar [not null, ref: > surveys.survey_id]
@@ -69,7 +68,6 @@ Table response_answers {
   question_field_id varchar [not null, ref: > question_fields.question_field_id]
   question_field_catalog_id varchar [not null, ref: > question_field_catalog.question_field_catalog_id]
   answer_option_id varchar [ref: > answer_options.answer_option_id]
-  answer_option_catalog_id varchar
   answer_text varchar [not null]
   answer_numeric double
   answer_boolean boolean

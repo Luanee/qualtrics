@@ -16,7 +16,7 @@ Parsing always produces nine normalized entities. Occurrence IDs are survey-safe
 
 Questions retain `question_type`, `selector`, and `sub_selector` exactly and add `canonical_question_type`. Fields and answers add `answer_value_type`. Unknown combinations remain available with `unsupported` classification.
 
-`response_answers` preserves `answer_text` and provides nullable `answer_numeric`, `answer_boolean`, `is_selected`, `answer_option_id`, and `answer_option_catalog_id` for analysis.
+`response_answers` preserves `answer_text` and provides nullable `answer_numeric`, `answer_boolean`, `is_selected`, and `answer_option_id` for analysis. Answer options remain scoped to their survey question; there is no cross-survey answer-option catalog.
 
 ## Semantic projection
 
