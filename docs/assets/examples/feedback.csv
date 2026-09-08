@@ -1,0 +1,6 @@
+ResponseId,RecordedDate,Finished,Progress,Duration (in seconds),Q1,Q2
+Response ID,Recorded Date,Finished,Progress,Duration (in seconds),How was your visit?,What could we improve?
+{},{},{},{},{},"{""ImportId"": ""QID1""}","{""ImportId"": ""QID2_TEXT""}"
+R_DEMO_1,2026-09-01 09:00:00,True,100,42,Satisfied,More evening appointments.
+R_DEMO_2,2026-09-01 10:00:00,True,100,35,Satisfied,
+R_DEMO_3,2026-09-02 11:00:00,True,100,68,Dissatisfied,Shorter waiting times.

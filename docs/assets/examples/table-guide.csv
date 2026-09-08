@@ -1,0 +1,10 @@
+Table,One row represents,Example rows
+surveys,A survey,1
+sections,A survey block,1
+questions,A question in a survey,2
+question_fields,An exported question column,2
+answer_options,An allowed choice for a question field,3
+responses,A submitted response,3
+response_answers,A non-empty answer in a response field,5
+question_catalog,A question meaning shared across surveys,2
+question_field_catalog,A field meaning shared across surveys,2

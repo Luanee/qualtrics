@@ -1,5 +1,9 @@
 # Qualtrics entity and semantic model
 
+This reference defines the tables, IDs, and relationships used by the toolkit. For a plain-language introduction, start with [understand your data](understand/your-data.md). Follow the [Power BI guide](guides/power-bi.md) to export and connect the analysis tables.
+
+[Download the DBML schema](entity-model.dbml) to inspect the full column and relationship contract in a compatible schema tool.
+
 Parsing always produces nine normalized entities. Occurrence IDs are survey-safe hashes; `*_external_id` columns preserve Qualtrics lineage. Catalog IDs identify normalized semantics across surveys.
 
 | Entity | Grain | Primary ID | Main parents |

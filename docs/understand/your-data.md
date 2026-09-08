@@ -1,0 +1,77 @@
+# Understand your data
+
+A survey export puts many kinds of information in one wide file. After parsing, you get nine tables that separate survey structure, submitted responses, and answers. The toolkit calls these tables **entities**.
+
+You can open the CSV versions in a spreadsheet. The [report](../guides/reports.md) provides a browser view if you prefer to explore the results without opening individual files.
+
+## Follow one example
+
+The [practice survey](../getting-started/first-report.md) asks two questions:
+
+1. **How was your visit?** Choose Satisfied, Neutral, or Dissatisfied.
+2. **What could we improve?** Write a comment.
+
+Three people respond. All three answer the first question, and two leave a comment. You therefore get **three response rows and five answer rows**. The blank comment does not create an answer row.
+
+Two people select Satisfied and one selects Dissatisfied. The answer-options table still includes Neutral because the survey definition lists it as an allowed choice.
+
+## The nine tables
+
+These are the row counts for the practice survey, not a limit on your own exports.
+
+| Table | One row represents | Example rows |
+| --- | --- | ---: |
+| `surveys` | A survey | 1 |
+| `sections` | A survey block | 1 |
+| `questions` | A question in a survey | 2 |
+| `question_fields` | An exported question column | 2 |
+| `answer_options` | An allowed choice for a question field | 3 |
+| `responses` | A submitted response | 3 |
+| `response_answers` | A non-empty answer in a response field | 5 |
+| `question_catalog` | A question meaning shared across surveys | 2 |
+| `question_field_catalog` | A field meaning shared across surveys | 2 |
+
+[Download this table guide as CSV](../assets/examples/table-guide.csv).
+
+The two catalog tables help you compare matching question and field meanings across surveys. Most readers can start with `surveys`, `questions`, `responses`, and `response_answers` and use the catalogs when they need comparisons.
+
+## A question can have several fields
+
+Think of a **question** as the prompt a person sees. A **field** is a column in the exported file.
+
+A question such as “Rate the speed and friendliness of your visit” can have one field for speed and another for friendliness. A multiple-choice question can have a field for each selection. A text box attached to a choice has its own field too.
+
+```mermaid
+flowchart TD
+    Q[One matrix question] --> S[Speed field]
+    Q --> F[Friendliness field]
+    S --> SA[One answer per responding person]
+    F --> FA[One answer per responding person]
+```
+
+In this example, a person who rates both speed and friendliness contributes two answer rows to one question. Keep the fields separate when comparing results.
+
+## The definition fills in the context
+
+With a matching QSF definition, you can keep the survey's name, question types, blocks, and allowed choices. The toolkit builds answer options from that definition, including choices nobody selected.
+
+Without a definition, you can still parse the export, but some metadata and type information will be missing. You will not get a reliable list of allowed answer options by looking only at the responses. See [parsing with a definition](../guides/parse-exports.md).
+
+## Read missing values carefully
+
+- A blank source answer creates no `response_answers` row. It may reflect a skipped question, survey routing, or an optional answer. The absence alone does not explain why.
+- An answer can retain its original text while its option ID is empty. The toolkit could not match it to one allowed choice with confidence.
+- A numeric-looking category code is still a choice code. Do not average it unless the survey's scale and your analysis justify that calculation.
+- The number of responses is not necessarily the number of unique people. One person may submit more than once.
+
+## Choose a file format
+
+| Format | Use it for | What to expect |
+| --- | --- | --- |
+| CSV | Opening tables in a spreadsheet or sharing with analysts | One text file per table; spreadsheet apps may infer dates or numbers differently |
+| JSON | Inspecting records or writing a script | Readable records with field names; the default for `qualtrics build` |
+| Parquet | Data pipelines and larger analytical tables | Typed column data; requires the Parquet extra |
+
+Keep one format per entity folder. To switch formats, choose a new output folder so the loader does not find two versions of the same table.
+
+For exact column names, IDs, and relationships, read the [entity-model contract](../entity-model.md). For dashboard tables, follow [the Power BI guide](../guides/power-bi.md).
