@@ -49,6 +49,9 @@ jobs:
       - name: Check types
         run: uv run poe type
 
+      - name: Build documentation
+        run: uv run --locked --group docs mkdocs build --strict
+
       - name: Build distributions
         run: uv run poe build
 
