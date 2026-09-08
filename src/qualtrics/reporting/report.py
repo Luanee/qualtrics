@@ -11,6 +11,7 @@ from typing import Any
 from ..analytics import analyze_entities
 from ..models.entities import EntitySet
 from .assets import load_asset
+from .codebook import render_codebook
 
 
 def _normalized_label(value: object) -> str:
@@ -406,7 +407,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>",
         "<meta name='viewport' content='width=device-width,initial-scale=1'>",
         f"<title>{html.escape(survey_name)} · Response report</title>",
-        f"<style>{load_asset('report.css')}</style></head><body>",
+        f"<style>{load_asset('report.css')}\n{load_asset('codebook.css')}</style></head><body>",
         f"<header><div class='shell'><small>RESPONSE REPORT</small><h1>{html.escape(survey_name)}</h1>"
         "<p>Search, review, expand, or print individual survey responses.</p></div></header>",
         "<div class='shell stats'>"
@@ -421,6 +422,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         f"<button id='survey-clear' type='button'>Clear</button></div>{survey_options}</div></div></div>"
         "<nav><a href='#overview'>Overview</a>"
         "<a href='#question-analytics'>Question analytics</a>"
+        "<a href='#codebook'>Codebook</a>"
         "<a href='#by-responses'>By responses</a></nav>",
         "<section id='overview'><h2>Overview</h2><p class='section-intro'>Coverage, completion, "
         "and data-quality signals across this survey.</p><div class='analytics'>"
@@ -438,6 +440,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         "<span><strong>Question analytics</strong><small>Type-aware answer patterns grouped across surveys.</small></span>"
         f"<span id='analytics-count' class='section-count'>{len(question_analytics)} canonical questions</span></summary>"
         f"<div class='section-body'>{''.join(question_analytics)}</div></details>"
+        f"{render_codebook(entities)}"
         "<section id='by-responses'><h2>By responses</h2>"
         "<p class='section-intro'>Review individual answers and filter to the questions you need.</p>",
         "<div class='toolbar'><input id='search' type='search' "
@@ -547,6 +550,8 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
     parts.append(
         "<div id='empty' class='empty hidden'>No matching responses.</div></section></main>"
         + "<script>"
+        + load_asset("codebook.js")
+        + "\n"
         + load_asset("report.js")
         + "</script></body></html>"
     )

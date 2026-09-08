@@ -72,3 +72,17 @@ Share the HTML file through your usual approved channel. Anyone with the file ca
 For a paper or PDF copy, select the surveys and questions you need, expand the relevant sections, and use your browser's **Print** command. Check the print preview before saving or printing.
 
 The report is a snapshot. To include new responses, rebuild the entity folder and regenerate the HTML file.
+
+## Look up exported columns in the codebook
+
+Open **Codebook** to connect a column in your CSV to its question, specific field or matrix row, section, question type, and answer codes. For example, a field called `QID8_2` might represent the working-hours row of a satisfaction matrix.
+
+The codebook contains one row for each exported question field. It includes the original export column and ImportId when available. Response metadata columns such as `ResponseId` and `RecordedDate` are outside this view.
+
+- Use **Find a field** to search question text, column names, sections, codes, and labels.
+- Use the report's **Surveys** selector to limit the codebook to particular surveys.
+- Click **Download CSV** to save the currently visible rows as `codebook.csv`.
+
+Codes and labels come from the survey definition, including options nobody selected. Where a recode differs from the choice ID, both are shown. Without a QSF, the codebook still shows the available export headers and field metadata, but it does not invent missing choices. Text that could be interpreted as a spreadsheet formula is exported as literal text.
+
+Codebook search is independent of the response-card search. It changes which dictionary rows appear and are downloaded; it does not change response statistics.
