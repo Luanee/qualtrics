@@ -8,7 +8,7 @@ Preview the Material for MkDocs site from this repository:
 uv run --group docs mkdocs serve
 ```
 
-Open `http://127.0.0.1:8000` in your browser. Build the site with `uv run --group docs mkdocs build --strict`. See [documentation setup and plugin choices](docs/contributing/documentation.md) for details, and the [entity model](docs/entity-model.md) and [DBML contract](docs/entity-model.dbml) for analytical relationships.
+Open `http://127.0.0.1:8000` in your browser. Build the site with `uv run --group docs mkdocs build --strict`. See [documentation setup and plugin choices](docs/contributing/documentation.md) and [publishing to GitHub Pages](docs/contributing/documentation.md#publish-the-site) for details, and the [entity model](docs/entity-model.md) and [DBML contract](docs/entity-model.dbml) for analytical relationships.
 
 [![Python](https://img.shields.io/pypi/pyversions/qualtrics?logo=python&logoColor=white)](https://pypi.org/project/qualtrics/)
 [![Ruff](https://img.shields.io/badge/code%20style-Ruff-D7FF64?logo=ruff&logoColor=261230)](https://docs.astral.sh/ruff/)

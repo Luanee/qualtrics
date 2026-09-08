@@ -88,6 +88,23 @@ Then inspect search, navigation, code copying, the enlarged figure, and the Merm
 
 ## Publish the site
 
-The build produces static files. You can deploy the contents of `site/` to a static web host. A local build or preview does not publish anything.
+The **Deploy documentation** workflow in `.github/workflows/deploy-docs.yml` builds the static site and publishes it to GitHub Pages. It runs when documentation, site configuration, build dependencies, the Python version, or the workflow itself changes on `main`. Pull requests are checked by CI; deployment happens after merge.
 
-If you choose GitHub Pages, configure the repository's Pages settings and follow [Material's publishing guide](https://squidfunk.github.io/mkdocs-material/publishing-your-site/). Set `site_url` in `mkdocs.yml` to the actual public URL once you have chosen one. This repository's documentation check only builds and validates the site.
+### Enable GitHub Pages once
+
+1. Open the repository's **Settings → Pages**.
+2. Under **Build and deployment**, set **Source** to **GitHub Actions**.
+3. Merge the workflow and documentation into `main`.
+4. Open **Actions → Deploy documentation** and wait for both the build and deployment jobs to finish. The deployment links to the published site.
+
+The default address for this repository is [https://luanee.github.io/qualtrics/](https://luanee.github.io/qualtrics/). Follow [GitHub's custom workflow guide](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages) for the Pages settings. The workflow uses GitHub's built-in token and the `github-pages` environment; you do not need to add a personal access token or maintain a `gh-pages` branch.
+
+### Publish again manually
+
+Open **Actions → Deploy documentation → Run workflow**, select **main**, then click **Run workflow**. This rebuilds and publishes the current documentation on `main`. Runs selected from other branches are skipped. The workflow must be on the default branch before GitHub displays the manual run button.
+
+The workflow installs the locked documentation dependencies, runs `mkdocs build --strict`, and uploads `site/` as a Pages artifact. Deployment starts only after that build succeeds. A failed build leaves the published site in place. The separate CI workflow continues to check documentation on pull requests.
+
+`mkdocs.yml` sets the public `site_url`, which MkDocs uses for canonical links and `sitemap.xml`. During deployment, `DOCS_SITE_URL` takes the URL from GitHub Pages, including a custom domain configured in Pages settings. Local builds use the repository's default Pages address. If you move the site permanently, update that fallback address too.
+
+A local preview or build does not publish anything. You can also host the contents of `site/` with another static web host; set `DOCS_SITE_URL` to that site's public URL when building it.
