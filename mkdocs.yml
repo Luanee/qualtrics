@@ -1,0 +1,106 @@
+site_name: Qualtrics toolkit
+site_description: Practical guides for turning Qualtrics exports into tables, reports, and Power BI models.
+site_url: !ENV [DOCS_SITE_URL, "https://luanee.github.io/qualtrics/"]
+repo_url: https://github.com/Luanee/qualtrics
+repo_name: Luanee/qualtrics
+edit_uri: edit/main/docs/
+docs_dir: docs
+site_dir: site
+strict: true
+
+exclude_docs: |
+  /superpowers/
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    absolute_links: warn
+    unrecognized_links: warn
+    anchors: warn
+
+theme:
+  name: material
+  language: en
+  font: false
+  icon:
+    logo: material/poll
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+    - content.action.edit
+    - toc.follow
+
+plugins:
+  - search
+  - glightbox:
+      auto_themed: true
+      auto_caption: true
+      touchNavigation: true
+      zoomable: true
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Home: index.md
+  - Start here:
+      - Installation: getting-started/installation.md
+      - Your first report: getting-started/first-report.md
+  - Guides:
+      - Parse an export again: guides/parse-exports.md
+      - Read and share reports: guides/reports.md
+      - Combine surveys: guides/combine-surveys.md
+      - Connect to Qualtrics: guides/api-access.md
+      - Prepare a Power BI model: guides/power-bi.md
+  - Understand your data:
+      - The output tables: understand/your-data.md
+      - Glossary: understand/glossary.md
+  - Reference:
+      - Commands: reference/cli.md
+      - Python: reference/python.md
+      - Configuration: reference/configuration.md
+      - Entity and semantic model: entity-model.md
+  - Help & contributing:
+      - Troubleshooting: help/troubleshooting.md
+      - Documentation & plugins: contributing/documentation.md

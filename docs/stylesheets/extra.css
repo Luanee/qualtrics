@@ -1,0 +1,64 @@
+:root,
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #176b68;
+  --md-primary-fg-color--light: #23857e;
+  --md-primary-fg-color--dark: #114c4a;
+  --md-accent-fg-color: #147f85;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-hue: 215;
+  --md-primary-fg-color: #70d4c8;
+  --md-primary-bg-color: #102727;
+  --md-accent-fg-color: #70d4c8;
+}
+
+[data-md-color-scheme="slate"] .md-header {
+  background-color: #185c5e;
+  color: #ffffff;
+}
+
+.md-typeset h1,
+.md-typeset h2 {
+  color: var(--md-default-fg-color);
+}
+
+.md-typeset a:not(.md-content__button):not(.headerlink):not(.md-button) {
+  color: var(--md-primary-fg-color);
+}
+
+.md-typeset h1 {
+  font-weight: 750;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.md-typeset h2 {
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
+.md-typeset .grid.cards > ul > li {
+  border-radius: 0.6rem;
+  padding: 1.1rem;
+}
+
+.md-typeset .md-button {
+  border-radius: 0.35rem;
+  margin: 0.25rem 0.3rem 0.25rem 0;
+}
+
+.md-typeset table:not([class]) th {
+  min-width: 5rem;
+}
+
+.md-typeset img[src$="survey-workflow.svg"] {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.6rem;
+  width: 100%;
+}
+
+.md-typeset a:focus-visible {
+  outline: 2px solid var(--md-accent-fg-color);
+  outline-offset: 3px;
+}

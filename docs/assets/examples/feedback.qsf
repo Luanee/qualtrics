@@ -1,0 +1,73 @@
+{
+  "SurveyEntry": {
+    "SurveyID": "SV_DEMO_FEEDBACK",
+    "SurveyName": "Visit feedback (demo)",
+    "SurveyLanguage": "EN"
+  },
+  "SurveyElements": [
+    {
+      "Element": "SQ",
+      "PrimaryAttribute": "QID1",
+      "Payload": {
+        "QuestionID": "QID1",
+        "QuestionText": "How was your visit?",
+        "DataExportTag": "Q1",
+        "QuestionType": "MC",
+        "Selector": "SAVR",
+        "SubSelector": "TX",
+        "Choices": {
+          "1": {
+            "Display": "Satisfied"
+          },
+          "2": {
+            "Display": "Neutral"
+          },
+          "3": {
+            "Display": "Dissatisfied"
+          }
+        },
+        "ChoiceOrder": [
+          1,
+          2,
+          3
+        ],
+        "RecodeValues": {
+          "1": "1",
+          "2": "2",
+          "3": "3"
+        }
+      }
+    },
+    {
+      "Element": "SQ",
+      "PrimaryAttribute": "QID2",
+      "Payload": {
+        "QuestionID": "QID2",
+        "QuestionText": "What could we improve?",
+        "DataExportTag": "Q2",
+        "QuestionType": "TE",
+        "Selector": "SL"
+      }
+    },
+    {
+      "Element": "BL",
+      "Payload": {
+        "BL_FEEDBACK": {
+          "ID": "BL_FEEDBACK",
+          "Description": "Your visit",
+          "Type": "Standard",
+          "BlockElements": [
+            {
+              "Type": "Question",
+              "QuestionID": "QID1"
+            },
+            {
+              "Type": "Question",
+              "QuestionID": "QID2"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
