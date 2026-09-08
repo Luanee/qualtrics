@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import math
+from bisect import bisect_right
 from collections import Counter
 from dataclasses import dataclass
 from statistics import mean, median, stdev
@@ -108,6 +109,35 @@ def _text_distribution(values: list[str]) -> str:
     return content
 
 
+def numeric_distribution(values: list[float]) -> list[tuple[str, int]]:
+    """Count finite values exactly for small domains, or in up to eight bins."""
+    counts = Counter(value for value in values if math.isfinite(value))
+    if not counts:
+        return []
+
+    def labels(numbers: list[float]) -> list[str]:
+        short = [f"{number:.6g}" for number in numbers]
+        return short if len(set(short)) == len(numbers) else [f"{number:.17g}" for number in numbers]
+
+    ordered = sorted(counts)
+    if len(ordered) <= 12:
+        return [(label, counts[value]) for value, label in zip(ordered, labels(ordered), strict=True)]
+    low, high = ordered[0], ordered[-1]
+    # A convex combination avoids overflow in high - low for extreme ranges.
+    edges = sorted({low, high, *(low * (1 - step / 8) + high * (step / 8) for step in range(1, 8))})
+    bins = [0] * (len(edges) - 1)
+    for value, count in counts.items():
+        bins[min(bisect_right(edges, value) - 1, len(bins) - 1)] += count
+    boundary_labels = labels(edges)
+    return [
+        (
+            f"{boundary_labels[index]} ≤ value {'≤' if index == len(bins) - 1 else '<'} {boundary_labels[index + 1]}",
+            count,
+        )
+        for index, count in enumerate(bins)
+    ]
+
+
 def _numeric_summary(answers: list[Row]) -> str:
     values = []
     for answer in answers:
@@ -139,7 +169,12 @@ def _numeric_summary(answers: list[Row]) -> str:
         "<div class='numeric-summary'>"
         + "".join(f"<span><b>{format_number(value)}</b> {label}</span>" for label, value in measures)
         + f"</div><p class='meta'>{len(values):,} numeric values. "
-        "Sample standard deviation (n − 1); requires at least two values.</p>" + exclusion_note
+        "Sample standard deviation (n − 1); requires at least two values.</p>"
+        + exclusion_note
+        + "<div class='numeric-distribution'><h4>Value distribution</h4>"
+        + "".join(_distribution_row(label, count, len(values)) for label, count in numeric_distribution(values))
+        + f"<p class='meta'>Percentages use {len(values):,} numeric {'value' if len(values) == 1 else 'values'}. "
+        "Up to 12 distinct values appear individually; larger domains use up to eight equal-width intervals.</p></div>"
     )
 
 
