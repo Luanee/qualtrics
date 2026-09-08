@@ -1,10 +1,8 @@
 # ruff: noqa: E501 -- report markup remains readable at natural line lengths
 from __future__ import annotations
 
-import contextlib
 import html
 import re
-from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +10,7 @@ from ..analytics import analyze_entities
 from ..models.entities import EntitySet
 from .assets import load_asset
 from .codebook import render_codebook
+from .question_presentation import render_question_analysis
 
 
 def _normalized_label(value: object) -> str:
@@ -53,17 +52,10 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
     response_questions = analysis.response_questions
     question_responses = analysis.question_responses
     question_answers = analysis.question_answers
-    answer_options = {
-        (str(option["survey_id"]), str(option["question_id"]), str(option["answer_id"])): option
-        for option in entities.answer_options
-    }
+    answer_options = {(str(option["survey_id"]), str(option["question_id"]), str(option["answer_id"])): option for option in entities.answer_options}
     question_options: dict[tuple[str, str], list[dict[str, Any]]] = {}
-    field_options: dict[str, list[dict[str, Any]]] = {}
     for option in entities.answer_options:
         question_options.setdefault((str(option["survey_id"]), str(option["question_id"])), []).append(option)
-        field_options.setdefault(str(option.get("question_field_id") or option.get("field_id") or ""), []).append(
-            option
-        )
     unanswered_questions = analysis.unanswered_questions
     unused_fields = analysis.unused_fields
     unused_options = analysis.unused_options
@@ -150,13 +142,10 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             external_id = str(question.get("question_external_id") or question_id)
             metadata = external_id + (f" · Section: {block_name}" if block_name else "")
             labels = "".join(
-                f"<li>{html.escape(str(item.get(label_key) or item.get('field_id') or item.get('answer_id') or 'Unknown'))}</li>"
-                for item in question_items
+                f"<li>{html.escape(str(item.get(label_key) or item.get('field_id') or item.get('answer_id') or 'Unknown'))}</li>" for item in question_items
             )
             groups.append(
-                "<div class='quality-question'>"
-                f"<strong>{html.escape(question_label)}</strong><small>{html.escape(metadata)}</small>"
-                f"<ul>{labels}</ul></div>"
+                f"<div class='quality-question'><strong>{html.escape(question_label)}</strong><small>{html.escape(metadata)}</small><ul>{labels}</ul></div>"
             )
         return "".join(groups)
 
@@ -183,72 +172,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             "</div></div></details>"
         )
 
-    def distribution(values: list[str], denominator: int) -> str:
-        counts = Counter(values)
-        rows = []
-        for value, count in counts.most_common(12):
-            rate = count / denominator * 100 if denominator else 0
-            rows.append(
-                f"<div class='distribution-row'><span title='{html.escape(value, quote=True)}'>"
-                f"{html.escape(value)}</span><div class='distribution-bar'><i style='width:{rate:.1f}%'></i>"
-                f"</div><b>{count:,}</b><small>{rate:.0f}%</small></div>"
-            )
-        hidden_count = sum(counts.values()) - sum(count for _, count in counts.most_common(12))
-        if hidden_count:
-            rows.append(f"<p class='meta'>Other values: {hidden_count:,}</p>")
-        return "".join(rows) or "<p class='meta'>No values observed.</p>"
-
-    def option_distribution(
-        observed_answers: list[dict[str, Any]],
-        defined_options: list[dict[str, Any]],
-        denominator: int,
-    ) -> str:
-        alias_candidates: dict[str, set[str]] = {}
-        labels = {
-            str(option.get("answer_option_id") or f"{option.get('field_id')}:{option['answer_id']}"): str(
-                option["answer_text"]
-            )
-            for option in defined_options
-        }
-        for option in defined_options:
-            option_id = str(option.get("answer_option_id") or f"{option.get('field_id')}:{option['answer_id']}")
-            for alias in ("answer_id", "answer_code", "answer_export_tag", "answer_text"):
-                value = str(option.get(alias) or "").casefold()
-                if value:
-                    alias_candidates.setdefault(value, set()).add(option_id)
-        selections: set[tuple[str, str]] = set()
-        unknown_labels: dict[str, str] = {}
-        for answer in observed_answers:
-            raw_value = str(answer["answer_text"])
-            option_id = str(answer.get("answer_option_id") or "") or None
-            candidates = alias_candidates.get(raw_value.casefold(), set())
-            if option_id is None and len(candidates) == 1:
-                option_id = next(iter(candidates))
-            if option_id is None:
-                option_id = f"unknown:{raw_value.casefold()}"
-                unknown_labels.setdefault(option_id, raw_value)
-            selections.add((str(answer["response_id"]), option_id))
-        counts = Counter(option_id for _, option_id in selections)
-        option_ids = list(labels)
-        option_ids.extend(
-            option_id for option_id, _ in sorted(unknown_labels.items(), key=lambda item: item[1].casefold())
-        )
-        rows = []
-        for option_id in option_ids:
-            label = labels.get(option_id) or unknown_labels[option_id]
-            count = counts[option_id]
-            rate = count / denominator * 100 if denominator else 0
-            zero_class = " option-zero" if not count else ""
-            rows.append(
-                f"<div class='distribution-row option-row{zero_class}'><span title='{html.escape(label, quote=True)}'>"
-                f"{html.escape(label)}</span><div class='distribution-bar'><i style='width:{min(rate, 100):.1f}%'></i>"
-                f"</div><b>{count:,}</b><small>{rate:.0f}%</small></div>"
-            )
-        return "".join(rows) or "<p class='meta'>No answer options defined or observed.</p>"
-
     analytics_by_catalog: dict[str, dict[str, Any]] = {}
-    categorical_types = {"MC", "MATRIX", "SBS", "DD", "DRILLDOWN", "RO", "RANKORDER"}
-    numeric_types = {"SLIDER", "CS", "CONSTANTSUM"}
     for key, question in response_questions.items():
         question_id = str(question["question_id"])
         question_external_id = str(question.get("question_external_id") or question_id)
@@ -259,119 +183,16 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         respondent_count = len(question_responses.get(key, set()))
         question_response_total = survey_response_counts.get(str(key[0]), 0)
         coverage = respondent_count / question_response_total * 100 if question_response_total else 0
-        field_groups: dict[str, list[str]] = {}
-        answers_by_field: dict[str, list[dict[str, Any]]] = {}
-        for answer in observed:
-            field_id = str(answer["field_id"])
-            field_groups.setdefault(field_id, []).append(str(answer["answer_text"]))
-            answers_by_field.setdefault(field_id, []).append(answer)
-        categorical_observed = [
-            answer
-            for answer in observed
-            if not fields.get((key[0], key[1], str(answer["field_id"])), {}).get("is_text_field")
-        ]
-        value_count = len(categorical_observed) if question_type == "MC" else len(observed)
-        value_label = "selections" if question_type == "MC" else "values"
+        question_fields = [field for field_key, field in fields.items() if field_key[:2] == key]
+        field_labels = {str(field["field_id"]): _display_field_label(field, question, answer_options) for field in question_fields}
+        analysis_body, value_count, value_label = render_question_analysis(
+            question, question_fields, observed, question_options.get(key, []), field_labels, respondent_count
+        )
         summary = (
-            f"<span><b>{respondent_count:,}</b> respondents</span>"
-            f"<span><b>{coverage:.0f}%</b> coverage</span>"
-            f"<span><b>{value_count:,}</b> {value_label}</span>"
+            f"<span><b>{respondent_count:,}</b> respondents</span><span><b>{coverage:.0f}%</b> coverage</span><span><b>{value_count:,}</b> {value_label}</span>"
         )
-        bodies = []
-        if question_type == "MC":
-            defined_options = question_options.get(key, [])
-            choice_field_ids = [
-                field_id
-                for field_id in field_groups
-                if not fields.get((key[0], key[1], field_id), {}).get("is_text_field")
-            ]
-            if selector.upper().startswith("MA"):
-                bodies.append(
-                    "<div class='field-analysis option-analysis'>"
-                    + option_distribution(categorical_observed, defined_options, respondent_count)
-                    + "</div>"
-                )
-            else:
-                for field_id in choice_field_ids:
-                    field_definition = fields.get((key[0], key[1], field_id), {})
-                    field_label = _display_field_label(field_definition, question, answer_options)
-                    heading = f"<h4>{html.escape(field_label)}</h4>" if len(choice_field_ids) > 1 else ""
-                    bodies.append(
-                        f"<div class='field-analysis option-analysis'>{heading}"
-                        f"{option_distribution(answers_by_field[field_id], defined_options, respondent_count)}</div>"
-                    )
-            for field_id, values in field_groups.items():
-                field_definition = fields.get((key[0], key[1], field_id), {})
-                if not field_definition.get("is_text_field"):
-                    continue
-                field_label = _display_field_label(field_definition, question, answer_options)
-                content = (
-                    f"<p class='meta'>{len(values):,} written responses · {len(set(values)):,} unique. "
-                    "Most frequent values:</p>" + distribution(values, len(values))
-                )
-                bodies.append(
-                    f"<div class='field-analysis text-analysis'><h4>{html.escape(field_label)}</h4>{content}</div>"
-                )
-        elif question_type == "MATRIX" and str(question.get("answer_value_type")) == "categorical":
-            matrix_field_ids = list(
-                dict.fromkeys([*field_groups, *[str(item["field_id"]) for item in question_options.get(key, [])]])
-            )
-            for field_id in matrix_field_ids:
-                field_definition = fields.get((key[0], key[1], field_id), {})
-                field_label = _display_field_label(field_definition, question, answer_options)
-                bodies.append(
-                    f"<div class='field-analysis option-analysis'><h4>{html.escape(str(field_label))}</h4>"
-                    f"{option_distribution(answers_by_field.get(field_id, []), field_options.get(field_id, []), respondent_count)}</div>"
-                )
-        elif question_type == "TE":
-            for field_id, values in field_groups.items():
-                numeric_values = []
-                for value in values:
-                    with contextlib.suppress(ValueError):
-                        numeric_values.append(float(value.replace(",", "")))
-                field_definition = fields.get((key[0], key[1], field_id), {})
-                field_label = _display_field_label(field_definition, question, answer_options)
-                heading = f"<h4>{html.escape(str(field_label))}</h4>" if len(field_groups) > 1 else ""
-                if values and len(numeric_values) / len(values) >= 0.8:
-                    content = (
-                        "<div class='numeric-summary'>"
-                        f"<span><b>{min(numeric_values):g}</b> Minimum</span>"
-                        f"<span><b>{sum(numeric_values) / len(numeric_values):.1f}</b> Average</span>"
-                        f"<span><b>{max(numeric_values):g}</b> Maximum</span></div>"
-                    )
-                else:
-                    content = (
-                        f"<p class='meta'>{len(set(values)):,} unique text answers. Most frequent values:</p>"
-                        + distribution(values, len(values))
-                    )
-                bodies.append(f"<div class='field-analysis'>{heading}{content}</div>")
-        elif question_type in numeric_types:
-            for field_id, values in field_groups.items():
-                numeric_values = []
-                for value in values:
-                    with contextlib.suppress(ValueError):
-                        numeric_values.append(float(value.replace(",", "")))
-                field_definition = fields.get((key[0], key[1], field_id), {})
-                field_label = _display_field_label(field_definition, question, answer_options)
-                if numeric_values:
-                    bodies.append(
-                        f"<div class='field-analysis'><h4>{html.escape(str(field_label))}</h4>"
-                        f"<div class='numeric-summary'><span><b>{min(numeric_values):g}</b> Minimum</span>"
-                        f"<span><b>{sum(numeric_values) / len(numeric_values):.1f}</b> Average</span>"
-                        f"<span><b>{max(numeric_values):g}</b> Maximum</span></div></div>"
-                    )
-        else:
-            for field_id, values in field_groups.items():
-                field_definition = fields.get((key[0], key[1], field_id), {})
-                field_label = _display_field_label(field_definition, question, answer_options)
-                show_field = len(field_groups) > 1 or question_type in categorical_types
-                heading = f"<h4>{html.escape(str(field_label))}</h4>" if show_field else ""
-                bodies.append(f"<div class='field-analysis'>{heading}{distribution(values, len(values))}</div>")
-        type_label = {"MC": "Multiple choice", "TE": "Text entry"}.get(
-            question_type, question_type.replace("_", " ").title()
-        )
+        type_label = {"MC": "Multiple choice", "TE": "Text entry"}.get(question_type, question_type.replace("_", " ").title())
         block_label = str(question.get("block_name") or "")
-        analysis_body = "".join(bodies) or '<p class="meta">No values observed.</p>'
         survey_id = str(key[0])
         survey_label = str(survey_lookup.get(survey_id, {}).get("survey_name") or survey_id)
         catalog_id = str(question.get("question_catalog_id") or f"{survey_id}::{question_id}")
@@ -407,7 +228,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>",
         "<meta name='viewport' content='width=device-width,initial-scale=1'>",
         f"<title>{html.escape(survey_name)} · Response report</title>",
-        f"<style>{load_asset('report.css')}\n{load_asset('codebook.css')}</style></head><body>",
+        f"<style>{load_asset('report.css')}\n{load_asset('codebook.css')}\n{load_asset('question-charts.css')}</style></head><body>",
         f"<header><div class='shell'><small>RESPONSE REPORT</small><h1>{html.escape(survey_name)}</h1>"
         "<p>Search, review, expand, or print individual survey responses.</p></div></header>",
         "<div class='shell stats'>"
@@ -470,11 +291,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             *(str(value) for _, value in stable_metadata if value),
         ]
         rows = []
-        metadata_values = [
-            f"<span><b>{html.escape(label)}</b> {html.escape(str(value))}</span>"
-            for label, value in stable_metadata
-            if value
-        ]
+        metadata_values = [f"<span><b>{html.escape(label)}</b> {html.escape(str(value))}</span>" for label, value in stable_metadata if value]
         grouped_response_answers: dict[str, list[tuple[dict[str, Any], dict[str, Any]]]] = {}
         for answer in response_answers:
             q = questions.get((answer["survey_id"], answer["question_id"]), {})
@@ -485,9 +302,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             question_key = (answer["survey_id"], answer["question_id"])
             if question_roles.get(question_key, "response") != "response":
                 metadata_label = field_label or label
-                metadata_values.append(
-                    f"<span><b>{html.escape(str(metadata_label))}</b> {html.escape(str(answer['answer_text']))}</span>"
-                )
+                metadata_values.append(f"<span><b>{html.escape(str(metadata_label))}</b> {html.escape(str(answer['answer_text']))}</span>")
                 continue
             grouped_response_answers.setdefault(str(answer["question_id"]), []).append((answer, f))
         for question_id, grouped_answers in grouped_response_answers.items():
@@ -496,9 +311,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             question_external_id = str(q.get("question_external_id") or question_id)
             label = q.get("question_text") or question_id
             question_type = str(q.get("question_type") or "").upper()
-            type_label = {"MC": "Multiple choice", "TE": "Text entry"}.get(
-                question_type, question_type.replace("_", " ").title()
-            )
+            type_label = {"MC": "Multiple choice", "TE": "Text entry"}.get(question_type, question_type.replace("_", " ").title())
             block_name = str(q.get("block_name") or "")
             field_rows = []
             for answer, field_definition in grouped_answers:
@@ -510,13 +323,8 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
                         f"<span class='value'>{html.escape(str(answer['answer_text']))}</span></div>"
                     )
                 else:
-                    field_rows.append(
-                        "<div class='field-answer value-only'>"
-                        f"<span class='value'>{html.escape(str(answer['answer_text']))}</span></div>"
-                    )
-            question_meta = " · ".join(
-                item for item in (type_label, f"Block: {block_name}" if block_name else "") if item
-            )
+                    field_rows.append(f"<div class='field-answer value-only'><span class='value'>{html.escape(str(answer['answer_text']))}</span></div>")
+            question_meta = " · ".join(item for item in (type_label, f"Block: {block_name}" if block_name else "") if item)
             rows.append(
                 f"<div class='answer' data-question='"
                 f"{html.escape(f'{response_survey_id}::{question_external_id}', quote=True)}'>"
