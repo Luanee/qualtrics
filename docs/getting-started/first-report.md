@@ -86,10 +86,10 @@ Find `data/first-report/report.html` inside your project folder and open it with
 
 Check these results:
 
-1. The top of the report shows **3 Responses**, **2 Response questions**, and **5 Respondent answers**.
-2. Expand **Question analytics**, then the satisfaction question. You should see two Satisfied answers, one Dissatisfied answer, and zero Neutral answers.
+1. **Summary** shows **3 Responses**, **2 Response questions**, and **5 Respondent answers**.
+2. Open **Questions**, then select the satisfaction question. You should see two Satisfied answers, one Dissatisfied answer, and zero Neutral answers.
 3. Expand **Data quality**. Neutral appears under **Defined options not observed**. This is expected: the QSF lists Neutral as a possible answer even though nobody chose it.
-4. Under **By responses**, expand a response to read its answers. One response has no comment.
+4. Open **Written answers** to read the two comments. Follow a comment's response link, or open **Responses** to inspect a complete record. One response has no comment.
 
 The blank comment contributes no row to `response_answers.csv`. That gives you five answer rows: three satisfaction answers plus two comments. In a survey with matrix or multiple-selection questions, one question can produce several answer rows; the report's **Respondent answers** count groups those by response and question.
 

@@ -24,7 +24,7 @@ offline survey data. It can:
 - parse CSV or response-export ZIP files, with or without survey definitions;
 - preserve questions, concrete fields, answer options, and survey blocks;
 - write normalized JSON, CSV, or Parquet entities; and
-- generate an interactive HTML report with data-quality and question analytics.
+- generate an offline HTML report with summary highlights, question charts, searchable written answers, individual responses, and a codebook.
 
 ## Install
 
