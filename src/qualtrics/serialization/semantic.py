@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import csv
 import json
+import os
+import sqlite3
+from contextlib import closing
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing import Any
 
 from ..models.semantic import SEMANTIC_TABLE_NAMES, SemanticModel
 
@@ -102,19 +107,78 @@ SEMANTIC_COLUMNS = {
 _FLOAT_COLUMNS = {"answer_numeric"}
 _BOOL_COLUMNS = {"answer_boolean", "is_selected", "is_text_field"}
 _INT_COLUMNS = {"source_column_index", "section_order", "answer_order"}
+SEMANTIC_SQLITE_FILENAME = "semantic_model.sqlite"
+
+
+def _column_names(name: str, rows: list[dict[str, Any]]) -> list[str]:
+    keys = list(SEMANTIC_COLUMNS[name])
+    keys.extend(key for row in rows for key in row if key not in keys)
+    return keys
+
+
+def _quote_identifier(name: str) -> str:
+    return '"' + name.replace('"', '""') + '"'
+
+
+def _sqlite_type(column: str) -> str:
+    if column in _FLOAT_COLUMNS:
+        return "REAL"
+    if column in _BOOL_COLUMNS or column in _INT_COLUMNS:
+        return "INTEGER"
+    return "TEXT"
+
+
+def _sqlite_values(row: dict[str, Any], keys: list[str], types: list[str]) -> tuple[Any, ...]:
+    values = []
+    for key, column_type in zip(keys, types, strict=True):
+        value = row.get(key)
+        if value is not None and column_type == "TEXT":
+            value = str(value)
+        values.append(value)
+    return tuple(values)
+
+
+def _write_sqlite(model: SemanticModel, destination: Path) -> None:
+    path = destination / SEMANTIC_SQLITE_FILENAME
+    if path.exists() or path.is_symlink():
+        raise ValueError(f"SQLite output already exists: {path}")
+    # Build and close the database on the destination filesystem before exposing it.
+    with TemporaryDirectory(prefix=".semantic-", dir=destination) as staging:
+        temporary_path = Path(staging) / SEMANTIC_SQLITE_FILENAME
+        with closing(sqlite3.connect(temporary_path)) as connection, connection:
+            for name in SEMANTIC_TABLE_NAMES:
+                rows = getattr(model, name)
+                keys = _column_names(name, rows)
+                types = [_sqlite_type(key) for key in keys]
+                columns = ", ".join(
+                    f"{_quote_identifier(key)} {column_type}" for key, column_type in zip(keys, types, strict=True)
+                )
+                connection.execute(f"CREATE TABLE {_quote_identifier(name)} ({columns})")
+                placeholders = ", ".join("?" for _ in keys)
+                connection.executemany(
+                    f"INSERT INTO {_quote_identifier(name)} VALUES ({placeholders})",
+                    (_sqlite_values(row, keys, types) for row in rows),
+                )
+        try:
+            # Linking publishes the complete file atomically and cannot overwrite a concurrent export.
+            os.link(temporary_path, path)
+        except FileExistsError as exc:
+            raise ValueError(f"SQLite output already exists: {path}") from exc
 
 
 def write_semantic_model(model: SemanticModel, folder: str | Path, format: str = "parquet") -> None:
     destination = Path(folder)
     destination.mkdir(parents=True, exist_ok=True)
+    if format == "sqlite":
+        _write_sqlite(model, destination)
+        return
     for name in SEMANTIC_TABLE_NAMES:
         rows = getattr(model, name)
         path = destination / f"{name}.{format}"
         if format == "json":
             path.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
         elif format == "csv":
-            keys = list(SEMANTIC_COLUMNS[name])
-            keys.extend(key for row in rows for key in row if key not in keys)
+            keys = _column_names(name, rows)
             with path.open("w", encoding="utf-8", newline="") as handle:
                 writer = csv.DictWriter(handle, fieldnames=keys)
                 writer.writeheader()
@@ -125,8 +189,7 @@ def write_semantic_model(model: SemanticModel, folder: str | Path, format: str =
                 import pyarrow.parquet as pq
             except ImportError as exc:
                 raise RuntimeError("Install qualtrics[parquet]") from exc
-            keys = list(SEMANTIC_COLUMNS[name])
-            keys.extend(key for row in rows for key in row if key not in keys)
+            keys = _column_names(name, rows)
             fields = []
             for key in keys:
                 if key in _FLOAT_COLUMNS:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated
 from zipfile import BadZipFile, ZipFile
@@ -11,7 +12,9 @@ from zipfile import BadZipFile, ZipFile
 import typer
 
 from qualtrics import QualtricsClient, parse_survey, render_report, write_entities
-from qualtrics.api import ResponseExportRequest
+from qualtrics.api import ExportCallback, ExportEvent, ResponseExportRequest
+from qualtrics.cli.api import _export_date
+from qualtrics.cli.export_progress import run_surveys, validate_survey_ids
 
 
 def _extract_single_csv(archive_path: Path, csv_path: Path) -> None:
@@ -46,18 +49,24 @@ def main(
         str | None,
         typer.Option("--start-date", help="Optional ISO 8601 lower bound for recorded responses"),
     ] = None,
+    end_date: Annotated[str | None, typer.Option(help="Optional ISO 8601 upper bound for recorded responses")] = None,
+    batch_size: Annotated[int, typer.Option(min=1, help="Maximum concurrent surveys")] = 1,
+    retries: Annotated[int, typer.Option(min=0, help="Retries per safe API request")] = 3,
+    no_progress: Annotated[bool, typer.Option("--no-progress")] = False,
 ) -> None:
     """Export surveys and create their CSVs, entities, and HTML reports."""
-    invalid_ids = [
-        survey_id for survey_id in survey_ids if Path(survey_id).name != survey_id or survey_id in {".", ".."}
-    ]
-    if invalid_ids:
-        raise typer.BadParameter(f"survey IDs must not contain path separators: {', '.join(invalid_ids)}")
+    validate_survey_ids(survey_ids)
     if format not in {"parquet", "json", "csv"}:
         raise typer.BadParameter("format must be parquet, json, or csv")
 
-    with QualtricsClient() as client:
-        for survey_id in survey_ids:
+    start_date, end_date = _export_date(start_date), _export_date(end_date)
+    if start_date and end_date and datetime.fromisoformat(start_date) > datetime.fromisoformat(end_date):
+        raise typer.BadParameter("start-date must not be later than end-date")
+
+    with QualtricsClient(max_retries=retries) as client:
+
+        def export_one(survey_id: str, on_progress: ExportCallback) -> str:
+            on_progress(ExportEvent(survey_id, "starting"))
             survey_folder = output / survey_id
             survey_folder.mkdir(parents=True, exist_ok=True)
             definition_path = survey_folder / "definition.qsf"
@@ -80,7 +89,9 @@ def main(
                     useLabels=use_labels,
                     newlineReplacement="//",
                     startDate=start_date,
+                    endDate=end_date,
                 ),
+                on_progress=on_progress,
             )
 
             _extract_single_csv(archive_path, csv_path)
@@ -88,12 +99,28 @@ def main(
             write_entities(entities, entities_path, format)
             render_report(entities, report_path)
 
-            typer.echo(f"Parsed {len(entities.responses):,} responses for {survey_id}")
-            typer.echo(f"Definition: {definition_path}")
-            typer.echo(f"ZIP export: {archive_path}")
-            typer.echo(f"CSV export: {csv_path}")
-            typer.echo(f"{format.title()} entities: {entities_path}")
-            typer.echo(f"HTML report: {report_path}")
+            return (
+                f"Parsed {len(entities.responses):,} responses for {survey_id}\n"
+                f"Definition: {definition_path}\n"
+                f"ZIP export: {archive_path}\n"
+                f"CSV export: {csv_path}\n"
+                f"{format.title()} entities: {entities_path}\n"
+                f"HTML report: {report_path}"
+            )
+
+        results, failures = run_surveys(
+            survey_ids,
+            export_one,
+            batch_size=batch_size,
+            show_progress=not no_progress,
+            description="Completed surveys",
+        )
+    for summary in results.values():
+        typer.echo(summary)
+    for survey_id, error in failures.items():
+        typer.echo(f"{survey_id}: {error}", err=True)
+    if failures:
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":

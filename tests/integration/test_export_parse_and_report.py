@@ -25,13 +25,13 @@ def test_cli_exports_and_parses_multiple_surveys(
             return SimpleNamespace(payload=payload)
 
     class FakeExports:
-        def export(self, survey_id: str, archive_path: Path, *, options) -> None:
+        def export(self, survey_id: str, archive_path: Path, *, options, on_progress) -> None:
             assert options.format == "csv"
             with ZipFile(archive_path, "w", ZIP_DEFLATED) as archive:
                 archive.write(source_path, f"{survey_id}.csv")
 
     class FakeClient:
-        def __init__(self) -> None:
+        def __init__(self, *, max_retries: int = 3) -> None:
             self.survey_definitions = FakeDefinitions()
             self.response_exports = FakeExports()
 
@@ -59,3 +59,24 @@ def test_cli_exports_and_parses_multiple_surveys(
         assert (survey_folder / "entities" / "responses.json").is_file()
         assert (survey_folder / "report.html").is_file()
         assert f"Parsed 2 responses for {survey_id}" in result.output
+
+
+def test_example_rejects_reversed_fractional_second_bounds_before_network(monkeypatch) -> None:
+    def fail_client(**kwargs):
+        raise AssertionError("Unexpected client creation")
+
+    monkeypatch.setattr(export_parse_and_report, "QualtricsClient", fail_client)
+    app = typer.Typer()
+    app.command()(export_parse_and_report.main)
+    result = CliRunner().invoke(
+        app,
+        [
+            "SV_1",
+            "--start-date",
+            "2026-01-01T00:00:00.000001Z",
+            "--end-date",
+            "2026-01-01T00:00:00Z",
+        ],
+    )
+    assert result.exit_code == 2, result.output
+    assert "start-date must not be later" in result.output
