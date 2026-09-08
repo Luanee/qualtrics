@@ -38,6 +38,7 @@ REQUIRED_COLUMNS = {
         "response_id",
         "question_id",
         "question_field_id",
+        "field_id",
         "question_catalog_id",
         "question_field_catalog_id",
         "answer_value_type",
@@ -48,6 +49,10 @@ REQUIRED_COLUMNS = {
         "answer_boolean",
         "is_selected",
     },
+}
+
+NULLABLE_REQUIRED_COLUMNS = {
+    "response_answers": {"answer_option_id", "answer_numeric", "answer_boolean", "is_selected"},
 }
 
 RELATIONSHIPS = (
@@ -93,6 +98,13 @@ def validate_entity_set(entities: EntitySet, *, strict: bool = False) -> None:
                 missing_columns = REQUIRED_COLUMNS[name] - row.keys()
                 if missing_columns:
                     raise ValueError(f"{name} row is missing required columns: {', '.join(sorted(missing_columns))}")
+                null_columns = {
+                    column
+                    for column in REQUIRED_COLUMNS[name] - NULLABLE_REQUIRED_COLUMNS.get(name, set())
+                    if row.get(column) is None
+                }
+                if null_columns:
+                    raise ValueError(f"{name} row has null required columns: {', '.join(sorted(null_columns))}")
             value = str(row.get(key) or "")
             if not value:
                 raise ValueError(f"{name} row is missing {key}")

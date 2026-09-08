@@ -368,6 +368,16 @@ def test_validation_rejects_response_answer_lineage_mismatch(definition_answer_f
         validate_entity_set(entities, strict=True)
 
 
+def test_validation_reports_missing_response_answer_field_id_as_contract_error(
+    definition_answer_files: tuple[Path, Path],
+) -> None:
+    entities = parse_survey(*definition_answer_files)
+    entities.response_answers[0].pop("field_id")
+
+    with pytest.raises(ValueError, match="response_answers row is missing required columns: field_id"):
+        validate_entity_set(entities, strict=True)
+
+
 def test_empty_csv_table_must_expose_current_answer_option_schema(
     definition_answer_files: tuple[Path, Path], tmp_path: Path
 ) -> None:
