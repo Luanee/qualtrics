@@ -86,6 +86,58 @@ uv run qualtrics build data/api-exports/SV_123.zip --qsf data/my-survey/definiti
 
 Replace the QSF path with your actual definition file. Use a new export folder when you want to retain earlier downloads; repeating an export to the same path replaces the local file.
 
+## Export several surveys
+
+List the survey IDs in the same command. The default runs one survey at a time. Increase `--batch-size` to set the maximum number of concurrent surveys:
+
+```text
+uv run qualtrics api export SV_123 SV_456 SV_789 --output data/api-exports --batch-size 2
+```
+
+This starts at most two surveys at once. A new survey starts when a slot becomes available. You can use the same command for one or two surveys; the effective concurrency never exceeds the number of surveys supplied. The default ID naming writes `SV_123.zip`, `SV_456.zip`, and `SV_789.zip` in the output directory. Other naming strategies use a separate subdirectory for each survey so equal survey names or download filenames cannot overwrite each other.
+
+In a terminal, Rich displays an overall completed-survey count and a row for each survey, with a percentage bar, elapsed time, estimated remaining time, and stages for starting, exporting, and downloading. The overall counter advances after the download is saved. Download time has no percentage estimate. Redirected commands write simple stage messages to stderr instead of animated bars; `--no-progress` hides these progress messages. Saved paths go to stdout.
+
+If one survey fails, the remaining surveys continue. Successful files stay on disk, the command identifies failures on stderr, and its exit code is nonzero. Re-run the failed IDs to try them again. Pressing Ctrl+C stops scheduling further surveys and cancels active workflows at their next progress callback. An in-flight request, retry wait, or polling sleep may need to finish first; completed local files are retained.
+
+### Recover from temporary errors
+
+Safe requests have three retries by default (`--retries 3`), in addition to the original attempt. Read requests retry HTTP 408, 429, 500, 502, 503, and 504 and transport failures, with exponential backoff. The client honors a server's `Retry-After` delay. Use `--retries 0` to disable retries.
+
+Authentication and permission failures do not retry. A mutation such as starting an export retries only connection failures known to occur before sending the request. It does not repeat a POST after a read timeout or error response, because Qualtrics might already have started the export. The retry count applies to each HTTP request, not the entire survey workflow. The polling deadline defaults to 900 seconds; an in-flight request and its retries can finish after that deadline.
+
+### Select which responses and columns to export
+
+For example, request January responses and two questions:
+
+```text
+uv run qualtrics api export SV_123 --output data/january --start-date 2026-01-01 --end-date 2026-02-01 --question-id QID1 --question-id QID2 --limit 5000
+```
+
+Dates and timestamps without an offset are interpreted as UTC; timestamps with an offset are converted to UTC. Repeat `--embedded-data-id` or `--metadata-id` to select additional embedded-data or survey metadata columns. `--filter-id` applies a saved filter to one survey. Qualtrics determines which options and fields your survey and export format support.
+
+You can choose `--format csv`, `tsv`, `json`, `ndjson`, `xml`, or `spss`, and `--no-compress` downloads the uncompressed result. The toolkit's CSV/ZIP parsing workflow expects CSV data; the other formats are downloads for use in other tools. Other controls include `--display-order`, `--label-columns`, `--newline-replacement`, and `--sort-by-last-modified-date`. See the complete [CLI options](../reference/cli.md#api-export).
+
+For incremental exports, `--allow-continuation` requests a continuation token. If Qualtrics returns one, the command prints it to stderr alongside its survey ID. Save it and pass `--continuation-token TOKEN` on a later export of that same survey. Tokens and saved filter IDs apply to one survey, so these options require a single-survey command. The toolkit does not automatically follow continuation tokens.
+
+### Observe an export from Python
+
+SDK callbacks contain no terminal-rendering dependencies:
+
+```python
+from qualtrics.api import ExportEvent, QualtricsClient
+
+
+def show_progress(event: ExportEvent) -> None:
+    print(event.survey_id, event.stage, event.percent_complete)
+
+
+with QualtricsClient(max_retries=3, retry_backoff=1.0) as client:
+    result = client.export_responses("SV_123", "data/api-exports", on_progress=show_progress)
+```
+
+The stages are `starting`, `exporting`, `downloading`, and `complete`. `percent_complete` is supplied during export polling and at completion. A `complete` event means the file was saved locally. Callbacks run in the thread making the export call; any callback exception is passed back to the caller.
+
 ## Download, parse, and report in one workflow
 
 The repository includes `examples/export_parse_and_report.py`. With your connection configured, run:
@@ -97,8 +149,10 @@ uv run python examples/export_parse_and_report.py SV_123 --output data/api-expor
 For several surveys, list their IDs:
 
 ```text
-uv run python examples/export_parse_and_report.py SV_123 SV_456 --output data/api-export
+uv run python examples/export_parse_and_report.py SV_123 SV_456 SV_789 --output data/api-export --batch-size 2
 ```
+
+The script defaults to one survey at a time. It uses the same progress display and retry policy as `api export`; `--batch-size`, `--retries`, and `--no-progress` control them. Its overall completed count includes parsing and report generation. If a survey fails, the other surveys continue and the command exits with an error after printing the successful results.
 
 For each ID, the script downloads the survey definition and responses, extracts the CSV, writes entity tables, and renders a report:
 
@@ -112,7 +166,7 @@ data/api-export/SV_123/
     └── ... nine Parquet files ...
 ```
 
-This script uses Parquet by default, so keep the `parquet` extra installed. Add `--format csv` or `--format json` for another entity format. Its `--labels` default, optional `--codes`, and `--start-date` export filter appear in:
+This script uses Parquet by default, so keep the `parquet` extra installed. Add `--format csv` or `--format json` for another entity format. Its `--labels` default, optional `--codes`, and `--start-date` / `--end-date` export filters appear in:
 
 ```text
 uv run python examples/export_parse_and_report.py --help

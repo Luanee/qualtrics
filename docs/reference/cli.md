@@ -142,22 +142,49 @@ List all survey pages available to the token. Print one survey ID and name per l
 
 ```bash
 uv run qualtrics api export SV_EXAMPLE --output data
+uv run qualtrics api export SV_FIRST SV_SECOND SV_THIRD --output data --batch-size 2
 ```
 
 | Argument or option | Required | Default | Meaning |
 | --- | --- | --- | --- |
-| `SURVEY_ID` | Yes | — | Qualtrics survey ID. |
-| `--output`, `-o` | Yes | — | Destination directory or explicit output file. |
+| `SURVEY_IDS...` | Yes | — | One or more distinct Qualtrics survey IDs. |
+| `--output`, `-o` | Yes | — | Destination directory; an explicit file is allowed for one survey. |
 | `--labels` / `--codes` | No | `--labels` | Export answer labels or codes. |
 | `--naming` | No | `survey_id` | `survey_id`, `survey_name`, `qualtrics`, or `custom`. |
-| `--filename TEXT` | With `--naming custom` and a directory output | Unset | Custom filename stem. |
-| `--survey-name TEXT` | No | Retrieved when needed | Name for the `survey_name` strategy. |
+| `--filename TEXT` | With `--naming custom` | Unset | Custom filename stem. |
+| `--survey-name TEXT` | No | Retrieved when needed | Name for the `survey_name` strategy; one survey only. |
+| `--batch-size INTEGER` | No | `1` | Maximum concurrent surveys; at least 1. |
+| `--no-progress` | No | Off | Hide progress on stderr. |
+| `--retries INTEGER` | No | `3` | Additional attempts for each safe request; 0 disables retries. |
+| `--format TEXT` | No | `csv` | `csv`, `tsv`, `json`, `ndjson`, `xml`, or `spss`. |
+| `--compress` / `--no-compress` | No | `--compress` | Download a ZIP or uncompressed result. |
+| `--start-date TEXT` | No | Unset | Recorded-response lower bound, ISO 8601. |
+| `--end-date TEXT` | No | Unset | Recorded-response upper bound, ISO 8601. |
+| `--question-id TEXT` | No | All | Select questions; repeat for more IDs. |
+| `--embedded-data-id TEXT` | No | All | Select embedded-data fields; repeat for more IDs. |
+| `--metadata-id TEXT` | No | All | Select survey metadata fields; repeat for more IDs. |
+| `--filter-id TEXT` | No | Unset | Saved export filter; one survey only. |
+| `--limit INTEGER` | No | Unset | Maximum responses; must be positive. |
+| `--display-order` | No | Off | Include randomized display order. |
+| `--label-columns` | No | Off | Include additional label columns. |
+| `--newline-replacement TEXT` | No | Unset | Replacement for newlines in response values. |
+| `--allow-continuation` | No | Off | Request a continuation token. |
+| `--continuation-token TEXT` | No | Unset | Resume a previous export; one survey only. |
+| `--sort-by-last-modified-date` | No | Off | Sort responses by last-modified date. |
+| `--poll-interval FLOAT` | No | `1.0` | Seconds between status checks; at least 0.1. |
+| `--timeout FLOAT` | No | `900.0` | Polling deadline in seconds; at least 0.1. In-flight requests and retries may finish later. |
 
-The command starts an export, polls once per second for up to 900 seconds, downloads it, and prints its path. It requests CSV with compression enabled, so the example writes `data/SV_EXAMPLE.zip`. These timing and compression settings have no CLI flags; use the [Python API](python.md) to change them.
+The command starts exports, polls their status, downloads the results, and prints saved paths to stdout in the supplied survey order. The default CSV/compression settings write `data/SV_EXAMPLE.zip`. Dates without an explicit offset are interpreted as UTC. Selected fields and formats are passed to Qualtrics; support depends on the survey and API. The offline parser expects CSV or a ZIP containing CSV.
 
-The naming strategies choose a filename from the survey ID, supplied or fetched survey name, Qualtrics download headers, or your custom filename. The Qualtrics strategy falls back to the survey ID if the response supplies no filename. Generated names replace unsupported characters with underscores.
+Interactive terminals show Rich progress on stderr: the overall completed count, per-survey export percentage, stages, elapsed time, and estimated remaining time. Downloading is indeterminate, and a survey counts as complete only after its file is saved. Redirected commands use simple stage lines. `--no-progress` suppresses progress, while errors and returned continuation tokens remain on stderr. Continuation tokens are reported with their survey IDs and are not followed automatically.
 
-An output path with a suffix, such as `data/customer.zip`, takes precedence over naming options. It does not change the downloaded content: naming a compressed export `.csv` will not unzip it. The command creates parent directories and overwrites an existing target file.
+Safe reads retry temporary failures and honor `Retry-After`. Export creation only retries connection failures known to occur before sending; it never repeats an ambiguous POST response. Authentication and permission errors do not retry. See [retry behavior](../guides/api-access.md#recover-from-temporary-errors).
+
+The naming strategies choose a filename from the survey ID, supplied or fetched survey name, Qualtrics download headers, or your custom filename. The Qualtrics strategy falls back to the survey ID if the response supplies no filename. Generated ID, survey-name, and custom names replace unsupported characters with underscores. For multiple surveys, non-ID naming uses `OUTPUT/SURVEY_ID/filename` to avoid collisions.
+
+An explicit output file takes precedence over naming options. It does not change the downloaded content: naming a compressed export `.csv` will not unzip it. Existing directories containing a dot in their name remain directories. New output paths with a suffix are interpreted as files, so create such a directory first when needed. Parent directories are created automatically, and an existing export is replaced only after its replacement file is written successfully.
+
+If one survey fails, completed outputs are retained and the others continue. The command reports failed survey IDs and exits nonzero after the batch finishes. Pressing Ctrl+C stops scheduling further surveys and cancels active workflows at their next progress callback. An in-flight request, retry wait, or polling sleep may need to finish first; completed local files are retained. Duplicate IDs, unsafe IDs, invalid dates, empty selected IDs, invalid numeric options, and incompatible multi-survey options are rejected before network requests.
 
 ### `api import`
 
