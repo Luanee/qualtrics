@@ -1,5 +1,16 @@
 # Release Notes
 
+## 0.3.0 (2026-09-08)
+
+### Other changes
+
+* 🔖 PR title feat: build field-scoped answer options from survey definitions. PR [#22](https://github.com/Luanee/qualtrics/pull/22) by [@Luanee](https://github.com/Luanee).
+* 🔖 Add MkDocs documentation site and GitHub Pages deployment. PR [#23](https://github.com/Luanee/qualtrics/pull/23) by [@Luanee](https://github.com/Luanee).
+* 🔖 Add SQLite exports for Power BI semantic models. PR [#24](https://github.com/Luanee/qualtrics/pull/24) by [@Luanee](https://github.com/Luanee).
+* 🔖 Add concurrent survey exports, retries, and progress. PR [#25](https://github.com/Luanee/qualtrics/pull/25) by [@Luanee](https://github.com/Luanee).
+* 🔖 Improve question-specific report summaries. PR [#26](https://github.com/Luanee/qualtrics/pull/26) by [@Luanee](https://github.com/Luanee).
+* 🔖 Add a searchable report codebook with CSV download. PR [#27](https://github.com/Luanee/qualtrics/pull/27) by [@Luanee](https://github.com/Luanee).
+
 ## 0.2.0 (2026-09-03)
 
 ### Features
