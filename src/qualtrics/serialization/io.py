@@ -83,6 +83,7 @@ ENTITY_COLUMNS: dict[str, tuple[str, ...]] = {
         "question_field_catalog_id",
         "field_text",
         "field_role",
+        "statement_text",
         "answer_value_type",
         "is_text_field",
         "choice_external_id",

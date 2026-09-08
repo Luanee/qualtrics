@@ -52,6 +52,7 @@ Table question_fields {
   question_field_id varchar [pk]
   field_external_id varchar [not null]
   choice_external_id varchar
+  statement_text varchar
   import_external_id varchar
   survey_id varchar [not null, ref: > surveys.survey_id]
   question_id varchar [not null, ref: > questions.question_id]

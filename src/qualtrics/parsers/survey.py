@@ -224,6 +224,13 @@ def _build_answer_option_domains(entities: EntitySet, definitions: dict[str, dic
         fields = [field for field in fields_by_question.get(question_id, []) if not field.get("is_text_field")]
         choices = _ordered_definition_items(definition, "Choices", "ChoiceOrder")
         answers = _ordered_definition_items(definition, "Answers", "AnswerOrder")
+        if resolved.canonical_question_type == "matrix":
+            statement_labels = {
+                choice_id: _clean(value.get("Display") if isinstance(value, dict) else value)
+                for choice_id, value, _ in choices
+            }
+            for field in fields_by_question.get(question_id, []):
+                field["statement_text"] = statement_labels.get(str(field.get("choice_external_id"))) or None
         domains: list[tuple[dict[str, object], list[tuple[str, object, int]]]] = []
         if resolved.canonical_question_type == "multiple_choice_single" and fields:
             domains = [(fields[0], choices)]
@@ -575,6 +582,7 @@ def _parse_survey_file(
             "question_catalog_id": catalog_id,
             "question_field_catalog_id": _hash(catalog_id, _clean(field_text).casefold()),
             "field_text": field_text,
+            "statement_text": None,
             "is_text_field": bool(suffix and "TEXT" in suffix),
             "choice_external_id": choice_external_id,
             "_matrix_answer_external_id": matrix_answer_external_id,
