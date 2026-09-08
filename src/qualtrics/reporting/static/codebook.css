@@ -1,11 +1,11 @@
-.codebook-controls{display:flex;flex-wrap:wrap;gap:.7rem;align-items:center;margin:1rem 0}
+.codebook-controls{display:flex;flex-wrap:wrap;gap:.55rem;align-items:center;margin:.75rem 0;padding:.65rem}
 .codebook-controls label{font-weight:650;font-size:.85rem}
 .codebook-controls input{min-width:12rem}
 #codebook-count{font-size:.8rem;color:var(--muted)}
-.codebook-scroll{max-width:100%;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.codebook-scroll{max-width:100%;overflow:auto;overscroll-behavior-inline:contain;border:1px solid var(--line);border-radius:7px}
 .codebook-table{width:100%;min-width:850px;border-collapse:collapse;font-size:.82rem;background:var(--paper)}
 .codebook-table caption{text-align:left;padding:.75rem;font-weight:650;background:var(--wash)}
-.codebook-table th,.codebook-table td{text-align:left;vertical-align:top;padding:.75rem;border-bottom:1px solid var(--line);overflow-wrap:anywhere;max-width:22rem}
+.codebook-table th,.codebook-table td{text-align:left;vertical-align:top;padding:.5rem .6rem;border-bottom:1px solid var(--line);overflow-wrap:anywhere;max-width:22rem}
 .codebook-table th{background:var(--wash);font-size:.75rem}
 .codebook-table small{display:block;color:var(--muted);margin-top:.3rem}
 .codebook-table code{font-size:.8rem;color:#0b3da5}
@@ -13,4 +13,4 @@
 .codebook-table tr[hidden]{display:none}
 #codebook-download:disabled{opacity:.5;cursor:default}
 @media(max-width:650px){.codebook-controls input{flex-basis:100%}.codebook-controls label{flex-basis:100%}}
-@media print{.codebook-controls{display:none}.codebook-scroll{overflow:visible}.codebook-table{min-width:0;font-size:8pt}}
+@media print{.codebook-controls,#codebook-pagination{display:none!important}.codebook-scroll{overflow:visible;border:0}.codebook-table{min-width:0;table-layout:fixed;font-size:7.5pt}.codebook-table th,.codebook-table td{padding:.25rem;word-break:break-word}}

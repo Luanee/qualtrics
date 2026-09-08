@@ -49,6 +49,9 @@ jobs:
       - name: Check types
         run: uv run poe type
 
+      - name: Test report search utilities
+        run: node --test tests/js/*.test.cjs
+
       - name: Build documentation
         run: uv run --locked --group docs mkdocs build --strict
 

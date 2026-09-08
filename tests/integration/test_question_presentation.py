@@ -66,7 +66,7 @@ def _option(entities: EntitySet, field: str, code: str, label: str, order: int) 
 def _section(entities: EntitySet, tmp_path: Path) -> str:
     output = tmp_path / "report.html"
     render_report(entities, output)
-    return output.read_text().split("data-question='QID1'>", 1)[1].split("</details>", 1)[0]
+    return output.read_text().split("data-question='QID1'", 1)[1].split("</details>", 1)[0]
 
 
 def test_matrix_compares_ordered_options_with_each_rows_answered_denominator(tmp_path: Path) -> None:

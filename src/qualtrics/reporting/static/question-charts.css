@@ -1,12 +1,12 @@
 .numeric-summary{grid-template-columns:repeat(auto-fit,minmax(125px,1fr))}
-.matrix-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+.matrix-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;border:1px solid var(--line);border-radius:7px}
 .matrix-scroll:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
 .matrix-summary{min-width:540px;font-variant-numeric:tabular-nums}
 .matrix-summary caption{text-align:left;padding:.7rem .8rem;color:var(--muted);font-size:.85rem}
 .matrix-summary thead{background:var(--wash)}
 .matrix-summary th{font-size:.8rem;vertical-align:bottom;max-width:240px;overflow-wrap:anywhere}
 .matrix-summary th[scope=row]{font-weight:600;min-width:140px}
-.matrix-summary td,.matrix-summary th{padding:.7rem .8rem}
+.matrix-summary td,.matrix-summary th{padding:.5rem .6rem}
 .matrix-summary tbody tr:last-child>*{border-bottom:0}
 .matrix-summary .matrix-cell{text-align:center;min-width:85px}
 .matrix-cell b{font-size:.95rem;font-weight:650}
@@ -19,5 +19,5 @@
 @media(max-width:480px){.numeric-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
 .option-analysis .distribution-row{grid-template-columns:minmax(85px,1fr) 1fr 35px 40px}
 .option-analysis .distribution-row small{display:block}}
-@media print{.matrix-scroll{overflow:visible}.matrix-summary{min-width:0;table-layout:fixed}
-.matrix-summary .matrix-cell,.matrix-summary th[scope=row]{min-width:0}.matrix-summary td,.matrix-summary th{padding:.35rem}}
+@media print{.matrix-scroll{overflow:visible;border:0}.matrix-summary{min-width:0;table-layout:fixed;font-size:7.5pt}
+.matrix-summary .matrix-cell,.matrix-summary th[scope=row]{min-width:0}.matrix-summary td,.matrix-summary th{padding:.25rem;word-break:break-word}}

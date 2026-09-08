@@ -318,7 +318,7 @@ def test_multiple_answer_matrix_has_one_option_per_cell(
     assert all(answer["answer_option_id"] for answer in answers)
     output = tmp_path / "matrix-multiple.html"
     render_report(entities, output)
-    section = output.read_text(encoding="utf-8").split("data-question='QID3'>", 1)[1].split("</details>", 1)[0]
+    section = output.read_text(encoding="utf-8").split("data-question='QID3'", 1)[1].split("</details>", 1)[0]
     assert ">Good</span>" in section
     assert ">Bad</span>" in section
     assert ">Selected</span>" not in section
@@ -330,7 +330,7 @@ def test_single_answer_matrix_report_includes_unobserved_definition_options(
     entities = parse_survey(*definition_answer_files)
     output = tmp_path / "matrix-single.html"
     render_report(entities, output)
-    section = output.read_text(encoding="utf-8").split("data-question='QID3'>", 1)[1].split("</details>", 1)[0]
+    section = output.read_text(encoding="utf-8").split("data-question='QID3'", 1)[1].split("</details>", 1)[0]
     assert ">OK</span>" in section
     assert "option-zero" in section
 
