@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Literal
 
@@ -143,6 +145,22 @@ class ExportResult(APIModel):
     path: str
     format: ExportFormat
     continuation_token: str | None = None
+
+
+@dataclass(frozen=True)
+class ExportEvent:
+    """An export lifecycle update; ``complete`` means the local file is written.
+
+    Callbacks run synchronously in the export's calling thread. Rendering and
+    concurrency are the caller's responsibility, so SDK use does not need Rich.
+    """
+
+    survey_id: str
+    stage: Literal["starting", "exporting", "downloading", "complete"]
+    percent_complete: float | None = None
+
+
+ExportCallback = Callable[[ExportEvent], None]
 
 
 JSONValue = dict[str, Any] | list[Any] | str | int | float | bool | None

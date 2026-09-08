@@ -1108,6 +1108,7 @@ dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
+    { name = "rich" },
     { name = "typer" },
 ]
 
@@ -1142,6 +1143,7 @@ requires-dist = [
     { name = "pyarrow", marker = "extra == 'parquet'", specifier = ">=17" },
     { name = "pydantic", specifier = ">=2.8,<3" },
     { name = "pydantic-settings", specifier = ">=2.4,<3" },
+    { name = "rich", specifier = ">=13,<16" },
     { name = "typer", specifier = ">=0.12,<1" },
 ]
 provides-extras = ["parquet"]

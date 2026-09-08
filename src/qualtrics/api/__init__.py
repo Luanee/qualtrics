@@ -8,6 +8,8 @@ from .domains import (
 )
 from .exceptions import QualtricsAPIError, QualtricsError, QualtricsExportError
 from .models import (
+    ExportCallback,
+    ExportEvent,
     ExportFormat,
     ExportProgress,
     ExportResult,
@@ -28,6 +30,8 @@ from .models import (
 from .settings import QualtricsSettings
 
 __all__ = [
+    "ExportCallback",
+    "ExportEvent",
     "ExportFormat",
     "ExportProgress",
     "ExportResult",

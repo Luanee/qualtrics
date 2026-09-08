@@ -122,6 +122,8 @@ QualtricsClient(
     data_center: str | None = None,
     base_url: str | None = None,
     timeout: float = 30.0,
+    max_retries: int = 3,
+    retry_backoff: float = 1.0,
     transport: httpx.BaseTransport | None = None,
 )
 ```
@@ -209,6 +211,7 @@ wait(
     *,
     poll_interval: float = 1.0,
     timeout: float = 900.0,
+    on_progress: ExportCallback | None = None,
 ) -> ExportProgress
 download(survey_id: str, file_id: str) -> httpx.Response
 export(
@@ -221,10 +224,13 @@ export(
     survey_name: str | None = None,
     poll_interval: float = 1.0,
     timeout: float = 900.0,
+    on_progress: ExportCallback | None = None,
 ) -> ExportResult
 ```
 
 `export` starts, waits for, downloads, and saves an export. It returns the saved `path`, `survey_id`, `progress_id`, `file_id`, `format`, and optional `continuation_token`. The default request uses labeled CSV with compression, resulting in a ZIP. Set `ResponseExportRequest(compress=False)` for an uncompressed export. See the [CLI naming rules](cli.md#api-export) for output path behavior.
+
+`on_progress` receives an `ExportEvent` with `survey_id`, `stage`, and optional `percent_complete`. Import `ExportCallback` and `ExportEvent` from `qualtrics.api`. The full export emits `starting`, `exporting`, `downloading`, and `complete`; `wait` emits only polling updates. Completion is emitted after the local file is saved. Callbacks run in the calling thread. See [progress callbacks and safe retries](../guides/api-access.md#observe-an-export-from-python) for an example.
 
 `wait` requires a completed status and file ID; failed or timed-out jobs raise `QualtricsExportError`. `download` returns the HTTP response without saving a file.
 

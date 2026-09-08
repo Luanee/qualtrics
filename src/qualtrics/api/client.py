@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import math
+import time
 from collections.abc import Iterator
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +13,7 @@ import httpx
 from .domains import ResponseImportsExportsAPI, SurveyDefinitionsAPI, SurveyQuotasAPI, SurveysAPI
 from .exceptions import QualtricsAPIError
 from .models import (
+    ExportCallback,
     ExportProgress,
     ExportResult,
     FilenameStrategy,
@@ -32,8 +37,16 @@ class QualtricsClient:
         data_center: str | None = None,
         base_url: str | None = None,
         timeout: float = 30.0,
+        max_retries: int = 3,
+        retry_backoff: float = 1.0,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
+        if max_retries < 0:
+            raise ValueError("max_retries must be nonnegative")
+        if not math.isfinite(retry_backoff) or retry_backoff < 0:
+            raise ValueError("retry_backoff must be finite and nonnegative")
+        self.max_retries = max_retries
+        self.retry_backoff = retry_backoff
         settings = QualtricsSettings()
         overrides: dict[str, Any] = {
             key: value
@@ -88,7 +101,7 @@ class QualtricsClient:
         headers: dict[str, str] | None = None,
     ) -> Any:
         """Call an arbitrary JSON API endpoint using the configured transport."""
-        response = self._http.request(
+        response = self._request_with_retries(
             method,
             path,
             params=params,
@@ -104,9 +117,52 @@ class QualtricsClient:
 
     def download(self, path: str) -> httpx.Response:
         """Download binary content using the configured authentication."""
-        response = self._http.get(path)
+        response = self._request_with_retries("GET", path)
         self._raise_for_error(response)
         return response
+
+    def _request_with_retries(self, method: HTTPMethod, path: str, **kwargs: Any) -> httpx.Response:
+        """Retry reads and failures known to occur before a request was sent.
+
+        A mutation's response or read timeout can be ambiguous: retrying could
+        create a second export/import or repeat another write operation.
+        """
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = self._http.request(method, path, **kwargs)
+            except httpx.TransportError as error:
+                safe = method == "GET" or isinstance(
+                    error, (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout)
+                )
+                if not safe or attempt == self.max_retries:
+                    raise
+                time.sleep(self._retry_delay(attempt))
+                continue
+            if method != "GET" or response.status_code not in {408, 429, 500, 502, 503, 504}:
+                return response
+            if attempt == self.max_retries:
+                return response
+            delay = self._retry_delay(attempt, response.headers.get("Retry-After"))
+            response.close()
+            time.sleep(delay)
+        raise AssertionError("Retry loop must return a response or raise")  # pragma: no cover
+
+    def _retry_delay(self, attempt: int, retry_after: str | None = None) -> float:
+        backoff = min(self.retry_backoff * 2 ** min(attempt, 30), 60.0)
+        if retry_after:
+            try:
+                seconds = float(retry_after)
+            except ValueError:
+                try:
+                    timestamp = parsedate_to_datetime(retry_after)
+                    if timestamp.tzinfo is None:
+                        timestamp = timestamp.replace(tzinfo=UTC)
+                    seconds = (timestamp - datetime.now(UTC)).total_seconds()
+                except (TypeError, ValueError, OverflowError):
+                    return backoff
+            if math.isfinite(seconds):
+                return max(backoff, seconds)
+        return backoff
 
     @staticmethod
     def _raise_for_error(response: httpx.Response) -> None:
@@ -155,8 +211,11 @@ class QualtricsClient:
         *,
         poll_interval: float = 1.0,
         timeout: float = 900.0,
+        on_progress: ExportCallback | None = None,
     ) -> ExportProgress:
-        return self.response_exports.wait(survey_id, progress_id, poll_interval=poll_interval, timeout=timeout)
+        return self.response_exports.wait(
+            survey_id, progress_id, poll_interval=poll_interval, timeout=timeout, on_progress=on_progress
+        )
 
     def download_response_export(self, survey_id: str, file_id: str) -> httpx.Response:
         return self.response_exports.download(survey_id, file_id)
@@ -172,6 +231,7 @@ class QualtricsClient:
         survey_name: str | None = None,
         poll_interval: float = 1.0,
         timeout: float = 900.0,
+        on_progress: ExportCallback | None = None,
     ) -> ExportResult:
         return self.response_exports.export(
             survey_id,
@@ -182,4 +242,5 @@ class QualtricsClient:
             survey_name=survey_name,
             poll_interval=poll_interval,
             timeout=timeout,
+            on_progress=on_progress,
         )
