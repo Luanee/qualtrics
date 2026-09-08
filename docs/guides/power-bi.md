@@ -1,10 +1,12 @@
 # Prepare data for Power BI
 
-Export five analysis tables from your parsed survey data, then connect them in Power BI. You can follow the export steps on any supported operating system; the import steps use Power BI Desktop.
+Export five analysis tables as Parquet files or one SQLite database, then connect them in Power BI. You can follow the export steps on any supported operating system; the import steps use Power BI Desktop.
 
-You need the [installed project with Parquet support](../getting-started/installation.md) and a complete entity folder. The commands below use the folder from [your first report](../getting-started/first-report.md). Run them from the project folder; for an isolated CLI installation, replace `uv run qualtrics` with `qualtrics`.
+You need the [installed project](../getting-started/installation.md) and a complete entity folder. Install the Parquet extra if you choose Parquet output; SQLite output needs no extra Python dependency. The commands below use the folder from [your first report](../getting-started/first-report.md). Run them from the project folder; for an isolated CLI installation, replace `uv run qualtrics` with `qualtrics`.
 
 ## 1. Export the analysis tables
+
+### Parquet files (default)
 
 ```text
 uv run qualtrics semantic-model build data/first-report/entities --output data/first-report/power-bi --format parquet
@@ -23,7 +25,17 @@ data/first-report/power-bi/
 
 You should see `Wrote 5 parquet semantic tables to data/first-report/power-bi`.
 
-Parquet is this command's default. For CSV output, use `--format csv` and a separate output folder such as `data/first-report/power-bi-csv`. The command refuses an output folder that already contains recognized semantic table files. Choose a fresh folder for a later export.
+### SQLite database
+
+To keep all five tables in one file, choose SQLite:
+
+```text
+uv run qualtrics semantic-model build data/first-report/entities --output data/first-report/power-bi-sqlite --format sqlite
+```
+
+This creates `data/first-report/power-bi-sqlite/semantic_model.sqlite`. The `--output` value is a directory for both formats. The database contains the same tables, columns, and identifiers as the Parquet export, including the schema for tables with no rows. Numeric answers use `REAL`, booleans use `INTEGER` values `0` and `1`, and IDs and timestamps remain text. Missing values are SQL `NULL`.
+
+The command refuses an output folder that already contains recognized semantic table files or `semantic_model.sqlite`. Choose a fresh folder for a later export. SQLite writes complete before the final database appears; a failed build does not leave a partial database. CSV and JSON remain available with `--format csv` or `--format json`.
 
 The input must be the folder containing the nine entity files. To prepare several surveys, [combine their entities](combine-surveys.md) first and use the combined entity folder as input.
 
@@ -45,13 +57,27 @@ If you parsed without a QSF, you will have no definition-based option records. R
 
 ## 3. Load each table into Power BI
 
+### From Parquet
+
 1. In Power BI Desktop, open **Get data** and choose **Parquet**.
 2. Enter the full local path to `fact_responses.parquet`, then load it or choose **Transform Data** to inspect it.
 3. Repeat for the other four files. Keep the table names shown above so the measure examples work.
-4. In Power Query, check column types. Keep IDs as text; use a decimal type for `answer_numeric` and a date/time type for timestamps such as `recorded_at`. The export writes timestamp columns as text, including in Parquet.
-5. Apply the changes and open the model view to inspect relationships.
 
-Microsoft documents the file connection in its [Parquet connector guide](https://learn.microsoft.com/en-us/power-query/connectors/parquet). For CSV exports, choose **Text/CSV** and load each file as a separate table; see the [Text/CSV connector guide](https://learn.microsoft.com/en-us/power-query/connectors/text-csv).
+Microsoft documents the file connection in its [Parquet connector guide](https://learn.microsoft.com/en-us/power-query/connectors/parquet).
+
+### From SQLite through ODBC
+
+Power BI uses an ODBC connection for this workflow. The toolkit creates the SQLite database; it does not install an ODBC driver.
+
+1. Install a SQLite ODBC driver compatible with your Power BI Desktop installation and configure a data source name (DSN) pointing to the full path of `semantic_model.sqlite`. Follow your driver's instructions in Windows ODBC Data Source Administrator.
+2. In Power BI Desktop, choose **Get data → ODBC** and select that DSN.
+3. In Navigator, select all five tables, then choose **Transform Data** or **Load**.
+
+See Microsoft's [ODBC connector guide](https://learn.microsoft.com/en-us/power-query/connectors/odbc) for the connection and authentication options. If you prefer to avoid installing a database driver, use the Parquet files.
+
+### Check types in either format
+
+In Power Query, keep IDs as text; use a decimal type for `answer_numeric` and a date/time type for timestamps such as `recorded_at`. Both formats export timestamps as text. For SQLite, convert `answer_boolean`, `is_selected`, and `is_text_field` from `0`/`1` to the True/False type if needed. Keep null values as null. Apply the changes and open the model view to inspect relationships.
 
 ## 4. Create the relationships
 
