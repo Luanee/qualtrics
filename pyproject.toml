@@ -55,6 +55,12 @@ dev = [
     "ruff>=0.12,<1",
     "ty>=0.0.1a19,<1",
 ]
+docs = [
+    "mkdocs>=1.6.1,<2",
+    "mkdocs-glightbox>=0.5.2,<0.6",
+    "mkdocs-material>=9.7.7,<10",
+    "pymdown-extensions>=10.16,<11",
+]
 test = [
     "pytest>=8,<10",
     "pytest-cov>=7.1.0",
@@ -144,6 +150,8 @@ select = ["B", "E", "F", "I", "SIM", "UP"]
 ignore = ["B903"]
 
 [tool.poe.tasks]
+docs-serve = "uv run --group docs mkdocs serve"
+docs-build = "uv run --group docs mkdocs build --strict"
 lint = "ruff check ."
 format = "ruff format ."
 format-check = "ruff format --check ."
