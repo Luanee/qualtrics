@@ -9,6 +9,7 @@ from typing import Any
 from ..analytics import analyze_entities
 from ..models.entities import EntitySet
 from .assets import load_asset
+from .codebook import render_codebook
 from .question_presentation import render_question_analysis
 
 
@@ -148,9 +149,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
                 for item in question_items
             )
             groups.append(
-                "<div class='quality-question'>"
-                f"<strong>{html.escape(question_label)}</strong><small>{html.escape(metadata)}</small>"
-                f"<ul>{labels}</ul></div>"
+                f"<div class='quality-question'><strong>{html.escape(question_label)}</strong><small>{html.escape(metadata)}</small><ul>{labels}</ul></div>"
             )
         return "".join(groups)
 
@@ -195,11 +194,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         analysis_body, value_count, value_label = render_question_analysis(
             question, question_fields, observed, question_options.get(key, []), field_labels, respondent_count
         )
-        summary = (
-            f"<span><b>{respondent_count:,}</b> respondents</span>"
-            f"<span><b>{coverage:.0f}%</b> coverage</span>"
-            f"<span><b>{value_count:,}</b> {value_label}</span>"
-        )
+        summary = f"<span><b>{respondent_count:,}</b> respondents</span><span><b>{coverage:.0f}%</b> coverage</span><span><b>{value_count:,}</b> {value_label}</span>"
         type_label = {"MC": "Multiple choice", "TE": "Text entry"}.get(
             question_type, question_type.replace("_", " ").title()
         )
@@ -239,7 +234,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>",
         "<meta name='viewport' content='width=device-width,initial-scale=1'>",
         f"<title>{html.escape(survey_name)} · Response report</title>",
-        f"<style>{load_asset('report.css')}\n{load_asset('question-charts.css')}</style></head><body>",
+        f"<style>{load_asset('report.css')}\n{load_asset('codebook.css')}\n{load_asset('question-charts.css')}</style></head><body>",
         f"<header><div class='shell'><small>RESPONSE REPORT</small><h1>{html.escape(survey_name)}</h1>"
         "<p>Search, review, expand, or print individual survey responses.</p></div></header>",
         "<div class='shell stats'>"
@@ -254,6 +249,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         f"<button id='survey-clear' type='button'>Clear</button></div>{survey_options}</div></div></div>"
         "<nav><a href='#overview'>Overview</a>"
         "<a href='#question-analytics'>Question analytics</a>"
+        "<a href='#codebook'>Codebook</a>"
         "<a href='#by-responses'>By responses</a></nav>",
         "<section id='overview'><h2>Overview</h2><p class='section-intro'>Coverage, completion, "
         "and data-quality signals across this survey.</p><div class='analytics'>"
@@ -271,6 +267,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         "<span><strong>Question analytics</strong><small>Type-aware answer patterns grouped across surveys.</small></span>"
         f"<span id='analytics-count' class='section-count'>{len(question_analytics)} canonical questions</span></summary>"
         f"<div class='section-body'>{''.join(question_analytics)}</div></details>"
+        f"{render_codebook(entities)}"
         "<section id='by-responses'><h2>By responses</h2>"
         "<p class='section-intro'>Review individual answers and filter to the questions you need.</p>",
         "<div class='toolbar'><input id='search' type='search' "
@@ -341,8 +338,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
                     )
                 else:
                     field_rows.append(
-                        "<div class='field-answer value-only'>"
-                        f"<span class='value'>{html.escape(str(answer['answer_text']))}</span></div>"
+                        f"<div class='field-answer value-only'><span class='value'>{html.escape(str(answer['answer_text']))}</span></div>"
                     )
             question_meta = " · ".join(
                 item for item in (type_label, f"Block: {block_name}" if block_name else "") if item
@@ -380,6 +376,8 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
     parts.append(
         "<div id='empty' class='empty hidden'>No matching responses.</div></section></main>"
         + "<script>"
+        + load_asset("codebook.js")
+        + "\n"
         + load_asset("report.js")
         + "</script></body></html>"
     )

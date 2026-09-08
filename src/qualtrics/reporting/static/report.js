@@ -31,6 +31,7 @@ const cards=[...document.querySelectorAll('.respondent')],search=document.queryS
         choices.forEach(c=>c.closest('label').hidden=!surveys.has(c.closest('label').dataset.survey));
         document.querySelectorAll('.quality').forEach(item=>item.hidden=!surveys.has(item.dataset.survey));
         updateCatalogGroups(surveys);
+        if(window.updateCodebook)window.updateCodebook();
         cards.forEach(card=>{const answerRows=[...card.querySelectorAll('.answer')];let shownAnswers=0;
         answerRows.forEach(row=>{const show=selected.has(row.dataset.question);
         row.hidden=!show;if(show)shownAnswers+=1;});
