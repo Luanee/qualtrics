@@ -57,8 +57,12 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         for option in entities.answer_options
     }
     question_options: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    field_options: dict[str, list[dict[str, Any]]] = {}
     for option in entities.answer_options:
         question_options.setdefault((str(option["survey_id"]), str(option["question_id"])), []).append(option)
+        field_options.setdefault(str(option.get("question_field_id") or option.get("field_id") or ""), []).append(
+            option
+        )
     unanswered_questions = analysis.unanswered_questions
     unused_fields = analysis.unused_fields
     unused_options = analysis.unused_options
@@ -198,23 +202,33 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         defined_options: list[dict[str, Any]],
         denominator: int,
     ) -> str:
-        aliases = {
-            str(alias).casefold(): str(option["answer_id"])
+        alias_candidates: dict[str, set[str]] = {}
+        labels = {
+            str(option.get("answer_option_id") or f"{option.get('field_id')}:{option['answer_id']}"): str(
+                option["answer_text"]
+            )
             for option in defined_options
-            for alias in (option["answer_id"], option["answer_text"])
         }
-        labels = {str(option["answer_id"]): str(option["answer_text"]) for option in defined_options}
+        for option in defined_options:
+            option_id = str(option.get("answer_option_id") or f"{option.get('field_id')}:{option['answer_id']}")
+            for alias in ("answer_id", "answer_code", "answer_export_tag", "answer_text"):
+                value = str(option.get(alias) or "").casefold()
+                if value:
+                    alias_candidates.setdefault(value, set()).add(option_id)
         selections: set[tuple[str, str]] = set()
         unknown_labels: dict[str, str] = {}
         for answer in observed_answers:
             raw_value = str(answer["answer_text"])
-            option_id = aliases.get(raw_value.casefold())
+            option_id = str(answer.get("answer_option_id") or "") or None
+            candidates = alias_candidates.get(raw_value.casefold(), set())
+            if option_id is None and len(candidates) == 1:
+                option_id = next(iter(candidates))
             if option_id is None:
                 option_id = f"unknown:{raw_value.casefold()}"
                 unknown_labels.setdefault(option_id, raw_value)
             selections.add((str(answer["response_id"]), option_id))
         counts = Counter(option_id for _, option_id in selections)
-        option_ids = [str(option["answer_id"]) for option in defined_options]
+        option_ids = list(labels)
         option_ids.extend(
             option_id for option_id, _ in sorted(unknown_labels.items(), key=lambda item: item[1].casefold())
         )
@@ -296,6 +310,17 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
                 )
                 bodies.append(
                     f"<div class='field-analysis text-analysis'><h4>{html.escape(field_label)}</h4>{content}</div>"
+                )
+        elif question_type == "MATRIX" and str(question.get("answer_value_type")) == "categorical":
+            matrix_field_ids = list(
+                dict.fromkeys([*field_groups, *[str(item["field_id"]) for item in question_options.get(key, [])]])
+            )
+            for field_id in matrix_field_ids:
+                field_definition = fields.get((key[0], key[1], field_id), {})
+                field_label = _display_field_label(field_definition, question, answer_options)
+                bodies.append(
+                    f"<div class='field-analysis option-analysis'><h4>{html.escape(str(field_label))}</h4>"
+                    f"{option_distribution(answers_by_field.get(field_id, []), field_options.get(field_id, []), respondent_count)}</div>"
                 )
         elif question_type == "TE":
             for field_id, values in field_groups.items():

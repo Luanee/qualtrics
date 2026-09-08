@@ -8,6 +8,7 @@ from ..models.entities import ENTITY_NAMES, EntitySet
 
 CSV_FIELD_TYPES: dict[str, dict[str, type[object]]] = {
     "sections": {"section_order": int},
+    "answer_options": {"answer_order": int},
     "questions": {
         "block_order": int,
         "question_order_in_block": int,
@@ -60,11 +61,15 @@ ENTITY_COLUMNS: dict[str, tuple[str, ...]] = {
         "answer_option_id",
         "answer_id",
         "answer_external_id",
+        "answer_code",
         "answer_text",
-        "answer_recode",
+        "answer_order",
         "answer_export_tag",
+        "source_import_id",
         "question_id",
         "question_external_id",
+        "question_field_id",
+        "field_id",
         "survey_id",
     ),
     "question_fields": (
@@ -80,6 +85,7 @@ ENTITY_COLUMNS: dict[str, tuple[str, ...]] = {
         "field_role",
         "answer_value_type",
         "is_text_field",
+        "choice_external_id",
         "import_external_id",
         "source_field_suffix",
         "source_column_index",
@@ -250,15 +256,20 @@ def load_entities(folder: str | Path | None = None, **paths: str | Path) -> Enti
             continue
         if path.suffix == ".json":
             records = json.loads(path.read_text(encoding="utf-8"))
+            result._present_columns[name] = set(records[0]) if records else set(ENTITY_COLUMNS[name])
         elif path.suffix == ".csv":
             with path.open(encoding="utf-8", newline="") as handle:
-                records = _coerce_csv_records(name, list(csv.DictReader(handle)))
+                reader = csv.DictReader(handle)
+                records = _coerce_csv_records(name, list(reader))
+                result._present_columns[name] = set(reader.fieldnames or [])
         else:
             try:
                 import pyarrow.parquet as pq
             except ImportError as exc:
                 raise RuntimeError("Install qualtrics[parquet]") from exc
-            records = pq.read_table(path).to_pylist()
+            table = pq.read_table(path)
+            records = table.to_pylist()
+            result._present_columns[name] = set(table.schema.names)
         setattr(result, name, records)
         result._present_entities.add(name)
     validate_entity_set(result, strict=folder is not None)

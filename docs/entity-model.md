@@ -9,14 +9,16 @@ Parsing always produces nine normalized entities. Occurrence IDs are survey-safe
 | `question_catalog` | semantic question | `question_catalog_id` | none |
 | `question_field_catalog` | semantic field | `question_field_catalog_id` | `question_catalog_id` |
 | `questions` | survey question | `question_id` | survey, section, question catalog |
-| `answer_options` | survey question option | `answer_option_id` | question |
+| `answer_options` | definition option for one exported question field | `answer_option_id` | survey, question, question field |
 | `question_fields` | exported question field | `question_field_id` | question, both catalogs |
 | `responses` | submitted response | `response_id` | survey |
 | `response_answers` | non-empty response field | `response_answer_id` | response, question, field, optional option |
 
 Questions retain `question_type`, `selector`, and `sub_selector` exactly and add `canonical_question_type`. Fields and answers add `answer_value_type`. Unknown combinations remain available with `unsupported` classification.
 
-`response_answers` preserves `answer_text` and provides nullable `answer_numeric`, `answer_boolean`, `is_selected`, and `answer_option_id` for analysis. Answer options remain scoped to their survey question; there is no cross-survey answer-option catalog.
+`answer_options` is built exclusively from the QSF definition, never from observed response values. Its identity is the hash of `question_field_id` and the native Qualtrics `answer_id`. `answer_code` contains the configured recode or falls back to `answer_id`; `answer_order` is the 1-based definition order. Single-choice questions publish every choice, multiple-choice questions publish one choice per concrete selection field, and matrix questions publish every answer for each matrix-row field. Text, form, slider, and `*_TEXT` fields publish no options. This field-scoped identity is a breaking entity-contract change, so existing entity folders must be rebuilt from CSV/ZIP and QSF.
+
+`question_fields.choice_external_id` preserves the Choice or matrix-row lineage determined from export metadata and the full `ImportId`. `response_answers` preserves `answer_text` and provides nullable `answer_numeric`, `answer_boolean`, `is_selected`, and `answer_option_id` for analysis. Unknown or ambiguous response values remain raw with a null option ID. There is no cross-survey answer-option catalog.
 
 ## Semantic projection
 
@@ -36,6 +38,8 @@ fact_responses[response_id] 1 -> * fact_response_answers[response_id]
 dim_questions[question_field_id] 1 -> * fact_response_answers[question_field_id]
 dim_answer_options[answer_option_id] 1 -> * fact_response_answers[answer_option_id]
 ```
+
+`dim_answer_options` has one row per field-specific option. Use `question_field_id` to associate it with `dim_questions`; keep the fact relationship on `answer_option_id`.
 
 Create a model-local Date table and relate it to `fact_responses[recorded_at]`. Do not add parallel active paths from surveys, questions, or catalogs to the answer fact.
 

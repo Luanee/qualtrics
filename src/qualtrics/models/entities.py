@@ -19,6 +19,7 @@ ENTITY_NAMES = (
 @dataclass
 class EntitySet:
     _present_entities: set[str] = field(default_factory=set, repr=False, compare=False)
+    _present_columns: dict[str, set[str]] = field(default_factory=dict, repr=False, compare=False)
     surveys: list[dict[str, Any]] = field(default_factory=list)
     sections: list[dict[str, Any]] = field(default_factory=list)
     question_catalog: list[dict[str, Any]] = field(default_factory=list)
