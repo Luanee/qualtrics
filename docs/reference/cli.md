@@ -110,19 +110,21 @@ Use this command for distinct surveys. It does not append successive exports fro
 
 ```bash
 uv run qualtrics semantic-model build output/combined/entities \
-  --output output/combined/semantic --format csv
+  --output output/combined/semantic --format parquet
 ```
 
 | Argument or option | Required | Default | Meaning |
 | --- | --- | --- | --- |
 | `FOLDER` | Yes | — | Directory containing all nine entity files. This command does not discover nested folders. |
-| `--output`, `-o` | Yes | — | Destination directory. It must contain no existing semantic table filenames in any supported format. |
-| `--format`, `-f` | No | `parquet` | `json`, `csv`, or `parquet`. |
+| `--output`, `-o` | Yes | — | Destination directory. It must contain no existing semantic table filenames or `semantic_model.sqlite`. |
+| `--format`, `-f` | No | `parquet` | `parquet`, `sqlite`, `json`, or `csv`. SQLite stores all five tables in one database. |
 
 The command validates the entity collection and writes `fact_responses`, `fact_response_answers`, `dim_surveys`, `dim_questions`, and `dim_answer_options`. See [Power BI](../guides/power-bi.md) for relationships and loading instructions, or download the [DBML schema](../entity-model.dbml).
 
+For SQLite, use `--format sqlite`; the command writes `semantic_model.sqlite` inside the output directory. It preserves IDs as text, represents booleans as `0`/`1`, and includes typed columns even for empty tables. The database becomes available only after all five tables have been written successfully. Existing output is never replaced.
+
 !!! note "Parquet requires an extra dependency"
-    `entities combine` and `semantic-model build` default to Parquet. Install the extra with `uv sync --extra parquet`, or select `--format json` or `--format csv`. See [installation](../getting-started/installation.md).
+    `entities combine` and `semantic-model build` default to Parquet. Install the extra with `uv sync --extra parquet`, or select `--format json` or `--format csv`. The semantic-model command also supports `--format sqlite` without an extra dependency. See [installation](../getting-started/installation.md).
 
 ## API commands
 
