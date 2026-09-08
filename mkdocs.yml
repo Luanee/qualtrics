@@ -1,5 +1,6 @@
 site_name: Qualtrics toolkit
 site_description: Practical guides for turning Qualtrics exports into tables, reports, and Power BI models.
+site_url: !ENV [DOCS_SITE_URL, "https://luanee.github.io/qualtrics/"]
 repo_url: https://github.com/Luanee/qualtrics
 repo_name: Luanee/qualtrics
 edit_uri: edit/main/docs/
