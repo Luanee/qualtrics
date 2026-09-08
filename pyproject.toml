@@ -1,6 +1,6 @@
 [project]
 name = "qualtrics"
-version = "0.1.2"
+version = "0.2.0"
 description = "A typed Qualtrics SDK and offline survey data toolkit"
 readme = "README.md"
 license = "MIT"

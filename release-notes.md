@@ -1,5 +1,25 @@
 # Release Notes
 
+## 0.2.0 (2026-09-03)
+
+### Features
+
+* ✨ feat: add multi-survey entity workflows. PR [#14](https://github.com/Luanee/qualtrics/pull/14) by [@Luanee](https://github.com/Luanee).
+
+### Fixes
+
+* 🐛 fix: dispatch standalone publication workflow. PR [#13](https://github.com/Luanee/qualtrics/pull/13) by [@Luanee](https://github.com/Luanee).
+
+### Other changes
+
+* 🔖 Fix PyPI trusted publishing workflow identity. PR [#12](https://github.com/Luanee/qualtrics/pull/12) by [@Luanee](https://github.com/Luanee).
+* 🔖 Improve multi-survey report analytics and filtering. PR [#15](https://github.com/Luanee/qualtrics/pull/15) by [@Luanee](https://github.com/Luanee).
+* 🔖 Add multi-survey entity workflows. PR [#16](https://github.com/Luanee/qualtrics/pull/16) by [@Luanee](https://github.com/Luanee).
+* 🔖 Establish stable Qualtrics entity and question identity. PR [#17](https://github.com/Luanee/qualtrics/pull/17) by [@Luanee](https://github.com/Luanee).
+* 🔖 Add analysis-ready Qualtrics response-answer facts. PR [#18](https://github.com/Luanee/qualtrics/pull/18) by [@Luanee](https://github.com/Luanee).
+* 🔖 Enforce and serialize the normalized Qualtrics entity contract. PR [#19](https://github.com/Luanee/qualtrics/pull/19) by [@Luanee](https://github.com/Luanee).
+* 🔖 Add Power BI-ready Qualtrics semantic model exports. PR [#20](https://github.com/Luanee/qualtrics/pull/20) by [@Luanee](https://github.com/Luanee).
+
 ## 0.1.2 (2026-08-31)
 
 ### Internal
