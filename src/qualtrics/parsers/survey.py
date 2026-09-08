@@ -271,7 +271,7 @@ def _build_answer_option_domains(entities: EntitySet, definitions: dict[str, dic
 
 
 def _apply_identity_contract(entities: EntitySet) -> None:
-    entities._present_entities = set(entities.__dataclass_fields__) - {"_present_entities"}
+    entities._present_entities = {name for name in entities.__dataclass_fields__ if not name.startswith("_")}
     sid = str(entities.surveys[0]["survey_id"])
     section_ids: dict[str, str] = {}
     for section in entities.sections:

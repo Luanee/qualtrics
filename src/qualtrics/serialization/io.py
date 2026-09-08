@@ -256,15 +256,20 @@ def load_entities(folder: str | Path | None = None, **paths: str | Path) -> Enti
             continue
         if path.suffix == ".json":
             records = json.loads(path.read_text(encoding="utf-8"))
+            result._present_columns[name] = set(records[0]) if records else set(ENTITY_COLUMNS[name])
         elif path.suffix == ".csv":
             with path.open(encoding="utf-8", newline="") as handle:
-                records = _coerce_csv_records(name, list(csv.DictReader(handle)))
+                reader = csv.DictReader(handle)
+                records = _coerce_csv_records(name, list(reader))
+                result._present_columns[name] = set(reader.fieldnames or [])
         else:
             try:
                 import pyarrow.parquet as pq
             except ImportError as exc:
                 raise RuntimeError("Install qualtrics[parquet]") from exc
-            records = pq.read_table(path).to_pylist()
+            table = pq.read_table(path)
+            records = table.to_pylist()
+            result._present_columns[name] = set(table.schema.names)
         setattr(result, name, records)
         result._present_entities.add(name)
     validate_entity_set(result, strict=folder is not None)

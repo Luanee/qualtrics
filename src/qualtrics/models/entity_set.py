@@ -81,6 +81,10 @@ def validate_entity_set(entities: EntitySet, *, strict: bool = False) -> None:
             raise ValueError(f"Incomplete strict entity contract: {', '.join(missing)}")
         if not entities.surveys:
             raise ValueError("Incomplete strict entity contract: surveys must contain one or more rows")
+        for name, columns in entities._present_columns.items():
+            missing_columns = REQUIRED_COLUMNS[name] - columns
+            if missing_columns:
+                raise ValueError(f"{name} schema is missing required columns: {', '.join(sorted(missing_columns))}")
     for name, key in PRIMARY_KEYS.items():
         rows = getattr(entities, name)
         seen: set[str] = set()
@@ -107,9 +111,21 @@ def validate_entity_set(entities: EntitySet, *, strict: bool = False) -> None:
                 raise ValueError(f"{child} {foreign_key} {value} has no parent in {parent}.{parent_key}")
     if strict:
         fields = {str(row["question_field_id"]): row for row in entities.question_fields}
+        responses = {str(row["response_id"]): row for row in entities.responses}
         options = {str(row["answer_option_id"]): row for row in entities.answer_options}
         for option in entities.answer_options:
-            required_values = ("question_field_id", "field_id", "question_id", "survey_id", "answer_id", "answer_code")
+            required_values = (
+                "answer_option_id",
+                "answer_id",
+                "answer_external_id",
+                "answer_code",
+                "answer_text",
+                "answer_order",
+                "question_id",
+                "question_field_id",
+                "field_id",
+                "survey_id",
+            )
             missing_values = [column for column in required_values if option.get(column) is None]
             if missing_values:
                 raise ValueError(f"answer_options row has null required columns: {', '.join(missing_values)}")
@@ -122,6 +138,21 @@ def validate_entity_set(entities: EntitySet, *, strict: bool = False) -> None:
             ):
                 raise ValueError("answer_options question and survey must match the referenced question field")
         for answer in entities.response_answers:
+            question_field_id = str(answer["question_field_id"])
+            field = fields[question_field_id]
+            if str(answer["field_id"]) != question_field_id:
+                raise ValueError("response_answers field_id must equal question_field_id")
+            lineage = (
+                ("question_id", "question_id"),
+                ("survey_id", "survey_id"),
+                ("question_catalog_id", "question_catalog_id"),
+                ("question_field_catalog_id", "question_field_catalog_id"),
+            )
+            if any(str(answer[answer_key]) != str(field[field_key]) for answer_key, field_key in lineage):
+                raise ValueError("response_answers lineage must match the referenced question field")
+            response = responses[str(answer["response_id"])]
+            if str(answer["survey_id"]) != str(response["survey_id"]):
+                raise ValueError("response_answers survey must match the referenced response")
             option_id = answer.get("answer_option_id")
             if option_id is None:
                 continue
@@ -135,6 +166,13 @@ def merge_entity_sets(entity_sets: list[EntitySet]) -> EntitySet:
     result = EntitySet()
     if entity_sets:
         result._present_entities = set.intersection(*(item._present_entities for item in entity_sets))
+        result._present_columns = {
+            name: set.intersection(
+                *(item._present_columns[name] for item in entity_sets if name in item._present_columns)
+            )
+            for name in ENTITY_NAMES
+            if all(name in item._present_columns for item in entity_sets)
+        }
     survey_ids = [str(survey["survey_id"]) for item in entity_sets for survey in item.surveys]
     duplicates = {survey_id for survey_id in survey_ids if survey_ids.count(survey_id) > 1}
     if duplicates:

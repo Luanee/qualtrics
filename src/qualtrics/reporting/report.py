@@ -57,8 +57,12 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         for option in entities.answer_options
     }
     question_options: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    field_options: dict[str, list[dict[str, Any]]] = {}
     for option in entities.answer_options:
         question_options.setdefault((str(option["survey_id"]), str(option["question_id"])), []).append(option)
+        field_options.setdefault(str(option.get("question_field_id") or option.get("field_id") or ""), []).append(
+            option
+        )
     unanswered_questions = analysis.unanswered_questions
     unused_fields = analysis.unused_fields
     unused_options = analysis.unused_options
@@ -306,6 +310,17 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
                 )
                 bodies.append(
                     f"<div class='field-analysis text-analysis'><h4>{html.escape(field_label)}</h4>{content}</div>"
+                )
+        elif question_type == "MATRIX" and str(question.get("answer_value_type")) == "categorical":
+            matrix_field_ids = list(
+                dict.fromkeys([*field_groups, *[str(item["field_id"]) for item in question_options.get(key, [])]])
+            )
+            for field_id in matrix_field_ids:
+                field_definition = fields.get((key[0], key[1], field_id), {})
+                field_label = _display_field_label(field_definition, question, answer_options)
+                bodies.append(
+                    f"<div class='field-analysis option-analysis'><h4>{html.escape(str(field_label))}</h4>"
+                    f"{option_distribution(answers_by_field.get(field_id, []), field_options.get(field_id, []), respondent_count)}</div>"
                 )
         elif question_type == "TE":
             for field_id, values in field_groups.items():

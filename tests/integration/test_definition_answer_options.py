@@ -11,6 +11,7 @@ from qualtrics import load_entities, parse_survey, write_entities
 from qualtrics.analytics import analyze_entities
 from qualtrics.models.entity_set import validate_entity_set
 from qualtrics.models.semantic import build_semantic_model
+from qualtrics.reporting import render_report
 
 
 @pytest.fixture
@@ -293,7 +294,7 @@ def test_continuous_matrix_variants_have_no_options(definition_answer_files: tup
 
 
 def test_multiple_answer_matrix_has_one_option_per_cell(
-    definition_answer_files: tuple[Path, Path],
+    definition_answer_files: tuple[Path, Path], tmp_path: Path
 ) -> None:
     csv_path, qsf_path = definition_answer_files
     rows = list(csv.reader(csv_path.open(encoding="utf-8")))
@@ -315,6 +316,23 @@ def test_multiple_answer_matrix_has_one_option_per_cell(
     ]
     answers = [row for row in entities.response_answers if row["question_external_id"] == "QID3"]
     assert all(answer["answer_option_id"] for answer in answers)
+    output = tmp_path / "matrix-multiple.html"
+    render_report(entities, output)
+    section = output.read_text(encoding="utf-8").split("data-question='QID3'>", 1)[1].split("</details>", 1)[0]
+    assert ">Good</span>" in section
+    assert ">Bad</span>" in section
+    assert ">Selected</span>" not in section
+
+
+def test_single_answer_matrix_report_includes_unobserved_definition_options(
+    definition_answer_files: tuple[Path, Path], tmp_path: Path
+) -> None:
+    entities = parse_survey(*definition_answer_files)
+    output = tmp_path / "matrix-single.html"
+    render_report(entities, output)
+    section = output.read_text(encoding="utf-8").split("data-question='QID3'>", 1)[1].split("</details>", 1)[0]
+    assert ">OK</span>" in section
+    assert "option-zero" in section
 
 
 def test_analytics_counts_linked_option_even_when_raw_value_is_selected(
@@ -337,3 +355,25 @@ def test_validation_rejects_cross_field_option_links(definition_answer_files: tu
 
     with pytest.raises(ValueError, match="option must belong"):
         validate_entity_set(entities, strict=True)
+
+
+def test_validation_rejects_response_answer_lineage_mismatch(definition_answer_files: tuple[Path, Path]) -> None:
+    entities = parse_survey(*definition_answer_files)
+    answer = entities.response_answers[0]
+    answer["question_id"] = next(
+        row["question_id"] for row in entities.questions if row["question_id"] != answer["question_id"]
+    )
+
+    with pytest.raises(ValueError, match="lineage must match"):
+        validate_entity_set(entities, strict=True)
+
+
+def test_empty_csv_table_must_expose_current_answer_option_schema(
+    definition_answer_files: tuple[Path, Path], tmp_path: Path
+) -> None:
+    output = tmp_path / "entities"
+    write_entities(parse_survey(*definition_answer_files), output, "csv")
+    (output / "answer_options.csv").write_text("answer_option_id,question_id,survey_id\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="answer_options schema is missing required columns"):
+        load_entities(output)
