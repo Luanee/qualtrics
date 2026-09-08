@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import math
 import re
 import time
 from collections.abc import Iterator
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 import httpx
 
 from ..exceptions import QualtricsExportError
 from ..models import (
+    ExportCallback,
+    ExportEvent,
     ExportProgress,
     ExportResult,
     FilenameStrategy,
@@ -111,15 +115,19 @@ class ResponseImportsExportsAPI(APIDomain):
         *,
         poll_interval: float = 1.0,
         timeout: float = 900.0,
+        on_progress: ExportCallback | None = None,
     ) -> ExportProgress:
+        self._validate_timing(poll_interval, timeout)
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             progress = self.progress(survey_id, progress_id)
+            if on_progress:
+                on_progress(ExportEvent(survey_id, "exporting", progress.percent_complete))
             if progress.status == "complete" and progress.file_id:
                 return progress
             if progress.status == "failed":
                 raise QualtricsExportError(f"Export {progress_id} failed")
-            time.sleep(poll_interval)
+            time.sleep(min(poll_interval, max(0, deadline - time.monotonic())))
         raise QualtricsExportError(f"Export {progress_id} did not finish within {timeout:g}s")
 
     def download(self, survey_id: str, file_id: str) -> httpx.Response:
@@ -136,14 +144,24 @@ class ResponseImportsExportsAPI(APIDomain):
         survey_name: str | None = None,
         poll_interval: float = 1.0,
         timeout: float = 900.0,
+        on_progress: ExportCallback | None = None,
     ) -> ExportResult:
+        self._validate_timing(poll_interval, timeout)
+        if naming == FilenameStrategy.CUSTOM and not filename:
+            raise ValueError("filename is required when naming='custom'")
         request = options or ResponseExportRequest()
+        if on_progress:
+            on_progress(ExportEvent(survey_id, "starting"))
         started = self.start(survey_id, request)
         if not started.progress_id:
             raise QualtricsExportError("Qualtrics did not return a progressId")
-        progress = self.wait(survey_id, started.progress_id, poll_interval=poll_interval, timeout=timeout)
+        progress = self.wait(
+            survey_id, started.progress_id, poll_interval=poll_interval, timeout=timeout, on_progress=on_progress
+        )
         if not progress.file_id:
             raise QualtricsExportError("Completed export did not contain a fileId")
+        if on_progress:
+            on_progress(ExportEvent(survey_id, "downloading"))
         response = self.download(survey_id, progress.file_id)
         if naming == FilenameStrategy.SURVEY_NAME and not survey_name:
             survey = self._client.surveys.get(survey_id)
@@ -158,7 +176,20 @@ class ResponseImportsExportsAPI(APIDomain):
             survey_name=survey_name,
         )
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(response.content)
+        temporary: Path | None = None
+        try:
+            with NamedTemporaryFile(
+                dir=target.parent, prefix=f".{target.name}.", suffix=".part", delete=False
+            ) as handle:
+                temporary = Path(handle.name)
+                handle.write(response.content)
+            temporary.replace(target)
+        finally:
+            response.close()
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+        if on_progress:
+            on_progress(ExportEvent(survey_id, "complete", 100))
         return ExportResult(
             survey_id=survey_id,
             progress_id=started.progress_id,
@@ -167,6 +198,13 @@ class ResponseImportsExportsAPI(APIDomain):
             format=request.format,
             continuation_token=progress.continuation_token,
         )
+
+    @staticmethod
+    def _validate_timing(poll_interval: float, timeout: float) -> None:
+        if not math.isfinite(poll_interval) or poll_interval < 0:
+            raise ValueError("poll_interval must be finite and nonnegative")
+        if not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError("timeout must be finite and positive")
 
     @staticmethod
     def _export_path(
@@ -179,7 +217,7 @@ class ResponseImportsExportsAPI(APIDomain):
         survey_id: str,
         survey_name: str | None,
     ) -> Path:
-        if output.suffix:
+        if output.suffix and not output.is_dir():
             return output
         disposition = response.headers.get("content-disposition", "")
         remote_match = re.search(r'filename\*?=(?:UTF-8\'\')?["\']?([^"\';]+)', disposition, re.I)
