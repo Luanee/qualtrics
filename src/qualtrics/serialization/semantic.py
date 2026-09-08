@@ -86,16 +86,22 @@ SEMANTIC_COLUMNS = {
         "answer_option_id",
         "answer_external_id",
         "answer_id",
+        "answer_code",
         "answer_text",
+        "answer_order",
+        "answer_export_tag",
+        "source_import_id",
         "question_id",
         "question_external_id",
+        "question_field_id",
+        "field_id",
         "survey_id",
     ),
 }
 
 _FLOAT_COLUMNS = {"answer_numeric"}
 _BOOL_COLUMNS = {"answer_boolean", "is_selected", "is_text_field"}
-_INT_COLUMNS = {"source_column_index", "section_order"}
+_INT_COLUMNS = {"source_column_index", "section_order", "answer_order"}
 
 
 def write_semantic_model(model: SemanticModel, folder: str | Path, format: str = "parquet") -> None:

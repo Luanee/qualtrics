@@ -36,7 +36,14 @@ Table questions {
 Table answer_options {
   answer_option_id varchar [pk]
   answer_external_id varchar [not null]
+  answer_id varchar [not null]
+  answer_code varchar [not null]
+  answer_order integer [not null]
+  answer_export_tag varchar
+  source_import_id varchar
   question_id varchar [not null, ref: > questions.question_id]
+  question_field_id varchar [not null, ref: > question_fields.question_field_id]
+  field_id varchar [not null, ref: > question_fields.question_field_id]
   survey_id varchar [not null, ref: > surveys.survey_id]
   answer_text varchar
 }
@@ -44,6 +51,7 @@ Table answer_options {
 Table question_fields {
   question_field_id varchar [pk]
   field_external_id varchar [not null]
+  choice_external_id varchar
   import_external_id varchar
   survey_id varchar [not null, ref: > surveys.survey_id]
   question_id varchar [not null, ref: > questions.question_id]

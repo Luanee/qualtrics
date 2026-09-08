@@ -8,6 +8,7 @@ from ..models.entities import ENTITY_NAMES, EntitySet
 
 CSV_FIELD_TYPES: dict[str, dict[str, type[object]]] = {
     "sections": {"section_order": int},
+    "answer_options": {"answer_order": int},
     "questions": {
         "block_order": int,
         "question_order_in_block": int,
@@ -60,11 +61,15 @@ ENTITY_COLUMNS: dict[str, tuple[str, ...]] = {
         "answer_option_id",
         "answer_id",
         "answer_external_id",
+        "answer_code",
         "answer_text",
-        "answer_recode",
+        "answer_order",
         "answer_export_tag",
+        "source_import_id",
         "question_id",
         "question_external_id",
+        "question_field_id",
+        "field_id",
         "survey_id",
     ),
     "question_fields": (
@@ -80,6 +85,7 @@ ENTITY_COLUMNS: dict[str, tuple[str, ...]] = {
         "field_role",
         "answer_value_type",
         "is_text_field",
+        "choice_external_id",
         "import_external_id",
         "source_field_suffix",
         "source_column_index",

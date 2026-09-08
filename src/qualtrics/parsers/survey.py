@@ -129,7 +129,17 @@ def _field_choice_id(
     metadata: dict[str, object], import_id: str, column: str, question_id: str, definition: dict[str, object]
 ) -> str | None:
     choices = definition.get("Choices") or {}
-    valid_ids = {str(choice_id) for choice_id in choices} if isinstance(choices, dict) else set()
+    if isinstance(choices, dict):
+        valid_ids = {str(choice_id) for choice_id in choices}
+    elif isinstance(choices, list):
+        order = definition.get("ChoiceOrder") or []
+        valid_ids = (
+            {str(choice_id) for choice_id in order}
+            if isinstance(order, list) and len(order) == len(choices)
+            else {str(index) for index in range(1, len(choices) + 1)}
+        )
+    else:
+        valid_ids = set()
     explicit = metadata.get("choiceId") or metadata.get("ChoiceId") or metadata.get("choiceID")
     if explicit is not None and str(explicit) in valid_ids:
         return str(explicit)
@@ -149,10 +159,20 @@ def _ordered_definition_items(
     definition: dict[str, object], collection_key: str, order_key: str
 ) -> list[tuple[str, object, int]]:
     collection = definition.get(collection_key) or {}
+    requested = definition.get(order_key) or []
+    if isinstance(collection, list):
+        item_ids = (
+            [str(item_id) for item_id in requested]
+            if isinstance(requested, list) and len(requested) == len(collection)
+            else [str(index) for index in range(1, len(collection) + 1)]
+        )
+        return [
+            (item_id, item, index)
+            for index, (item_id, item) in enumerate(zip(item_ids, collection, strict=True), start=1)
+        ]
     if not isinstance(collection, dict):
         return []
     values = {str(item_id): item for item_id, item in collection.items()}
-    requested = definition.get(order_key) or []
     ordered_ids: list[str] = []
     if isinstance(requested, list):
         for item_id in requested:

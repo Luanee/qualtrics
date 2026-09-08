@@ -7,14 +7,27 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
 
-from qualtrics import parse_survey
+from qualtrics import load_entities, parse_survey, write_entities
+from qualtrics.models.entity_set import validate_entity_set
+from qualtrics.models.semantic import build_semantic_model
 
 
 @pytest.fixture
 def definition_answer_files(tmp_path: Path) -> tuple[Path, Path]:
     csv_path = tmp_path / "answers.csv"
     qsf_path = tmp_path / "answers.qsf"
-    columns = ["ResponseId", "QID1", "one", "two", "two_TEXT", "matrix_one", "matrix_two", "QID4", "QID5"]
+    columns = [
+        "ResponseId",
+        "QID1",
+        "one",
+        "two",
+        "two_TEXT",
+        "matrix_one",
+        "matrix_two",
+        "QID4",
+        "QID5",
+        "QID6_1",
+    ]
     headers = [
         "Response ID",
         "Preferred color",
@@ -25,6 +38,7 @@ def definition_answer_files(tmp_path: Path) -> tuple[Path, Path]:
         "Service - Support",
         "Comment",
         "Score",
+        "Contact - Name",
     ]
     metadata = [
         {},
@@ -36,8 +50,9 @@ def definition_answer_files(tmp_path: Path) -> tuple[Path, Path]:
         {"ImportId": "QID3_2"},
         {"ImportId": "QID4"},
         {"ImportId": "QID5"},
+        {"ImportId": "QID6_1"},
     ]
-    response = ["R1", "Red", "Selected", "", "because", "Good", "Bad", "free text", "73"]
+    response = ["R1", "Red", "Selected", "", "because", "Good", "Bad", "free text", "73", "Ada"]
     with csv_path.open("w", encoding="utf-8", newline="") as handle:
         csv.writer(handle).writerows([columns, headers, [json.dumps(item) for item in metadata], response])
 
@@ -71,6 +86,13 @@ def definition_answer_files(tmp_path: Path) -> tuple[Path, Path]:
         },
         "QID4": {"QuestionID": "QID4", "QuestionText": "Comment", "QuestionType": "TE", "Selector": "SL"},
         "QID5": {"QuestionID": "QID5", "QuestionText": "Score", "QuestionType": "Slider"},
+        "QID6": {
+            "QuestionID": "QID6",
+            "QuestionText": "Contact",
+            "QuestionType": "TE",
+            "Selector": "FORM",
+            "Choices": {"1": {"Display": "Name"}},
+        },
     }
     qsf_path.write_text(
         json.dumps({
@@ -158,9 +180,9 @@ def test_matrix_answers_are_materialized_for_each_row_in_answer_order(
         ]
 
 
-def test_text_and_slider_fields_have_no_answer_options(definition_answer_files: tuple[Path, Path]) -> None:
+def test_text_form_and_slider_fields_have_no_answer_options(definition_answer_files: tuple[Path, Path]) -> None:
     entities = parse_survey(*definition_answer_files)
-    assert not [row for row in entities.answer_options if row["question_external_id"] in {"QID4", "QID5"}]
+    assert not [row for row in entities.answer_options if row["question_external_id"] in {"QID4", "QID5", "QID6"}]
 
 
 def test_responses_resolve_only_against_their_field_domain(
@@ -219,3 +241,36 @@ def test_option_identity_is_scoped_to_survey_and_field(definition_answer_files: 
     assert {row["answer_option_id"] for row in first.answer_options}.isdisjoint({
         row["answer_option_id"] for row in second.answer_options
     })
+
+
+@pytest.mark.parametrize("format", ["csv", "json", "parquet"])
+def test_answer_option_roundtrip_preserves_field_grain(
+    definition_answer_files: tuple[Path, Path], tmp_path: Path, format: str
+) -> None:
+    entities = parse_survey(*definition_answer_files)
+    output = tmp_path / format
+    write_entities(entities, output, format)
+
+    loaded = load_entities(output)
+    assert loaded.answer_options == entities.answer_options
+    assert all(isinstance(row["answer_order"], int) for row in loaded.answer_options)
+    assert all(row["question_field_id"] == row["field_id"] for row in loaded.answer_options)
+
+
+def test_answer_option_requires_a_valid_question_field(definition_answer_files: tuple[Path, Path]) -> None:
+    entities = parse_survey(*definition_answer_files)
+    entities.answer_options[0]["question_field_id"] = "missing"
+    entities.answer_options[0]["field_id"] = "missing"
+
+    with pytest.raises(ValueError, match="has no parent in question_fields"):
+        validate_entity_set(entities, strict=True)
+
+
+def test_semantic_answer_options_have_field_scoped_grain(definition_answer_files: tuple[Path, Path]) -> None:
+    entities = parse_survey(*definition_answer_files)
+    model = build_semantic_model(entities)
+
+    assert model.dim_answer_options == entities.answer_options
+    assert len({row["answer_option_id"] for row in model.dim_answer_options}) == len(model.dim_answer_options)
+    question_fields = {row["question_field_id"] for row in model.dim_questions}
+    assert {row["question_field_id"] for row in model.dim_answer_options} <= question_fields
