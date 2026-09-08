@@ -52,7 +52,10 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
     response_questions = analysis.response_questions
     question_responses = analysis.question_responses
     question_answers = analysis.question_answers
-    answer_options = {(str(option["survey_id"]), str(option["question_id"]), str(option["answer_id"])): option for option in entities.answer_options}
+    answer_options = {
+        (str(option["survey_id"]), str(option["question_id"]), str(option["answer_id"])): option
+        for option in entities.answer_options
+    }
     question_options: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for option in entities.answer_options:
         question_options.setdefault((str(option["survey_id"]), str(option["question_id"])), []).append(option)
@@ -142,7 +145,8 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             external_id = str(question.get("question_external_id") or question_id)
             metadata = external_id + (f" · Section: {block_name}" if block_name else "")
             labels = "".join(
-                f"<li>{html.escape(str(item.get(label_key) or item.get('field_id') or item.get('answer_id') or 'Unknown'))}</li>" for item in question_items
+                f"<li>{html.escape(str(item.get(label_key) or item.get('field_id') or item.get('answer_id') or 'Unknown'))}</li>"
+                for item in question_items
             )
             groups.append(
                 f"<div class='quality-question'><strong>{html.escape(question_label)}</strong><small>{html.escape(metadata)}</small><ul>{labels}</ul></div>"
@@ -184,14 +188,16 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         question_response_total = survey_response_counts.get(str(key[0]), 0)
         coverage = respondent_count / question_response_total * 100 if question_response_total else 0
         question_fields = [field for field_key, field in fields.items() if field_key[:2] == key]
-        field_labels = {str(field["field_id"]): _display_field_label(field, question, answer_options) for field in question_fields}
+        field_labels = {
+            str(field["field_id"]): _display_field_label(field, question, answer_options) for field in question_fields
+        }
         analysis_body, value_count, value_label = render_question_analysis(
             question, question_fields, observed, question_options.get(key, []), field_labels, respondent_count
         )
-        summary = (
-            f"<span><b>{respondent_count:,}</b> respondents</span><span><b>{coverage:.0f}%</b> coverage</span><span><b>{value_count:,}</b> {value_label}</span>"
+        summary = f"<span><b>{respondent_count:,}</b> respondents</span><span><b>{coverage:.0f}%</b> coverage</span><span><b>{value_count:,}</b> {value_label}</span>"
+        type_label = {"MC": "Multiple choice", "TE": "Text entry"}.get(
+            question_type, question_type.replace("_", " ").title()
         )
-        type_label = {"MC": "Multiple choice", "TE": "Text entry"}.get(question_type, question_type.replace("_", " ").title())
         block_label = str(question.get("block_name") or "")
         survey_id = str(key[0])
         survey_label = str(survey_lookup.get(survey_id, {}).get("survey_name") or survey_id)
@@ -291,7 +297,11 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             *(str(value) for _, value in stable_metadata if value),
         ]
         rows = []
-        metadata_values = [f"<span><b>{html.escape(label)}</b> {html.escape(str(value))}</span>" for label, value in stable_metadata if value]
+        metadata_values = [
+            f"<span><b>{html.escape(label)}</b> {html.escape(str(value))}</span>"
+            for label, value in stable_metadata
+            if value
+        ]
         grouped_response_answers: dict[str, list[tuple[dict[str, Any], dict[str, Any]]]] = {}
         for answer in response_answers:
             q = questions.get((answer["survey_id"], answer["question_id"]), {})
@@ -302,7 +312,9 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             question_key = (answer["survey_id"], answer["question_id"])
             if question_roles.get(question_key, "response") != "response":
                 metadata_label = field_label or label
-                metadata_values.append(f"<span><b>{html.escape(str(metadata_label))}</b> {html.escape(str(answer['answer_text']))}</span>")
+                metadata_values.append(
+                    f"<span><b>{html.escape(str(metadata_label))}</b> {html.escape(str(answer['answer_text']))}</span>"
+                )
                 continue
             grouped_response_answers.setdefault(str(answer["question_id"]), []).append((answer, f))
         for question_id, grouped_answers in grouped_response_answers.items():
@@ -311,7 +323,9 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
             question_external_id = str(q.get("question_external_id") or question_id)
             label = q.get("question_text") or question_id
             question_type = str(q.get("question_type") or "").upper()
-            type_label = {"MC": "Multiple choice", "TE": "Text entry"}.get(question_type, question_type.replace("_", " ").title())
+            type_label = {"MC": "Multiple choice", "TE": "Text entry"}.get(
+                question_type, question_type.replace("_", " ").title()
+            )
             block_name = str(q.get("block_name") or "")
             field_rows = []
             for answer, field_definition in grouped_answers:
@@ -323,8 +337,12 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
                         f"<span class='value'>{html.escape(str(answer['answer_text']))}</span></div>"
                     )
                 else:
-                    field_rows.append(f"<div class='field-answer value-only'><span class='value'>{html.escape(str(answer['answer_text']))}</span></div>")
-            question_meta = " · ".join(item for item in (type_label, f"Block: {block_name}" if block_name else "") if item)
+                    field_rows.append(
+                        f"<div class='field-answer value-only'><span class='value'>{html.escape(str(answer['answer_text']))}</span></div>"
+                    )
+            question_meta = " · ".join(
+                item for item in (type_label, f"Block: {block_name}" if block_name else "") if item
+            )
             rows.append(
                 f"<div class='answer' data-question='"
                 f"{html.escape(f'{response_survey_id}::{question_external_id}', quote=True)}'>"
