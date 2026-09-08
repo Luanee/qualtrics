@@ -38,6 +38,25 @@ Question coverage uses all response records for that survey as its denominator. 
 
 With a QSF, the report can show defined choices with zero observations. Without a QSF, it cannot tell you which unselected choices existed. A data-quality flag is a prompt to inspect the source survey and export.
 
+### Read question-specific summaries
+
+The question and field types determine how answers appear:
+
+| Answer type | Presentation |
+| --- | --- |
+| **Multiple choice** | Counts and percentages for each option, in definition order when a QSF is available. Defined options with no selections remain visible. |
+| **Matrix or Likert** | One compact table: statements down the rows, answer options across the columns. Each cell contains a count, a percentage, and a small comparison bar. |
+| **Numeric** | Minimum, average, median, maximum, and sample standard deviation for each numeric field. |
+| **Written response** | Number of responses, number of unique values, and the most frequent values. Read individual answers under **By responses**. |
+
+Multiple-choice percentages use respondents who answered the question. The report counts each respondent once per option, so selecting several options can produce percentages that add up to more than 100%. The selection total uses the same deduplicated counts. Attached written answers appear separately.
+
+Matrix percentages use **Answered (n)** for each statement. For example, if 20 people answer the delivery row and 10 choose “Good,” that cell shows **10 / 50%**. If only 8 answer the support row and all choose “Good,” its cell shows **8 / 100%**. Each statement therefore has its own denominator. Multiple-answer matrix fields belonging to the same statement share one row. A dash means there are no responses for that row or the option was not exported for it. A missing answer does not establish whether someone saw the question.
+
+Numeric summaries use the declared question or field type. A text field containing employee numbers such as `000123` stays text. Numeric fields with no usable values show an empty-state message; non-numeric and infinite values are excluded with a count. Standard deviation describes the spread of the observed values and uses the sample formula, dividing by `n − 1`. It appears as a dash when fewer than two numeric values are available.
+
+Option codes are translated only when the mapping is unambiguous for that field. Unknown or ambiguous values remain as recorded in the export.
+
 ## Review individual responses
 
 Under **By responses**:

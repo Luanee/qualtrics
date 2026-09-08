@@ -105,6 +105,8 @@ if __name__ == "__main__":
 
 Use the downloadable inputs in [your first report](../getting-started/first-report.md), or follow [parse exports](../guides/parse-exports.md) with your own data.
 
+`render_report` selects presentations from the question and field metadata: choice distributions, matrix tables, numeric summaries, or text summaries. It does not infer numeric measurements from text values. Preserve the metadata from `parse_survey` or `load_entities` when constructing your own workflows. See [question-specific summaries](../guides/reports.md#read-question-specific-summaries) for the percentage denominators and numeric statistics.
+
 ### Collections and table names
 
 `EntitySet` is a dataclass with lists of dictionaries named `surveys`, `sections`, `question_catalog`, `question_field_catalog`, `questions`, `answer_options`, `question_fields`, `responses`, and `response_answers`. Prefer `parse_survey` or `load_entities` to construct a collection with the metadata needed for strict validation.
