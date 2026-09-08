@@ -8,6 +8,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 import pytest
 
 from qualtrics import load_entities, parse_survey, write_entities
+from qualtrics.analytics import analyze_entities
 from qualtrics.models.entity_set import validate_entity_set
 from qualtrics.models.semantic import build_semantic_model
 
@@ -83,6 +84,8 @@ def definition_answer_files(tmp_path: Path) -> tuple[Path, Path]:
             "Answers": {"1": {"Display": "Bad"}, "2": {"Display": "OK"}, "3": {"Display": "Good"}},
             "AnswerOrder": ["3", "1"],
             "RecodeValues": {"1": "-1", "2": "0", "3": "1"},
+            "ChoiceDataExportTags": {"1": "ROW_TAG"},
+            "AnswerDataExportTags": {"3": "GOOD_TAG"},
         },
         "QID4": {"QuestionID": "QID4", "QuestionText": "Comment", "QuestionType": "TE", "Selector": "SL"},
         "QID5": {"QuestionID": "QID5", "QuestionText": "Score", "QuestionType": "Slider"},
@@ -178,6 +181,7 @@ def test_matrix_answers_are_materialized_for_each_row_in_answer_order(
             ("1", "-1", 2),
             ("2", "0", 3),
         ]
+        assert field_options[0]["answer_export_tag"] == "GOOD_TAG"
 
 
 def test_text_form_and_slider_fields_have_no_answer_options(definition_answer_files: tuple[Path, Path]) -> None:
@@ -274,3 +278,62 @@ def test_semantic_answer_options_have_field_scoped_grain(definition_answer_files
     assert len({row["answer_option_id"] for row in model.dim_answer_options}) == len(model.dim_answer_options)
     question_fields = {row["question_field_id"] for row in model.dim_questions}
     assert {row["question_field_id"] for row in model.dim_answer_options} <= question_fields
+
+
+@pytest.mark.parametrize("selector", ["TE", "CS"])
+def test_continuous_matrix_variants_have_no_options(definition_answer_files: tuple[Path, Path], selector: str) -> None:
+    csv_path, qsf_path = definition_answer_files
+    qsf = json.loads(qsf_path.read_text(encoding="utf-8"))
+    question = next(item["Payload"] for item in qsf["SurveyElements"] if item.get("PrimaryAttribute") == "QID3")
+    question["Selector"] = selector
+    qsf_path.write_text(json.dumps(qsf), encoding="utf-8")
+
+    entities = parse_survey(csv_path, qsf_path)
+    assert not [row for row in entities.answer_options if row["question_external_id"] == "QID3"]
+
+
+def test_multiple_answer_matrix_has_one_option_per_cell(
+    definition_answer_files: tuple[Path, Path],
+) -> None:
+    csv_path, qsf_path = definition_answer_files
+    rows = list(csv.reader(csv_path.open(encoding="utf-8")))
+    rows[2][5] = json.dumps({"ImportId": "1_QID3_3"})
+    rows[2][6] = json.dumps({"ImportId": "2_QID3_1"})
+    rows[3][5:7] = ["Selected", "Selected"]
+    with csv_path.open("w", encoding="utf-8", newline="") as handle:
+        csv.writer(handle).writerows(rows)
+    qsf = json.loads(qsf_path.read_text(encoding="utf-8"))
+    question = next(item["Payload"] for item in qsf["SurveyElements"] if item.get("PrimaryAttribute") == "QID3")
+    question["SubSelector"] = "MultipleAnswer"
+    qsf_path.write_text(json.dumps(qsf), encoding="utf-8")
+
+    entities = parse_survey(csv_path, qsf_path)
+    options = [row for row in entities.answer_options if row["question_external_id"] == "QID3"]
+    assert [(row["source_import_id"], row["answer_id"]) for row in options] == [
+        ("1_QID3_3", "3"),
+        ("2_QID3_1", "1"),
+    ]
+    answers = [row for row in entities.response_answers if row["question_external_id"] == "QID3"]
+    assert all(answer["answer_option_id"] for answer in answers)
+
+
+def test_analytics_counts_linked_option_even_when_raw_value_is_selected(
+    definition_answer_files: tuple[Path, Path],
+) -> None:
+    entities = parse_survey(*definition_answer_files)
+    selected = next(
+        row for row in entities.answer_options if row["question_external_id"] == "QID2" and row["answer_id"] == "1"
+    )
+    assert selected not in analyze_entities(entities).unused_options
+
+
+def test_validation_rejects_cross_field_option_links(definition_answer_files: tuple[Path, Path]) -> None:
+    entities = parse_survey(*definition_answer_files)
+    answer = next(row for row in entities.response_answers if row.get("answer_option_id"))
+    foreign_option = next(
+        row for row in entities.answer_options if row["question_field_id"] != answer["question_field_id"]
+    )
+    answer["answer_option_id"] = foreign_option["answer_option_id"]
+
+    with pytest.raises(ValueError, match="option must belong"):
+        validate_entity_set(entities, strict=True)

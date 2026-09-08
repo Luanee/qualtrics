@@ -69,7 +69,8 @@ def analyze_entities(entities: EntitySet) -> ReportAnalytics:
     question_responses: dict[QuestionKey, set[str]] = {key: set() for key in response_questions}
     question_answers: dict[QuestionKey, list[Row]] = {key: [] for key in response_questions}
     used_fields: set[FieldKey] = set()
-    used_values: dict[QuestionKey, set[str]] = {}
+    used_values: dict[FieldKey, set[str]] = {}
+    used_option_ids: set[str] = set()
     for answer in entities.response_answers:
         question_key = (str(answer["survey_id"]), str(answer["question_id"]))
         if question_roles.get(question_key, "response") != "response":
@@ -77,7 +78,10 @@ def analyze_entities(entities: EntitySet) -> ReportAnalytics:
         question_responses.setdefault(question_key, set()).add(str(answer["response_id"]))
         question_answers.setdefault(question_key, []).append(answer)
         used_fields.add((*question_key, str(answer["field_id"])))
-        used_values.setdefault(question_key, set()).add(str(answer["answer_text"]).casefold())
+        field_key = (*question_key, str(answer["field_id"]))
+        used_values.setdefault(field_key, set()).add(str(answer["answer_text"]).casefold())
+        if answer.get("answer_option_id"):
+            used_option_ids.add(str(answer["answer_option_id"]))
     unanswered_questions = [question for key, question in response_questions.items() if not question_responses.get(key)]
     unused_fields = [
         item
@@ -88,10 +92,19 @@ def analyze_entities(entities: EntitySet) -> ReportAnalytics:
         option
         for option in entities.answer_options
         if question_roles.get((str(option["survey_id"]), str(option["question_id"])), "response") == "response"
-        and str(option["answer_id"]).casefold()
-        not in used_values.get((str(option["survey_id"]), str(option["question_id"])), set())
-        and str(option["answer_text"]).casefold()
-        not in used_values.get((str(option["survey_id"]), str(option["question_id"])), set())
+        and str(option.get("answer_option_id") or "") not in used_option_ids
+        and not {
+            str(option.get(alias) or "").casefold()
+            for alias in ("answer_id", "answer_code", "answer_export_tag", "answer_text")
+        }
+        & used_values.get(
+            (
+                str(option["survey_id"]),
+                str(option["question_id"]),
+                str(option.get("question_field_id") or option.get("field_id") or ""),
+            ),
+            set(),
+        )
     ]
     survey_response_counts = Counter(str(item["survey_id"]) for item in entities.responses)
     survey_finished_counts = Counter(

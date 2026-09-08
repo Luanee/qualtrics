@@ -23,6 +23,7 @@ REQUIRED_COLUMNS = {
     "answer_options": {
         "answer_option_id",
         "answer_id",
+        "answer_external_id",
         "answer_code",
         "answer_order",
         "question_id",
@@ -104,6 +105,29 @@ def validate_entity_set(entities: EntitySet, *, strict: bool = False) -> None:
             value = row.get(foreign_key)
             if value is not None and str(value) not in parent_ids:
                 raise ValueError(f"{child} {foreign_key} {value} has no parent in {parent}.{parent_key}")
+    if strict:
+        fields = {str(row["question_field_id"]): row for row in entities.question_fields}
+        options = {str(row["answer_option_id"]): row for row in entities.answer_options}
+        for option in entities.answer_options:
+            required_values = ("question_field_id", "field_id", "question_id", "survey_id", "answer_id", "answer_code")
+            missing_values = [column for column in required_values if option.get(column) is None]
+            if missing_values:
+                raise ValueError(f"answer_options row has null required columns: {', '.join(missing_values)}")
+            question_field_id = str(option["question_field_id"])
+            if str(option["field_id"]) != question_field_id:
+                raise ValueError("answer_options field_id must equal question_field_id")
+            field = fields[question_field_id]
+            if str(option["question_id"]) != str(field["question_id"]) or str(option["survey_id"]) != str(
+                field["survey_id"]
+            ):
+                raise ValueError("answer_options question and survey must match the referenced question field")
+        for answer in entities.response_answers:
+            option_id = answer.get("answer_option_id")
+            if option_id is None:
+                continue
+            option = options[str(option_id)]
+            if str(option["question_field_id"]) != str(answer["question_field_id"]):
+                raise ValueError("response_answers option must belong to the referenced question field")
 
 
 def merge_entity_sets(entity_sets: list[EntitySet]) -> EntitySet:

@@ -151,6 +151,30 @@ def _field_choice_id(
     return None
 
 
+def _field_matrix_answer_id(
+    metadata: dict[str, object],
+    import_id: str,
+    column: str,
+    question_id: str,
+    choice_id: str | None,
+    definition: dict[str, object],
+) -> str | None:
+    answers = definition.get("Answers") or {}
+    valid_ids = {str(answer_id) for answer_id in answers} if isinstance(answers, dict) else set()
+    explicit = metadata.get("answerId") or metadata.get("AnswerId") or metadata.get("answerID")
+    if explicit is not None and str(explicit) in valid_ids:
+        return str(explicit)
+    for source in (import_id, column):
+        without_question = source.upper().replace(question_id.upper(), "")
+        tokens = re.findall(r"[A-Za-z0-9]+", without_question)
+        if choice_id in tokens:
+            tokens.remove(choice_id)
+        for token in tokens:
+            if token in valid_ids:
+                return token
+    return None
+
+
 def _native_id_sort_key(value: str) -> tuple[int, int | str, str]:
     return (0, int(value), value) if value.isdigit() else (1, value.casefold(), value)
 
@@ -210,10 +234,25 @@ def _build_answer_option_domains(entities: EntitySet, definitions: dict[str, dic
                 for field in fields
                 if (choice_id := str(field.get("choice_external_id") or "")) in choice_by_id
             ]
-        elif resolved.canonical_question_type == "matrix":
-            domains = [(field, answers) for field in fields if field.get("choice_external_id")]
+        elif resolved.canonical_question_type == "matrix" and resolved.answer_value_type == "categorical":
+            sub_selector = "".join(
+                character for character in str(question.get("sub_selector") or "").casefold() if character.isalnum()
+            )
+            if sub_selector == "multipleanswer":
+                answer_by_id = {item_id: (item, order) for item_id, item, order in answers}
+                domains = [
+                    (field, [(answer_id, *answer_by_id[answer_id])])
+                    for field in fields
+                    if (answer_id := str(field.get("_matrix_answer_external_id") or "")) in answer_by_id
+                ]
+            else:
+                domains = [(field, answers) for field in fields if field.get("choice_external_id")]
         recodes = definition.get("RecodeValues") or {}
-        export_tags = definition.get("ChoiceDataExportTags") or definition.get("AnswerDataExportTags") or {}
+        export_tags = (
+            definition.get("AnswerDataExportTags")
+            if resolved.canonical_question_type == "matrix"
+            else definition.get("ChoiceDataExportTags")
+        ) or {}
         for field, domain in domains:
             for answer_id, value, answer_order in domain:
                 recode = recodes.get(answer_id) if isinstance(recodes, dict) else None
@@ -248,7 +287,7 @@ def _apply_identity_contract(entities: EntitySet) -> None:
 
     question_ids: dict[str, str] = {}
     catalog_ids: dict[str, str] = {}
-    canonical_types: dict[str, str] = {}
+    direct_selection_questions: set[str] = set()
     catalog_rows: dict[str, dict[str, object]] = {}
     raw_fields = {str(row["question_id"]): [] for row in entities.questions}
     for field in entities.question_fields:
@@ -284,7 +323,13 @@ def _apply_identity_contract(entities: EntitySet) -> None:
         internal_id = entity_id("question", sid, external_id)
         question_ids[external_id] = internal_id
         catalog_ids[external_id] = catalog_id
-        canonical_types[external_id] = resolved.canonical_question_type
+        normalized_sub_selector = "".join(
+            character for character in str(question.get("sub_selector") or "").casefold() if character.isalnum()
+        )
+        if resolved.canonical_question_type == "multiple_choice_multiple" or (
+            resolved.canonical_question_type == "matrix" and normalized_sub_selector == "multipleanswer"
+        ):
+            direct_selection_questions.add(external_id)
         question["question_external_id"] = external_id
         question["question_id"] = internal_id
         question["question_catalog_id"] = catalog_id
@@ -330,6 +375,7 @@ def _apply_identity_contract(entities: EntitySet) -> None:
         field["question_catalog_id"] = catalog_ids[external_question_id]
         field["question_field_catalog_id"] = catalog_id
         field["answer_value_type"] = value_type
+        field.pop("_matrix_answer_external_id", None)
         field_catalog_rows[catalog_id] = {
             "question_field_catalog_id": catalog_id,
             "question_catalog_id": catalog_ids[external_question_id],
@@ -401,27 +447,12 @@ def _apply_identity_contract(entities: EntitySet) -> None:
         populate_typed_answer(
             answer,
             option_lookup.get(str(answer["question_field_id"]), {}),
-            select_only_option=canonical_types[external_question_id] == "multiple_choice_multiple",
+            select_only_option=external_question_id in direct_selection_questions,
         )
 
 
 def _optional_value(value: str | None) -> str | None:
     return value if value is not None and value.strip() else None
-
-
-def _choice_items(definition: dict[str, object]) -> list[tuple[str, object]]:
-    choices = definition.get("Answers") or definition.get("Choices") or {}
-    if isinstance(choices, dict):
-        return [(str(option_id), option) for option_id, option in choices.items()]
-    if isinstance(choices, list):
-        choice_order = definition.get("ChoiceOrder") or []
-        option_ids = (
-            choice_order
-            if isinstance(choice_order, list) and len(choice_order) == len(choices)
-            else range(1, len(choices) + 1)
-        )
-        return [(str(option_id), option) for option_id, option in zip(option_ids, choices, strict=True)]
-    return []
 
 
 def _read_response_rows(source_path: Path) -> list[list[str]]:
@@ -531,6 +562,9 @@ def _parse_survey_file(
         suffix = (import_id.replace(question_id, "", 1).strip("_") or None) if import_id else None
         field_text = _field_text(header, question_text, column, suffix)
         choice_external_id = _field_choice_id(field_metadata, import_id, column, question_id, definition)
+        matrix_answer_external_id = _field_matrix_answer_id(
+            field_metadata, import_id, column, question_id, choice_external_id, definition
+        )
         entities.question_fields.append({
             "survey_id": sid,
             "question_id": question_id,
@@ -543,6 +577,7 @@ def _parse_survey_file(
             "field_text": field_text,
             "is_text_field": bool(suffix and "TEXT" in suffix),
             "choice_external_id": choice_external_id,
+            "_matrix_answer_external_id": matrix_answer_external_id,
         })
     _build_answer_option_domains(entities, qsf_questions)
     field_map = {row["field_id"]: row["question_id"] for row in entities.question_fields}

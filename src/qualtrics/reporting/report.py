@@ -198,23 +198,33 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         defined_options: list[dict[str, Any]],
         denominator: int,
     ) -> str:
-        aliases = {
-            str(alias).casefold(): str(option["answer_id"])
+        alias_candidates: dict[str, set[str]] = {}
+        labels = {
+            str(option.get("answer_option_id") or f"{option.get('field_id')}:{option['answer_id']}"): str(
+                option["answer_text"]
+            )
             for option in defined_options
-            for alias in (option["answer_id"], option["answer_text"])
         }
-        labels = {str(option["answer_id"]): str(option["answer_text"]) for option in defined_options}
+        for option in defined_options:
+            option_id = str(option.get("answer_option_id") or f"{option.get('field_id')}:{option['answer_id']}")
+            for alias in ("answer_id", "answer_code", "answer_export_tag", "answer_text"):
+                value = str(option.get(alias) or "").casefold()
+                if value:
+                    alias_candidates.setdefault(value, set()).add(option_id)
         selections: set[tuple[str, str]] = set()
         unknown_labels: dict[str, str] = {}
         for answer in observed_answers:
             raw_value = str(answer["answer_text"])
-            option_id = aliases.get(raw_value.casefold())
+            option_id = str(answer.get("answer_option_id") or "") or None
+            candidates = alias_candidates.get(raw_value.casefold(), set())
+            if option_id is None and len(candidates) == 1:
+                option_id = next(iter(candidates))
             if option_id is None:
                 option_id = f"unknown:{raw_value.casefold()}"
                 unknown_labels.setdefault(option_id, raw_value)
             selections.add((str(answer["response_id"]), option_id))
         counts = Counter(option_id for _, option_id in selections)
-        option_ids = [str(option["answer_id"]) for option in defined_options]
+        option_ids = list(labels)
         option_ids.extend(
             option_id for option_id, _ in sorted(unknown_labels.items(), key=lambda item: item[1].casefold())
         )
