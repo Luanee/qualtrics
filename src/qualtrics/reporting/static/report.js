@@ -11,7 +11,7 @@
   const cards = all('.respondent');
   const written = all('.written-answer');
   const occurrences = all('.survey-analysis.survey-occurrence');
-  const viewIds = ['overview', 'question-analytics', 'written-answers', 'by-responses', 'codebook'];
+  const viewIds = ['overview', 'survey-flow', 'question-analytics', 'written-answers', 'by-responses', 'codebook'];
   const views = viewIds.map(id => document.getElementById(id)).filter(Boolean);
   let activeView = 'overview', activeQuestion = '', printing = false, showAllFindings = false;
   const selectedSurveys = () => new Set(surveyChoices.filter(input => input.checked).map(input => input.value));
@@ -151,6 +151,7 @@
   function updateSurveySummary() {
     const surveys = selectedSurveys();
     window.ReportDashboard?.update(surveys);
+    window.ReportFlow?.update(surveys);
     const names = ['responses', 'finished', 'questions', 'answers', 'unanswered', 'unusedFields'];
     const totals = Object.fromEntries(names.map(name => [name, 0]));
     surveyChoices.filter(choice => choice.checked).forEach(choice => names.forEach(name => { totals[name] += Number(choice.dataset[name] || 0); }));
@@ -216,6 +217,7 @@
     node.id ||= `codebook-field-${index + 1}`;
     record('Codebook', node, node.querySelector('strong')?.textContent || 'Exported field', [...node.cells].map(cell => cell.textContent).join(' · '));
   });
+  window.ReportFlow?.records().forEach(item => record('Flow', item.node, item.title, item.content, item.context));
   const searchList = $('#search-result-list');
   let searchMatches = [], searchPage = 1, searchQuery = [];
   function appendExcerpt(node, value, query) {
@@ -315,6 +317,7 @@
     }
     const field = target.closest('.codebook-row');
     if (field) window.revealCodebook?.(field);
+    if (view.id === 'survey-flow') window.ReportFlow?.reveal(target.id);
     showView(view.id);
     for (let parent = target; parent && parent !== view.parentElement; parent = parent.parentElement) {
       if (parent.tagName === 'DETAILS') parent.open = true;
