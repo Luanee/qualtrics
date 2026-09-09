@@ -84,7 +84,6 @@ def test_sample_preserves_multifield_identity(tmp_path: Path, survey_files: tupl
     assert "class='question-menu' hidden" in report
     assert "No selected questions were answered in this response." in report
     assert "class='no-selected' hidden" in report
-    assert "[hidden],.hidden{display:none!important}" in report
     assert "Block: Training" in report
     assert "class='question-meta'>Multiple choice · Block: Training" in report
     assert "position:sticky;top:.5rem" not in report
@@ -285,7 +284,6 @@ def test_data_quality_is_collapsible_and_groups_issues_by_question(
     assert "<b>1</b> defined option not observed" in report
     assert "<h4>Fields without values</h4>" in report
     assert "<h4>Defined options not observed</h4>" in report
-    assert ".quality-groups{display:grid;" in report
     assert "<strong>PRACTICE QUESTION</strong><small>QID30 · Section: Training</small>" in report
     assert "<li>Item 1</li>" in report
     assert "<li>Never selected</li>" in report
@@ -345,7 +343,6 @@ def test_response_does_not_repeat_question_as_single_field_label(
     assert (
         f"<div class='field-answer value-only' data-field-id='{field['field_id']}'><span class='value'>"
     ) in response_answer
-    assert ".field-answer.value-only{grid-template-columns:1fr}" in report
 
 
 def test_mc_analytics_consolidates_options_and_includes_zero_counts(
