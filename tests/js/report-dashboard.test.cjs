@@ -21,15 +21,40 @@ test('monthly timeline preserves calendar months across years and leap days', ()
   assert.deepEqual(aggregateTimeline([], 'week').points, []);
 });
 
+test('yearly timeline uses calendar years, fills missing years and carries the running total', () => {
+  const result = aggregateTimeline([
+    {dates: [['2022-12-31', 2], ['2023-01-01', 3], ['2025-02-28', 4]], undated: 2},
+    {dates: [['2023-12-31', 1]], undated: 1},
+  ], 'year');
+  assert.deepEqual(result.points.map(p => [p.date, p.end, p.count, p.cumulative]), [
+    ['2022-01-01', '2022-01-01', 2, 2], ['2023-01-01', '2023-01-01', 4, 6],
+    ['2024-01-01', '2024-01-01', 0, 6], ['2025-01-01', '2025-01-01', 4, 10],
+  ]);
+  assert.equal(result.undated, 3);
+});
+
+test('weekly and monthly running totals carry across year boundaries and empty periods', () => {
+  const surveys = [{dates: [['2023-12-31', 2], ['2024-02-01', 3]], undated: 1}];
+  for (const period of ['week', 'month']) {
+    const {points} = aggregateTimeline(surveys, period);
+    assert.equal(points[0].cumulative, 2);
+    assert.equal(points.at(-1).cumulative, 5);
+    assert.ok(points.slice(1, -1).every(p => p.count === 0 && p.cumulative === 2));
+  }
+});
+
 test('very long timelines bound chart size without losing dated response counts', () => {
-  const result = aggregateTimeline([{dates: [['1900-01-01', 3], ['2100-01-01', 7]], undated: 0}], 'week');
-  assert.ok(result.points.length <= 260);
-  assert.equal(result.points.reduce((sum, p) => sum + p.count, 0), 10);
-  assert.ok(result.step > 1);
+  for (const period of ['week', 'month', 'year']) {
+    const result = aggregateTimeline([{dates: [['1000-01-01', 3], ['2100-01-01', 7]], undated: 0}], period);
+    assert.ok(result.points.length <= 260);
+    assert.equal(result.points.reduce((sum, p) => sum + p.count, 0), 10);
+    assert.equal(result.points.at(-1).cumulative, 10);
+    assert.ok(result.step > 1);
+  }
 });
 
 function element(tag = 'div') {
-  return {tagName: tag.toUpperCase(), children: [], attributes: {}, style: {}, handlers: {}, value: '', hidden: false,
+  return {tagName: tag.toUpperCase(), children: [], attributes: {}, style: {}, handlers: {}, value: '', checked: false, hidden: false,
     append(...items) { this.children.push(...items); },
     replaceChildren(...items) { this.children = items; this.ownText = ''; },
     set textContent(value) { this.ownText = String(value); this.children = []; },
@@ -39,7 +64,7 @@ function element(tag = 'div') {
   };
 }
 function fixture() {
-  const nodes = Object.fromEntries(['period','timeline','timeline-table','date-note','surveys','coverage',
+  const nodes = Object.fromEntries(['period','cumulative','timeline','timeline-table','date-note','surveys','coverage',
     'question-1','question-2','spotlight-1','spotlight-2'].map(id => ['dashboard-' + id, element()]));
   nodes['dashboard-period'].value = 'week';
   const document = {getElementById: id => nodes[id] || null, createElement: element, createElementNS: (_, tag) => element(tag)};
@@ -111,4 +136,69 @@ test('period changes redraw the actual timeline table with monthly bins', () => 
   assert.match(nodes['dashboard-timeline-table'].textContent, /2025-01-01/);
   assert.match(nodes['dashboard-timeline-table'].textContent, /2025-02-01/);
   assert.equal(nodes['dashboard-timeline-table'].children[1].children.length, 2);
+});
+
+test('year grouping displays years in the table and chart instead of January dates', () => {
+  const {nodes, payload, controller} = fixture();
+  payload.surveys[0].dates = [['2023-12-31', 2], ['2025-01-01', 1]];
+  controller.update(new Set(['a']));
+  nodes['dashboard-period'].value = 'year'; nodes['dashboard-period'].handlers.change();
+  const table = nodes['dashboard-timeline-table'];
+  assert.deepEqual(table.children[0].children[0].children.map(n => n.textContent), ['Year', 'Responses']);
+  assert.deepEqual(table.children[1].children.map(row => row.children.map(n => n.textContent)), [
+    ['2023', '2'], ['2024', '0'], ['2025', '1'],
+  ]);
+  const chart = descendants(nodes['dashboard-timeline']);
+  assert.ok(chart.some(n => n.tagName === 'TEXT' && n.textContent === '2024'));
+  assert.match(chart.find(n => n.tagName === 'SVG').attributes['aria-label'], /by year/);
+  assert.doesNotMatch(nodes['dashboard-timeline'].textContent, /202\d-01-01/);
+});
+
+test('cumulative mode plots running totals, retains period counts and reverses when unchecked', () => {
+  const {nodes, controller} = fixture();
+  nodes['dashboard-period'].value = 'month';
+  controller.update(new Set(['a', 'b']));
+  const plot = () => descendants(nodes['dashboard-timeline']);
+  const dots = () => plot().filter(n => n.tagName === 'CIRCLE');
+  assert.ok(Number(dots()[1].attributes.cy) > Number(dots()[0].attributes.cy));
+  nodes['dashboard-cumulative'].checked = true; nodes['dashboard-cumulative'].handlers.change();
+  const table = nodes['dashboard-timeline-table'];
+  assert.deepEqual(table.children[0].children[0].children.map(n => n.textContent), ['Month starting', 'Responses', 'Cumulative responses']);
+  assert.deepEqual(table.children[1].children.map(row => row.children.map(n => n.textContent)), [
+    ['2025-01-01', '3', '3'], ['2025-02-01', '1', '4'],
+  ]);
+  assert.ok(Number(dots()[1].attributes.cy) < Number(dots()[0].attributes.cy));
+  assert.match(dots()[1].textContent, /1 responses.*4 cumulative responses/);
+  assert.match(plot().find(n => n.tagName === 'SVG').attributes['aria-label'], /cumulative/i);
+  assert.match(nodes['dashboard-date-note'].textContent, /running total/i);
+  assert.match(nodes['dashboard-date-note'].textContent, /1 with missing or invalid recorded dates excluded/);
+  nodes['dashboard-cumulative'].checked = false; nodes['dashboard-cumulative'].handlers.change();
+  assert.equal(table.children[0].children[0].children.length, 2);
+  assert.ok(Number(dots()[1].attributes.cy) > Number(dots()[0].attributes.cy));
+  assert.doesNotMatch(plot().find(n => n.tagName === 'SVG').attributes['aria-label'], /cumulative/i);
+});
+
+test('cumulative totals recompute for selected surveys and persist through regrouping and resize', () => {
+  const {nodes, payload, controller} = fixture();
+  payload.surveys[0].dates = [['2023-12-31', 2], ['2025-01-01', 1]];
+  nodes['dashboard-cumulative'].checked = true;
+  nodes['dashboard-period'].value = 'year';
+  controller.update(new Set(['a', 'b']));
+  const rows = () => nodes['dashboard-timeline-table'].children[1].children;
+  assert.deepEqual(rows().map(row => row.children.map(n => n.textContent)), [
+    ['2023', '2', '2'], ['2024', '0', '2'], ['2025', '2', '4'],
+  ]);
+  const circles = descendants(nodes['dashboard-timeline']).filter(n => n.tagName === 'CIRCLE');
+  assert.equal(circles.length, 3);
+  assert.equal(circles[0].attributes.cy, circles[1].attributes.cy);
+  controller.update(new Set(['b']));
+  assert.deepEqual(rows()[0].children.map(n => n.textContent), ['2025', '1', '1']);
+  nodes['dashboard-period'].value = 'month'; nodes['dashboard-period'].handlers.change();
+  controller.resize();
+  assert.equal(nodes['dashboard-cumulative'].checked, true);
+  assert.deepEqual(rows()[0].children.map(n => n.textContent), ['2025-02-01', '1', '1']);
+  controller.update(new Set());
+  assert.equal(rows().length, 0);
+  assert.match(nodes['dashboard-timeline'].textContent, /No dated responses/);
+  assert.match(nodes['dashboard-date-note'].textContent, /0 dated responses/);
 });

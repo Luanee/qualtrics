@@ -11,10 +11,20 @@ class ReportDocument(HTMLParser):
         self.ids = set()
         self.dashboard = None
         self.in_dashboard = False
+        self.controls = {}
+        self.options = {}
+        self.current_select = None
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
         self.ids.add(attrs.get("id"))
+        if tag in {"input", "select"}:
+            self.controls[attrs.get("id")] = attrs
+        if tag == "select":
+            self.current_select = attrs.get("id")
+            self.options[self.current_select] = []
+        if tag == "option" and self.current_select:
+            self.options[self.current_select].append(attrs.get("value"))
         if tag == "script":
             self.in_dashboard = attrs.get("id") == "dashboard-data"
 
@@ -25,6 +35,8 @@ class ReportDocument(HTMLParser):
     def handle_endtag(self, tag):
         if tag == "script":
             self.in_dashboard = False
+        if tag == "select":
+            self.current_select = None
 
 
 def test_generated_dashboard_embeds_safe_aggregates_with_working_question_targets(tmp_path):
@@ -47,8 +59,11 @@ def test_generated_dashboard_embeds_safe_aggregates_with_working_question_target
     assert parsed.dashboard["spotlights"][0]["target"] in parsed.ids
     assert parsed.dashboard["coverage"][0]["target"] in parsed.ids
     assert "injected" not in parsed.ids
-    for control in ("period", "question-1", "question-2", "timeline-table"):
+    for control in ("period", "cumulative", "question-1", "question-2", "timeline-table"):
         assert "dashboard-" + control in parsed.ids
+    assert parsed.options["dashboard-period"] == ["week", "month", "year"]
+    assert parsed.controls["dashboard-cumulative"]["type"] == "checkbox"
+    assert "checked" not in parsed.controls["dashboard-cumulative"]
 
 
 def test_empty_generated_report_has_an_empty_dashboard_dataset(tmp_path):

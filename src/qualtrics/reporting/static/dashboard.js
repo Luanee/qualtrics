@@ -3,9 +3,10 @@
   'use strict';
   const DAY = 86400000;
   const format = value => Number(value).toLocaleString();
-  const dateLabel = (index, period) => period === 'month'
-    ? `${String(Math.floor(index / 12)).padStart(4, '0')}-${String(index % 12 + 1).padStart(2, '0')}-01`
-    : new Date((index * 7 - 3) * DAY).toISOString().slice(0, 10);
+  const dateLabel = (index, period) => period === 'year' ? `${String(index).padStart(4, '0')}-01-01`
+    : period === 'month'
+      ? `${String(Math.floor(index / 12)).padStart(4, '0')}-${String(index % 12 + 1).padStart(2, '0')}-01`
+      : new Date((index * 7 - 3) * DAY).toISOString().slice(0, 10);
 
   function aggregateTimeline(surveys, period) {
     const counts = new Map();
@@ -13,9 +14,10 @@
     for (const survey of surveys) {
       undated += survey.undated;
       for (const [date, count] of survey.dates) {
-        const index = period === 'month'
-          ? Number(date.slice(0, 4)) * 12 + Number(date.slice(5, 7)) - 1
-          : Math.floor((Date.parse(date + 'T00:00:00Z') / DAY + 3) / 7);
+        const index = period === 'year' ? Number(date.slice(0, 4))
+          : period === 'month'
+            ? Number(date.slice(0, 4)) * 12 + Number(date.slice(5, 7)) - 1
+            : Math.floor((Date.parse(date + 'T00:00:00Z') / DAY + 3) / 7);
         counts.set(index, (counts.get(index) || 0) + count);
       }
     }
@@ -28,6 +30,8 @@
       return {date: dateLabel(start, period), end: dateLabel(end, period), count: 0};
     });
     counts.forEach((count, index) => { points[Math.floor((index - first) / step)].count += count; });
+    let cumulative = 0;
+    points.forEach(point => { cumulative += point.count; point.cumulative = cumulative; });
     return {points, undated, step};
   }
 
@@ -53,47 +57,56 @@
 
     function renderTimeline() {
       const period = $('period').value || 'week';
+      const cumulative = $('cumulative').checked;
       const series = aggregateTimeline(payload.surveys.filter(s => selected.has(s.id)), period);
       const {points, undated, step} = series;
       const total = points.reduce((sum, p) => sum + p.count, 0);
+      const displayDate = date => period === 'year' ? date.slice(0, 4) : date;
+      const pointLabel = p => displayDate(p.date) + (step > 1 ? ' – ' + displayDate(p.end) : '');
+      const pointValue = p => cumulative ? p.cumulative : p.count;
       $('date-note').textContent = `${format(total)} dated responses · ${format(undated)} with missing or invalid recorded dates excluded. Dates follow the export's calendar dates.`
-        + (step > 1 ? ` Each point groups up to ${step} ${period}s.` : '');
+        + (step > 1 ? ` Each point groups up to ${step} ${period}s.` : '')
+        + (cumulative ? ' Cumulative view shows the running total for the selected surveys and does not reset each year.' : '');
       const table = $('timeline-table'); table.replaceChildren();
       const head = node('thead'), heading = node('tr'), body = node('tbody');
-      for (const label of [period === 'month' ? 'Month starting' : 'Week starting Monday', 'Responses']) {
+      const headings = [period === 'year' ? 'Year' : period === 'month' ? 'Month starting' : 'Week starting Monday', 'Responses'];
+      if (cumulative) headings.push('Cumulative responses');
+      for (const label of headings) {
         const th = node('th', '', label); th.setAttribute('scope', 'col'); heading.append(th);
       }
       head.append(heading); table.append(head, body);
       for (const p of points) {
         const row = node('tr');
-        row.append(node('td', '', p.date + (step > 1 ? ' – ' + p.end : '')), node('td', '', format(p.count)));
+        row.append(node('td', '', pointLabel(p)), node('td', '', format(p.count)));
+        if (cumulative) row.append(node('td', '', format(p.cumulative)));
         body.append(row);
       }
       if (!points.length) { empty($('timeline'), 'No dated responses in the selected surveys.'); return; }
       const width = Math.max(320, Math.min(700, $('timeline').clientWidth || 700));
       const left = 46, right = width - 14, top = 16, bottom = 184;
-      const max = Math.max(4, Math.ceil(Math.max(...points.map(p => p.count)) / 4) * 4);
+      const max = Math.max(4, Math.ceil(Math.max(...points.map(pointValue)) / 4) * 4);
       const x = i => points.length === 1 ? (left + right) / 2 : left + i / (points.length - 1) * (right - left);
       const y = count => bottom - count / max * (bottom - top);
-      const svg = svgNode('svg', {viewBox: `0 0 ${width} 220`, role: 'img', 'aria-label': `${format(total)} recorded responses by ${period}. Exact counts are in the table below.`});
+      const svg = svgNode('svg', {viewBox: `0 0 ${width} 220`, role: 'img', 'aria-label': `${format(total)} ${cumulative ? 'cumulative ' : ''}recorded responses by ${period}. Exact counts are in the table below.`});
       for (let tick = 0; tick <= 4; tick++) {
         const value = max * tick / 4;
         svg.append(svgNode('line', {x1: left, x2: right, y1: y(value), y2: y(value), class: 'dashboard-gridline'}));
         svg.append(svgNode('text', {x: left - 8, y: y(value) + 4, 'text-anchor': 'end', class: 'dashboard-axis-label'}, format(value)));
       }
-      const coordinates = points.map((p, i) => `${x(i)},${y(p.count)}`).join(' L');
+      const coordinates = points.map((p, i) => `${x(i)},${y(pointValue(p))}`).join(' L');
       svg.append(svgNode('path', {d: `M${x(0)},${bottom} L${coordinates} L${x(points.length - 1)},${bottom} Z`, class: 'dashboard-area'}));
       svg.append(svgNode('path', {d: 'M' + coordinates, class: 'dashboard-line'}));
       points.forEach((p, i) => {
-        if (!p.count) return;
-        const dot = svgNode('circle', {cx: x(i), cy: y(p.count), r: points.length > 60 ? 2 : 3, class: 'dashboard-dot'});
-        dot.append(svgNode('title', {}, `${p.date}${step > 1 ? ' – ' + p.end : ''}: ${format(p.count)} responses`));
+        if (!pointValue(p)) return;
+        const dot = svgNode('circle', {cx: x(i), cy: y(pointValue(p)), r: points.length > 60 ? 2 : 3, class: 'dashboard-dot'});
+        dot.append(svgNode('title', {}, `${pointLabel(p)}: ${format(p.count)} responses`
+          + (cumulative ? ` · ${format(p.cumulative)} cumulative responses` : '')));
         svg.append(dot);
       });
       const tickCount = width < 450 ? 3 : 5;
       const ticks = new Set(Array.from({length: tickCount}, (_, i) => Math.round(i * (points.length - 1) / (tickCount - 1))));
       for (const i of ticks) {
-        const label = period === 'month' ? points[i].date.slice(0, 7) : points[i].date;
+        const label = period === 'month' ? points[i].date.slice(0, 7) : displayDate(points[i].date);
         svg.append(svgNode('text', {x: x(i), y: 210, 'text-anchor': i === 0 ? 'start' : i === points.length - 1 ? 'end' : 'middle', class: 'dashboard-axis-label'}, label));
       }
       $('timeline').replaceChildren(svg);
@@ -182,6 +195,7 @@
     }
 
     $('period').addEventListener('change', renderTimeline);
+    $('cumulative').addEventListener('change', renderTimeline);
     for (const index of [1, 2]) $('question-' + index).addEventListener('change', () => renderSpotlight(index));
     return {
       update(surveyIds) { selected = new Set(surveyIds); renderTimeline(); renderSurveys(); updateSpotlights(); renderCoverage(); },
