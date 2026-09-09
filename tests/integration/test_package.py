@@ -84,6 +84,8 @@ def test_sample_preserves_multifield_identity(tmp_path: Path, survey_files: tupl
     assert "class='question-menu' hidden" in report
     assert "No selected questions were answered in this response." in report
     assert "class='no-selected' hidden" in report
+    # Hidden content must override layout rules regardless of CSS whitespace.
+    assert "[hidden],.hidden{display:none!important}" in "".join(report.split()).replace(";}", "}")
     assert "Block: Training" in report
     assert "class='question-meta'>Multiple choice · Block: Training" in report
     assert "position:sticky;top:.5rem" not in report
