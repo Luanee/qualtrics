@@ -74,3 +74,21 @@ def test_built_showcase_embeds_current_report_and_downloads_under_project_url(
     assert sum(survey["responses"] for survey in dashboard["surveys"]) == coverage["response_count"]
     assert {spotlight["kind"] for spotlight in dashboard["spotlights"]} >= {"nps", "numeric", "categorical"}
     assert not (REPO / "docs/assets/examples/question-types/report.html").exists()
+
+    flow_page_path = "examples/survey-flow/index.html" if directory_urls else "examples/survey-flow.html"
+    flow_page_url = urljoin(SITE_URL, "examples/survey-flow/" if directory_urls else flow_page_path)
+    flow_links = _Links()
+    flow_links.feed((site / flow_page_path).read_text(encoding="utf-8"))
+    assert len(flow_links.frames) == 1
+    assert urljoin(flow_page_url, str(flow_links.frames[0]["src"])) == (
+        SITE_URL + "assets/examples/survey-flow/report.html#survey-flow"
+    )
+    flow_downloads = {urljoin(flow_page_url, link) for link in flow_links.links}
+    for filename in ("survey.qsf", "flow.json", "responses.csv", "report.html"):
+        assert SITE_URL + f"assets/examples/survey-flow/{filename}" in flow_downloads
+        assert (site / "assets/examples/survey-flow" / filename).stat().st_size > 0
+    flow_report = (site / "assets/examples/survey-flow/report.html").read_text(encoding="utf-8")
+    assert "id='survey-flow'" in flow_report
+    assert "Sales follow-up" in flow_report
+    assert "QualtricsFlowEngine" in flow_report
+    assert not (REPO / "docs/assets/examples/survey-flow/report.html").exists()

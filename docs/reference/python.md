@@ -38,6 +38,8 @@ parse_survey(
     source_path: str | Path,
     qsf_path: str | Path | None = None,
     survey_id: str | None = None,
+    *,
+    flow_path: str | Path | None = None,
 ) -> EntitySet
 
 parse_surveys(
@@ -183,6 +185,7 @@ update(survey_id: str, changes: SurveyUpdateRequest | dict[str, Any]) -> dict[st
 
 ```text
 get(survey_id: str) -> SurveyDefinition
+get_flow(survey_id: str) -> dict[str, Any]
 create(definition: dict[str, Any]) -> dict[str, Any]
 delete(survey_id: str) -> dict[str, Any] | None
 get_metadata(survey_id: str) -> dict[str, Any]
@@ -190,6 +193,8 @@ update_metadata(survey_id: str, metadata: dict[str, Any]) -> None
 ```
 
 `get` returns a wrapper with `survey_id`, `survey_name`, and the raw definition in `payload`. You can save `.model_dump_json()` as a `.json` definition and pass it to `parse_survey`. `create`, `delete`, and `update_metadata` change remote data.
+
+`get_flow` reads the configured flow root with its ordered children through the existing retry transport. Save it as JSON and pass its path as `parse_survey(..., flow_path=...)` for one input. Flows already included in a QSF or API definition are preserved automatically. The parser stores report-safe flow metadata as optional `surveys.flow_definition_json`, retaining the existing entity-table contract. See [survey flow](../guides/survey-flow.md) for a complete example and supported walkthrough behavior.
 
 ### `client.survey_quotas`
 

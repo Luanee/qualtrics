@@ -10,6 +10,7 @@ Run these commands from the repository with `uv run qualtrics`. If you installed
 | `semantic-model build` | One complete entity collection | Five analysis tables | Parquet |
 | `api surveys` | API credentials | Survey IDs and names in the terminal | Tab-separated text |
 | `api export` | Survey ID and API credentials | Response export | CSV inside a ZIP |
+| `api flow` | Survey ID and API credentials | Configured survey flow | JSON |
 | `api import` | Survey ID, UTF-8 CSV, and API credentials | Import job ID and status in the terminal | Tab-separated text |
 
 Use `--help` after any command or command group. At the top level, `--install-completion` installs shell completion and `--show-completion` prints the completion script.
@@ -29,6 +30,7 @@ uv run qualtrics build data/customer.csv \
 | `--qsf PATH` | No | Same-stem definition beside each input | Repeat for multiple definitions. A directory expands to its sorted `*.qsf` files. An explicit API definition JSON path also works. |
 | `--format`, `-f` | No | `json` | `json`, `csv`, or `parquet`. |
 | `--survey-id TEXT` | No | Definition `SurveyID`, then input filename stem | Override the survey ID when building from one input file. |
+| `--flow PATH` | No | Flow inside the definition | Separate API flow JSON for one CSV or ZIP; keep `--qsf` for block and question labels. |
 
 Without `--qsf`, the parser checks for a same-stem `.qsf`, then `.json`, next to the CSV or ZIP. Filename matching ignores case. With multiple explicit definitions, the parser pairs inputs and definitions **by position**. Pass both lists in matching order.
 
@@ -187,6 +189,16 @@ The naming strategies choose a filename from the survey ID, supplied or fetched 
 An explicit output file takes precedence over naming options. It does not change the downloaded content: naming a compressed export `.csv` will not unzip it. Existing directories containing a dot in their name remain directories. New output paths with a suffix are interpreted as files, so create such a directory first when needed. Parent directories are created automatically, and an existing export is replaced only after its replacement file is written successfully.
 
 If one survey fails, completed outputs are retained and the others continue. The command reports failed survey IDs and exits nonzero after the batch finishes. Pressing Ctrl+C stops scheduling further surveys and cancels active workflows at their next progress callback. An in-flight request, retry wait, or polling sleep may need to finish first; completed local files are retained. Duplicate IDs, unsafe IDs, invalid dates, empty selected IDs, invalid numeric options, and incompatible multi-survey options are rejected before network requests.
+
+### `api flow`
+
+```bash
+uv run qualtrics api flow --survey-id SV_EXAMPLE --output data/customer-flow.json
+```
+
+`--survey-id` and `--output`/`-o` are required. The command reads the configured flow, creates the output parent directory, and replaces an existing file only after downloading and writing the new JSON successfully. It prints the saved path. `--retries` defaults to `3`; use `0` to disable read retries. Credentials use the same environment variables or `--api-token` and `--data-center` options as the other API commands.
+
+Pass the download to `build --flow` alongside the matching `--qsf` definition. This does not modify the remote survey. See [survey flow](../guides/survey-flow.md) for the complete workflow and snapshot limitations.
 
 ### `api import`
 

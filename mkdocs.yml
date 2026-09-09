@@ -10,9 +10,11 @@ strict: true
 
 hooks:
   - scripts/docs_showcase.py
+  - scripts/docs_flow_showcase.py
 
 watch:
   - scripts/question_type_showcase.py
+  - scripts/survey_flow_showcase.py
   - src/qualtrics
 
 exclude_docs: |
@@ -95,9 +97,11 @@ nav:
       - Installation: getting-started/installation.md
       - Your first report: getting-started/first-report.md
       - Interactive report example: examples/question-types.md
+      - Interactive flow example: examples/survey-flow.md
   - Guides:
       - Parse an export again: guides/parse-exports.md
       - Read and share reports: guides/reports.md
+      - Understand a survey flow: guides/survey-flow.md
       - Combine surveys: guides/combine-surveys.md
       - Connect to Qualtrics: guides/api-access.md
       - Prepare a Power BI model: guides/power-bi.md

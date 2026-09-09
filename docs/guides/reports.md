@@ -18,11 +18,12 @@ You should see `Wrote HTML report to ...`. Open the resulting file in your brows
 
 ## Read the report
 
-Use the side navigation to move between five views. On a narrow screen, navigation wraps above the content. The views stay inside one HTML file, so you can move between them without an internet connection.
+Use the side navigation to move between six views. On a narrow screen, navigation wraps above the content. The views stay inside one HTML file, so you can move between them without an internet connection.
 
 | View | Use it to |
 | --- | --- |
 | **Summary** | Explore response timing, compare surveys, and choose question charts before opening their details. |
+| **Flow** | Read the survey structure and explore hypothetical routes through its blocks and conditions. |
 | **Questions** | Find a question by text, section, or identifier and inspect one question at a time. |
 | **Written answers** | Search comments, select a question, and open the response behind a comment. |
 | **Responses** | Review individual response records and choose which questions to display. |
@@ -31,6 +32,8 @@ Use the side navigation to move between five views. On a narrow screen, navigati
 The **Surveys** selector applies across all views. Moving between views keeps your survey selection. Use your browser's Back and Forward buttons to return to earlier views or question details.
 
 The **Theme** selector in the header offers **System**, **Light**, and **Dark**. System follows your browser's preferred appearance. A manual choice applies until you reload the file.
+
+The [survey flow guide](survey-flow.md) explains how to supply a definition and use the map and walkthrough. Try the [fictional flow example](../examples/survey-flow.md) to compare Sales and Engineering routes, an early ending, and a randomizer. Walkthrough answers are hypothetical and do not affect response statistics.
 
 ### Understand the totals
 
@@ -77,7 +80,7 @@ Treat these highlights as a starting point for reading the charts. They do not i
 
 ### Search across the report
 
-Use **Search this report** in the header to find questions, written answers, responses, and codebook fields. Enter several words or an identifier. Results show their type and a highlighted excerpt; select a result to open the matching question, comment, response answer, or dictionary row.
+Use **Search this report** in the header to find questions, written answers, responses, flow steps, and codebook fields. Enter several words or an identifier. Results show their type and a highlighted excerpt; select a result to open the matching question, comment, response answer, flow card, or dictionary row.
 
 Search matches are case-insensitive and accent-insensitive. Searching changes what you can find, not the population used for statistics. Totals and charts continue to describe the selected surveys.
 
