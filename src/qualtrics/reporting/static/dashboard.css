@@ -30,8 +30,22 @@
 
 .dashboard-controls {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+}
+
+.dashboard-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 6px;
+  cursor: pointer;
+}
+
+.dashboard-toggle input {
+  margin: 0;
+  accent-color: var(--brand);
 }
 
 .dashboard-panel label {
@@ -261,6 +275,10 @@
 }
 
 @media (pointer: coarse) {
+  .dashboard-toggle {
+    min-height: 44px;
+  }
+
   .dashboard-panel select {
     min-height: 44px;
     font-size: 16px;
