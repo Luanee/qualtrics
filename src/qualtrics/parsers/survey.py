@@ -493,6 +493,8 @@ def _parse_survey_file(
     source_path: str | Path,
     qsf_path: str | Path | None = None,
     survey_id: str | None = None,
+    *,
+    flow_path: str | Path | None = None,
 ) -> EntitySet:
     source_path = Path(source_path)
     qsf_path = Path(qsf_path) if qsf_path else _matching_definition(source_path)
@@ -502,7 +504,10 @@ def _parse_survey_file(
     columns, headers = rows[0], rows[1]
     metadata = rows[2] if len(rows) > 2 else [""] * len(columns)
     has_import = any("ImportId" in value for value in metadata)
-    entry, qsf_questions, question_blocks, sections = _qsf(qsf_path)
+    entry, qsf_questions, question_blocks, sections = _qsf(
+        qsf_path,
+        flow_path=Path(flow_path) if flow_path else None,
+    )
     sid = survey_id or entry.get("SurveyID") or source_path.stem
     entities = EntitySet(
         surveys=[
@@ -511,6 +516,11 @@ def _parse_survey_file(
                 "survey_name": entry.get("SurveyName") or source_path.stem,
                 "survey_status": entry.get("SurveyStatus"),
                 "default_language": entry.get("SurveyLanguage"),
+                **(
+                    {"flow_definition_json": entry["flow_definition_json"]}
+                    if entry.get("flow_definition_json") is not None
+                    else {}
+                ),
             }
         ]
     )
@@ -659,6 +669,8 @@ def parse_survey(
     source_path: str | Path,
     qsf_path: str | Path | None = None,
     survey_id: str | None = None,
+    *,
+    flow_path: str | Path | None = None,
 ) -> EntitySet:
     """Parse one CSV/ZIP or merge every survey matched by a wildcard path."""
     source_files = _expand_paths([source_path])
@@ -668,7 +680,10 @@ def parse_survey(
             source_files[0],
             definition_files[0] if definition_files else None,
             survey_id=survey_id,
+            flow_path=flow_path,
         )
+    if flow_path:
+        raise ValueError("flow_path can only be used when parsing one survey file")
     if survey_id:
         raise ValueError("survey_id cannot be forced when a wildcard matches multiple survey files")
     return parse_surveys(source_files, definition_files or None)
