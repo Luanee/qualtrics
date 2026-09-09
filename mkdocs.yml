@@ -8,6 +8,13 @@ docs_dir: docs
 site_dir: site
 strict: true
 
+hooks:
+  - scripts/docs_showcase.py
+
+watch:
+  - scripts/question_type_showcase.py
+  - src/qualtrics
+
 exclude_docs: |
   /superpowers/
 
@@ -87,6 +94,7 @@ nav:
   - Start here:
       - Installation: getting-started/installation.md
       - Your first report: getting-started/first-report.md
+      - Interactive report example: examples/question-types.md
   - Guides:
       - Parse an export again: guides/parse-exports.md
       - Read and share reports: guides/reports.md

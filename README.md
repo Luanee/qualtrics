@@ -2,6 +2,8 @@
 
 Start with the [documentation](docs/index.md), [first-report tutorial](docs/getting-started/first-report.md), or [guide to parsing an export again](docs/guides/parse-exports.md). The docs cover command-line use without Python code, reports, and Power BI.
 
+Explore the [question-type showcase](docs/examples/question-types.md) for an interactive report built from a synthetic survey and 100 fictional responses, with downloadable QSF and CSV files.
+
 Preview the Material for MkDocs site from this repository:
 
 ```bash

@@ -2,6 +2,8 @@
 
 Create one HTML file from a folder of parsed tables. You can open it in a browser, search answers, inspect question patterns, and review individual responses.
 
+Try the [interactive report example](../examples/question-types.md) with fictional responses across every question family recognized by the toolkit. It includes the survey definition, response CSV, and a table explaining each case's presentation and limits.
+
 You need a parsed entity folder from [your first report](../getting-started/first-report.md) or [your own export](parse-exports.md). Run the examples from the project folder; for an isolated CLI installation, replace `uv run qualtrics` with `qualtrics`.
 
 ## Generate the HTML file
