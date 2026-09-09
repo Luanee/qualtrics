@@ -19,7 +19,7 @@ Try the report with a fictional survey designed to exercise the toolkit's questi
 
 ## What to try
 
-1. In **Summary**, switch between weekly and monthly response counts. Choose different question spotlights to compare answer distributions.
+1. In **Summary**, group response counts by week, month, or year. Enable **Cumulative** to follow the running total. Choose different question spotlights to compare answer distributions.
 2. Open **Questions** to compare multiple choice, matrix, numeric, and written-answer presentations.
 3. Search for a question or a fictional answer using **Search this report**, then follow the result to its detail view.
 4. Open **Codebook** to connect exported columns to their question, field type, and answer codes. Download its filtered dictionary to inspect the column mapping.

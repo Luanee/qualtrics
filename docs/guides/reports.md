@@ -54,12 +54,14 @@ The dashboard follows the **Surveys** selector. It updates from the data inside 
 
 | Chart | How to read it |
 | --- | --- |
-| **Recorded responses over time** | Switch between weekly and monthly counts to see when responses were recorded. Expand the count table for exact values. |
+| **Recorded responses over time** | Group counts by week, month, or year. Enable **Cumulative** to see the running total. Expand the count table for exact values. |
 | **Responses by survey** | Compare response volumes and each survey's finished share. The bars distinguish records marked finished from all other records. |
 | **Question spotlights** | Choose up to two question distributions to inspect together, then follow a question link to its full analysis. |
 | **Questions with little recorded data** | Inspect the eight questions with the lowest answer coverage across the selected surveys. Each link opens that question's details. |
 
 The timeline uses calendar dates as written in the exported recorded-date field; it does not convert timestamps to your browser's time zone. Missing or invalid dates are excluded from this chart and counted in its note. Those records still contribute to response totals and the other charts. A period without recorded responses appears as zero between the first and last usable dates. Very long spans group adjacent periods to keep the chart within 260 points; the note identifies the grouping and the table retains exact counts for each interval.
+
+**Cumulative** adds each period's responses to the preceding total across the selected surveys. It stays flat through periods with no responses and continues across year boundaries. In this mode, the table shows both the period count and its cumulative total. Changing the survey selection recalculates the running total; missing or invalid dates remain excluded.
 
 Spotlight menus list available NPS questions first, then declared numeric fields, then categorical questions, with larger answer counts first within each type. The first chart defaults to the first available choice; the second prefers a different answer type when available. Changing the survey selection keeps a choice when it is still available and selects another when necessary. Questions from different surveys retain their own labels, answer counts, and denominators; the report does not combine their distributions. For categorical questions with more than 12 options, the spotlight shows the 12 most selected and links to the full distribution.
 

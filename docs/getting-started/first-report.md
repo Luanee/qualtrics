@@ -86,7 +86,7 @@ Find `data/first-report/report.html` inside your project folder and open it with
 
 Check these results:
 
-1. **Summary** shows **3 Responses**, **3 Finished · 100%**, and **0 Not marked finished**. The dashboard places all three responses in the same week in September 2026 and shows all three as finished in the survey comparison. Switch the timeline to monthly counts or expand its table to check the values.
+1. **Summary** shows **3 Responses**, **3 Finished · 100%**, and **0 Not marked finished**. The dashboard places all three responses in the same week in September 2026 and shows all three as finished in the survey comparison. Group the timeline by month or year, enable **Cumulative** for a running total, or expand its table to check the values.
 2. The satisfaction question appears in **Question spotlights**: two Satisfied answers, one Dissatisfied answer, and zero Neutral answers. Follow its link, or open **Questions**, for the full analysis. The coverage chart shows that two of the three responses contain a comment and all three contain a satisfaction answer.
 3. Return to **Summary** and expand **Coverage and data quality**, then **Data quality**. Neutral appears under **Defined options not observed**. This is expected: the QSF lists Neutral as a possible answer even though nobody chose it.
 4. Open **Written answers** to read the two comments. Follow a comment's response link, or open **Responses** to inspect a complete record. One response has no comment.
