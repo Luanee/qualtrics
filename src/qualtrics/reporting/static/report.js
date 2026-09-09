@@ -150,6 +150,7 @@
 
   function updateSurveySummary() {
     const surveys = selectedSurveys();
+    window.ReportDashboard?.update(surveys);
     const names = ['responses', 'finished', 'questions', 'answers', 'unanswered', 'unusedFields'];
     const totals = Object.fromEntries(names.map(name => [name, 0]));
     surveyChoices.filter(choice => choice.checked).forEach(choice => names.forEach(name => { totals[name] += Number(choice.dataset[name] || 0); }));
@@ -283,6 +284,7 @@
       view.hidden = (!printing && searchQuery.length > 0) || view.id !== activeView;
       if (!view.hidden && view.tagName === 'DETAILS') view.open = true;
     });
+    if (activeView === 'overview' && (printing || !searchQuery.length)) window.ReportDashboard?.resize();
   }
   function navigate(hash, focus = true) {
     if ($('#report-search')?.value) { $('#report-search').value = ''; updateSearch(); }
