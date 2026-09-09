@@ -10,6 +10,7 @@ from ..analytics import analyze_entities
 from ..models.entities import EntitySet
 from .assets import load_asset
 from .codebook import render_codebook
+from .dashboard_view import render_dashboard
 from .insights import field_value_type, question_highlight
 from .question_presentation import render_question_analysis
 
@@ -283,7 +284,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>",
         "<meta name='viewport' content='width=device-width,initial-scale=1'>",
         f"<title>{html.escape(survey_name)} · Response report</title>",
-        f"<style>{load_asset('report.css')}\n{load_asset('codebook.css')}\n{load_asset('question-charts.css')}</style></head><body>",
+        f"<style>{load_asset('report.css')}\n{load_asset('codebook.css')}\n{load_asset('question-charts.css')}\n{load_asset('dashboard.css')}</style></head><body>",
         f"<header class='report-header'><div class='header-inner'><div class='report-title'><small>Response report</small><h1>{html.escape(survey_name)}</h1></div>"
         "<div class='global-search'><label for='report-search'>Search this report</label>"
         "<input id='report-search' type='search' placeholder='Questions, answers, field names…'>"
@@ -312,9 +313,10 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         f"<div class='stat'><strong id='overview-finished'>{finished_count:,}</strong><span>Finished · "
         f"<span id='overview-completion'>{(finished_count / response_count * 100 if response_count else 0):.0f}%</span></span></div>"
         f"<div class='stat'><strong id='overview-other'>{response_count - finished_count:,}</strong><span>Not marked finished</span></div></div>",
-        "<h3>Start with the findings</h3>"
+        render_dashboard(entities, analysis),
+        "<details class='summary-details'><summary>Observed highlights</summary>"
         f"<div class='findings'>{''.join(findings)}</div>"
-        f"<p id='findings-empty'{' hidden' if findings else ''}>No observed highlights for the selected surveys.</p>",
+        f"<p id='findings-empty'{' hidden' if findings else ''}>No observed highlights for the selected surveys.</p></details>",
         "<details id='summary-details' class='summary-details'><summary>Coverage and data quality</summary>"
         "<div class='section-body'><p class='meta'>Counts describe recorded answers. Missing values do not establish whether a question was shown.</p>"
         "<div class='analytics'>"
@@ -454,6 +456,8 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         + load_asset("report-search.js")
         + "\n"
         + load_asset("codebook.js")
+        + "\n"
+        + load_asset("dashboard.js")
         + "\n"
         + load_asset("report.js")
         + "</script></body></html>"

@@ -86,12 +86,14 @@ Find `data/first-report/report.html` inside your project folder and open it with
 
 Check these results:
 
-1. **Summary** shows **3 Responses**, **3 Finished · 100%**, and **0 Not marked finished**. Expand **Coverage and data quality** beneath the findings to see **2 Response questions** and **5 Respondent answers**.
-2. Open **Questions**, then select the satisfaction question. You should see two Satisfied answers, one Dissatisfied answer, and zero Neutral answers.
+1. **Summary** shows **3 Responses**, **3 Finished · 100%**, and **0 Not marked finished**. The dashboard places all three responses in the same week in September 2026 and shows all three as finished in the survey comparison. Switch the timeline to monthly counts or expand its table to check the values.
+2. The satisfaction question appears in **Question spotlights**: two Satisfied answers, one Dissatisfied answer, and zero Neutral answers. Follow its link, or open **Questions**, for the full analysis. The coverage chart shows that two of the three responses contain a comment and all three contain a satisfaction answer.
 3. Return to **Summary** and expand **Coverage and data quality**, then **Data quality**. Neutral appears under **Defined options not observed**. This is expected: the QSF lists Neutral as a possible answer even though nobody chose it.
 4. Open **Written answers** to read the two comments. Follow a comment's response link, or open **Responses** to inspect a complete record. One response has no comment.
 
 The blank comment contributes no row to `response_answers.csv`. That gives you five answer rows: three satisfaction answers plus two comments. In a survey with matrix or multiple-selection questions, one question can produce several answer rows; the report's **Respondent answers** count groups those by response and question.
+
+Below the dashboard, expand **Observed highlights** for a brief account of the answers, or **Coverage and data quality** to see **2 Response questions** and **5 Respondent answers**. The dashboard and its controls work offline. In a combined report, the **Surveys** selector updates all dashboard charts; each question keeps its own survey's denominator.
 
 ## Repeat or use your own data
 

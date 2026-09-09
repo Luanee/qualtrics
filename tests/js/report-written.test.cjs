@@ -51,14 +51,37 @@ function fixture({paginated = false} = {}) {
   const document = node({}, selectors);
   document.getElementById = id => [overview, responseView, ...cards].find(item => item.id === id) || null;
   document.createElement = () => node(); document.documentElement = node();
-  const window = {ReportSearch: search, handlers: {}, addEventListener(event, callback) { this.handlers[event] = callback; }};
+  const dashboardSelections = [];
+  const dashboardResizes = [];
+  const window = {ReportSearch: search, handlers: {}, addEventListener(event, callback) { this.handlers[event] = callback; },
+    ReportDashboard: {update(selected) { dashboardSelections.push([...selected]); }, resize() { dashboardResizes.push(true); }}};
   const location = {hash: '#by-responses'};
   vm.runInNewContext(fs.readFileSync(require.resolve('../../src/qualtrics/reporting/static/report.js'), 'utf8'),
     {document, window, location});
   return {surveyA, surveyB, a, b, field2, link, select, optionA, optionB, empty,
     cards, written, responsePagination, writtenPagination, window, location, document,
-    overview, responseView, reportSearch, searchResults, searchClear, theme, other};
+    overview, responseView, reportSearch, searchResults, searchClear, theme, other, dashboardSelections, dashboardResizes};
 }
+
+test('report forwards the shared survey scope to dashboard charts on initial load and changes', () => {
+  const f = fixture();
+  assert.deepEqual(f.dashboardSelections.at(-1), ['a', 'b']);
+  f.surveyA.checked = false; f.surveyA.handlers.change();
+  assert.deepEqual(f.dashboardSelections.at(-1), ['b']);
+  f.surveyB.checked = false; f.surveyB.handlers.change();
+  assert.deepEqual(f.dashboardSelections.at(-1), []);
+});
+
+test('returning to Summary redraws the chart after its container becomes visible', () => {
+  const f = fixture();
+  const previous = f.dashboardResizes.length;
+  f.location.hash = '#overview'; f.window.handlers.hashchange();
+  assert.ok(f.dashboardResizes.length > previous);
+  f.reportSearch.value = 'no match'; f.reportSearch.handlers.input();
+  const duringSearch = f.dashboardResizes.length;
+  f.searchClear.handlers.click();
+  assert.ok(f.dashboardResizes.length > duringSearch);
+});
 
 test('equal written values link to their own field within the response question', () => {
   const {link, field2} = fixture();
