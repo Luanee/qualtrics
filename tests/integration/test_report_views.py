@@ -93,3 +93,56 @@ def test_written_and_response_fields_share_escaped_identity(tmp_path):
     assert [item.get("data-field-id") for item in parsed.fields] == identities
     assert all(item["data-response-target"] == "response-1" for item in parsed.written)
     assert parsed.options[0]["data-label"] == "Name"
+
+
+def test_compact_summary_keeps_search_in_header_and_diagnostics_collapsed(tmp_path):
+    from html.parser import HTMLParser
+
+    class Layout(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.stack = []
+            self.elements = {}
+            self.primary_metrics = 0
+
+        def handle_starttag(self, tag, attrs):
+            attrs = dict(attrs)
+            if attrs.get("id"):
+                self.elements[attrs["id"]] = (attrs, list(self.stack))
+            if "stat" in attrs.get("class", "").split():
+                self.primary_metrics += 1
+            if tag not in {"meta", "input", "br", "hr", "link"}:
+                self.stack.append((tag, attrs.get("id")))
+
+        def handle_endtag(self, tag):
+            for index in range(len(self.stack) - 1, -1, -1):
+                if self.stack[index][0] == tag:
+                    del self.stack[index:]
+                    break
+
+    output = tmp_path / "report.html"
+    render_report(EntitySet(), output)
+    layout = Layout()
+    layout.feed(output.read_text())
+    assert any(tag == "header" for tag, _ in layout.elements["report-search"][1])
+    assert "open" not in layout.elements["summary-details"][0]
+    assert ("details", "summary-details") in layout.elements["overview-unused-fields"][1]
+    assert ("details", "summary-details") in layout.elements["stat-questions"][1]
+    assert layout.primary_metrics == 3
+
+
+def test_summary_distinguishes_not_marked_finished_without_inventing_partial_status(tmp_path):
+    entities = EntitySet(
+        surveys=[{"survey_id": "s", "survey_name": "Survey"}],
+        responses=[
+            {"survey_id": "s", "response_id": "one", "is_finished": "True"},
+            {"survey_id": "s", "response_id": "two", "is_finished": "False"},
+            {"survey_id": "s", "response_id": "three", "is_finished": None},
+        ],
+    )
+    output = tmp_path / "report.html"
+    render_report(entities, output)
+    document = output.read_text()
+    assert "id='overview-other'>2</strong>" in document
+    assert "Not marked finished" in document
+    assert "href='#overview' aria-current='page'" in document

@@ -14,7 +14,7 @@ function node(dataset = {}, selectors = {}) {
     querySelectorAll(selector) { return selectors[selector] || []; },
     querySelector(selector) { return this.querySelectorAll(selector)[0] || null; },
     addEventListener(event, callback) { this.handlers[event] = callback; },
-    setAttribute() {}, closest() { return null; }};
+    setAttribute() {}, closest() { return null; }, contains() { return false; }, focus() {}, scrollIntoView() {}};
 }
 function fixture({paginated = false} = {}) {
   const surveyA = node(), surveyB = node();
@@ -41,17 +41,23 @@ function fixture({paginated = false} = {}) {
   }
   cards.forEach((item, index) => { item.tagName = 'DETAILS'; item.open = index % 2 === 0; });
   const responseView = node({}, {details: cards}); responseView.id = 'by-responses';
+  const overview = node(); overview.id = 'overview';
+  const reportSearch = node(), searchResults = node(), searchClear = node(), theme = node(), other = node();
   const selectors = {'.survey-choice': [surveyA, surveyB], '.respondent': cards, '.written-answer': written,
     details: cards, '#response-pagination': [responsePagination], '#written-pagination': [writtenPagination],
-    '#written-question': [select], '#written-empty': [empty]};
+    '#written-question': [select], '#written-empty': [empty], '#report-search': [reportSearch],
+    '#search-results': [searchResults], '#search-result-list': [node()], '#search-pagination': [node()],
+    '#search-clear': [searchClear], '#theme-choice': [theme], '#overview-other': [other]};
   const document = node({}, selectors);
-  document.getElementById = id => id === responseView.id ? responseView : cards.find(item => item.id === id) || null;
+  document.getElementById = id => [overview, responseView, ...cards].find(item => item.id === id) || null;
   document.createElement = () => node(); document.documentElement = node();
   const window = {ReportSearch: search, handlers: {}, addEventListener(event, callback) { this.handlers[event] = callback; }};
+  const location = {hash: '#by-responses'};
   vm.runInNewContext(fs.readFileSync(require.resolve('../../src/qualtrics/reporting/static/report.js'), 'utf8'),
-    {document, window, location: {hash: '#by-responses'}});
+    {document, window, location});
   return {surveyA, surveyB, a, b, field2, link, select, optionA, optionB, empty,
-    cards, written, responsePagination, writtenPagination, window};
+    cards, written, responsePagination, writtenPagination, window, location, document,
+    overview, responseView, reportSearch, searchResults, searchClear, theme, other};
 }
 
 test('equal written values link to their own field within the response question', () => {
@@ -77,6 +83,56 @@ test('question labels identify surveys in multi-survey selection', () => {
   assert.equal(f.optionB.textContent, 'Name · Survey B');
   f.surveyA.checked = false; f.surveyA.handlers.change();
   assert.equal(f.optionB.textContent, 'Name');
+});
+
+test('global search replaces the current view and clearing restores it', () => {
+  const f = fixture();
+  f.reportSearch.value = 'no match'; f.reportSearch.handlers.input();
+  assert.equal(f.responseView.hidden, true);
+  assert.equal(f.overview.hidden, true);
+  assert.equal(f.searchResults.hidden, false);
+  assert.equal(f.searchClear.hidden, false);
+  f.searchClear.handlers.click();
+  assert.equal(f.responseView.hidden, false);
+  assert.equal(f.searchResults.hidden, true);
+  assert.equal(f.searchClear.hidden, true);
+});
+
+test('navigation clears global search, including browser history navigation', () => {
+  const f = fixture();
+  f.reportSearch.value = 'no match'; f.reportSearch.handlers.input();
+  f.location.hash = '#overview'; f.window.handlers.hashchange();
+  assert.equal(f.reportSearch.value, '');
+  assert.equal(f.searchResults.hidden, true);
+  assert.equal(f.overview.hidden, false);
+  assert.equal(f.responseView.hidden, true);
+});
+
+test('theme selection updates the document and summary follows selected surveys', () => {
+  const f = fixture();
+  f.theme.value = 'dark'; f.theme.handlers.change();
+  assert.equal(f.document.documentElement.dataset.theme, 'dark');
+  f.theme.value = 'system'; f.theme.handlers.change();
+  assert.equal(f.document.documentElement.dataset.theme, 'system');
+  f.surveyA.dataset.responses = '8'; f.surveyA.dataset.finished = '5';
+  f.surveyB.dataset.responses = '3'; f.surveyB.dataset.finished = '1';
+  f.surveyA.handlers.change();
+  assert.equal(f.other.textContent, '5');
+  f.surveyB.checked = false; f.surveyB.handlers.change();
+  assert.equal(f.other.textContent, '3');
+});
+
+test('printing during search prints the active view and restores the search afterward', () => {
+  const f = fixture();
+  f.reportSearch.value = 'no match'; f.reportSearch.handlers.input();
+  f.window.handlers.beforeprint();
+  assert.equal(f.responseView.hidden, false);
+  assert.equal(f.overview.hidden, true);
+  f.window.handlers.afterprint();
+  assert.equal(f.responseView.hidden, true);
+  assert.equal(f.overview.hidden, true);
+  assert.equal(f.reportSearch.value, 'no match');
+  assert.equal(f.searchResults.hidden, false);
 });
 
 

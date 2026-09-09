@@ -284,46 +284,49 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         "<meta name='viewport' content='width=device-width,initial-scale=1'>",
         f"<title>{html.escape(survey_name)} · Response report</title>",
         f"<style>{load_asset('report.css')}\n{load_asset('codebook.css')}\n{load_asset('question-charts.css')}</style></head><body>",
-        f"<header class='report-header'><div class='shell'><small>RESPONSE REPORT</small><h1>{html.escape(survey_name)}</h1>"
-        "<p>Explore questions, written answers, and individual responses offline.</p></div></header>",
-        "<div class='shell report-layout'><aside><div class='survey-switcher'><strong>Surveys</strong>"
+        f"<header class='report-header'><div class='header-inner'><div class='report-title'><small>Response report</small><h1>{html.escape(survey_name)}</h1></div>"
+        "<div class='global-search'><label for='report-search'>Search this report</label>"
+        "<input id='report-search' type='search' placeholder='Questions, answers, field names…'>"
+        "<button id='search-clear' type='button' hidden>Clear</button>"
+        "<label for='theme-choice'>Theme</label><select id='theme-choice'>"
+        "<option value='system'>System</option><option value='light'>Light</option><option value='dark'>Dark</option>"
+        "</select></div></div></header>",
+        "<div class='shell report-layout'><aside><div class='survey-switcher'>"
         "<div class='survey-filter filter-wrap'><button id='survey-toggle' type='button' aria-expanded='false'>"
         "Surveys · <span id='survey-selected-count'>All</span></button><div id='survey-menu' "
         "class='survey-menu' hidden><div class='selector-actions'>"
         "<button id='survey-select-all' type='button'>Select all</button>"
         f"<button id='survey-clear' type='button'>Clear</button></div>{survey_options}</div></div></div>"
-        "<nav class='report-nav' aria-label='Report views'><a data-view='overview' href='#overview'>Summary</a>"
+        "<nav class='report-nav' aria-label='Report views'><a data-view='overview' href='#overview' aria-current='page'>Summary</a>"
         "<a data-view='question-analytics' href='#question-analytics'>Questions</a>"
         "<a data-view='written-answers' href='#written-answers'>Written answers</a>"
         "<a data-view='by-responses' href='#by-responses'>Responses</a>"
         "<a data-view='codebook' href='#codebook'>Codebook</a></nav></aside><main class='report-main'>",
-        "<div class='global-search'><label for='report-search'>Search this report</label>"
-        "<input id='report-search' type='search' placeholder='Questions, answers, respondents, codebook…'>"
-        "<button id='search-clear' type='button'>Clear search</button>"
-        "<small>Search locates content. Statistics use the selected surveys.</small></div>"
         "<section id='search-results' hidden aria-label='Search results'><h2>Search results</h2>"
+        "<p class='meta'>Search locates content. Statistics use the selected surveys.</p>"
         "<p id='search-result-count' role='status'></p><div id='search-result-list'></div>"
         "<div id='search-pagination' class='pagination'></div></section>",
-        "<section id='overview' class='report-view'><h2>Summary</h2><p class='section-intro'>Coverage, completion, "
-        "and data-quality signals across the selected surveys.</p>",
+        f"<section id='overview' class='report-view'><h2>Summary</h2><p class='section-intro'>{html.escape(survey_name)}</p>",
         "<div class='stats'>"
         f"<div class='stat'><strong id='stat-responses'>{len(entities.responses):,}</strong><span>Responses</span></div>"
-        f"<div class='stat'><strong id='stat-questions'>{len(response_questions):,}</strong><span>Response questions</span></div>"
-        f"<div class='stat'><strong id='stat-answers'>{content_answer_count:,}</strong><span>Respondent answers</span></div></div>",
-        "<div class='analytics'>"
-        f"<div class='analytic'><strong id='overview-finished'>{finished_count:,}</strong><span>Finished responses</span></div>"
-        f"<div class='analytic'><strong id='overview-completion'>{(finished_count / response_count * 100 if response_count else 0):.0f}%</strong>"
-        "<span>Finished share of recorded responses</span></div>"
-        f"<div class='analytic'><strong id='overview-unanswered'>{len(unanswered_questions):,}</strong><span>Unanswered questions</span></div>"
-        f"<div class='analytic'><strong id='overview-unused-fields'>{len(unused_fields):,}</strong><span>Unused fields</span></div></div>",
-        "<h3>Observed highlights</h3><p class='meta'>Counts describe recorded answers. Missing values do not establish whether a question was shown.</p>"
+        f"<div class='stat'><strong id='overview-finished'>{finished_count:,}</strong><span>Finished · "
+        f"<span id='overview-completion'>{(finished_count / response_count * 100 if response_count else 0):.0f}%</span></span></div>"
+        f"<div class='stat'><strong id='overview-other'>{response_count - finished_count:,}</strong><span>Not marked finished</span></div></div>",
+        "<h3>Start with the findings</h3>"
         f"<div class='findings'>{''.join(findings)}</div>"
         f"<p id='findings-empty'{' hidden' if findings else ''}>No observed highlights for the selected surveys.</p>",
+        "<details id='summary-details' class='summary-details'><summary>Coverage and data quality</summary>"
+        "<div class='section-body'><p class='meta'>Counts describe recorded answers. Missing values do not establish whether a question was shown.</p>"
+        "<div class='analytics'>"
+        f"<div class='analytic'><strong id='stat-questions'>{len(response_questions):,}</strong><span>Response questions</span></div>"
+        f"<div class='analytic'><strong id='stat-answers'>{content_answer_count:,}</strong><span>Respondent answers</span></div>"
+        f"<div class='analytic'><strong id='overview-unanswered'>{len(unanswered_questions):,}</strong><span>Unanswered questions</span></div>"
+        f"<div class='analytic'><strong id='overview-unused-fields'>{len(unused_fields):,}</strong><span>Unused fields</span></div></div>",
         f"{''.join(quality_panels)}",
         "<details id='question-coverage' class='panel report-section'><summary class='section-summary'>"
         "<span><strong>Question coverage</strong><small>Compare response coverage across survey occurrences.</small></span>"
         f"<span id='coverage-count' class='section-count'>{len(coverage_groups)} canonical questions</span></summary>"
-        f"<div class='section-body'>{''.join(coverage_groups)}</div></details></section>"
+        f"<div class='section-body'>{''.join(coverage_groups)}</div></details></div></details></section>"
         "<details id='question-analytics' class='report-section report-view' open><summary class='section-summary'>"
         "<span><strong>Questions</strong><small>Type-aware answer patterns grouped across surveys.</small></span>"
         f"<span id='analytics-count' class='section-count'>{len(question_analytics)} canonical questions</span></summary>"

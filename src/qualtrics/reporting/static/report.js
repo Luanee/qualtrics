@@ -156,6 +156,7 @@
     text('#survey-selected-count', surveys.size === surveyChoices.length ? 'All' : surveys.size ? `${surveys.size} selected` : 'None');
     ['responses', 'questions', 'answers'].forEach(name => text('#stat-' + name, totals[name].toLocaleString()));
     text('#overview-finished', totals.finished.toLocaleString());
+    text('#overview-other', (totals.responses - totals.finished).toLocaleString());
     text('#overview-completion', `${totals.responses ? Math.round(totals.finished / totals.responses * 100) : 0}%`);
     text('#overview-unanswered', totals.unanswered.toLocaleString());
     text('#overview-unused-fields', totals.unusedFields.toLocaleString());
@@ -258,6 +259,8 @@
     searchMatches = searchQuery.length ? records.filter(item => surveys.has(item.node.closest('[data-survey]')?.dataset.survey) && matches(item.normalized, searchQuery)) : [];
     searchPage = 1;
     $('#search-results').hidden = !searchQuery.length;
+    if ($('#search-clear')) $('#search-clear').hidden = !searchQuery.length;
+    updateViewVisibility();
     text('#search-result-count', `${searchMatches.length} ${searchMatches.length === 1 ? 'result' : 'results'}`);
     renderSearchPage();
   }
@@ -268,14 +271,21 @@
   }
   function showView(id) {
     activeView = viewIds.includes(id) ? id : 'overview';
-    views.forEach(view => { view.hidden = view.id !== activeView; if (!view.hidden && view.tagName === 'DETAILS') view.open = true; });
+    updateViewVisibility();
     all('a[data-view]').forEach(link => {
       const current = link.getAttribute('href') === '#' + activeView;
       link.classList.toggle('is-active', current);
       if (current) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
     });
   }
+  function updateViewVisibility() {
+    views.forEach(view => {
+      view.hidden = (!printing && searchQuery.length > 0) || view.id !== activeView;
+      if (!view.hidden && view.tagName === 'DETAILS') view.open = true;
+    });
+  }
   function navigate(hash, focus = true) {
+    if ($('#report-search')?.value) { $('#report-search').value = ''; updateSearch(); }
     let id; try { id = decodeURIComponent(hash.replace(/^#/, '')); } catch { id = ''; }
     const target = document.getElementById(id);
     if (!target) { showView('overview'); return; }
@@ -330,7 +340,6 @@
     const link = event.target.closest('a[href^="#"]');
     if (!link || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
-    if (link.closest('#search-result-list')) { $('#report-search').value = ''; updateSearch(); }
     if (location.hash !== link.hash) history.pushState(null, '', link.hash);
     navigate(link.hash);
   });
@@ -338,6 +347,7 @@
   window.addEventListener('hashchange', () => navigate(location.hash));
   on('#report-search', 'input', updateSearch);
   on('#search-clear', 'click', () => { $('#report-search').value = ''; updateSearch(); $('#report-search').focus(); });
+  on('#theme-choice', 'change', () => { document.documentElement.dataset.theme = $('#theme-choice').value; });
   on('#search', 'input', () => updateResponses());
   on('#written-search', 'input', () => updateWritten());
   on('#written-question', 'change', () => updateWritten());
@@ -363,6 +373,7 @@
     if (printing) return;
     printing = true;
     detailsBeforePrint = all('details').map(node => [node, node.open]);
+    updateViewVisibility();
     responsePager.render(); writtenPager.render(); window.renderCodebookPage?.(); updateFindings();
     const active = document.getElementById(activeView);
     if (active?.tagName === 'DETAILS') active.open = true;
@@ -370,6 +381,7 @@
   });
   window.addEventListener('afterprint', () => {
     printing = false;
+    updateViewVisibility();
     detailsBeforePrint.forEach(([node, open]) => { node.open = open; });
     responsePager.render(); writtenPager.render(); window.renderCodebookPage?.(); updateFindings();
   });
