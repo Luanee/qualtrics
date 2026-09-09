@@ -20,7 +20,7 @@ Use the side navigation to move between five views. On a narrow screen, navigati
 
 | View | Use it to |
 | --- | --- |
-| **Summary** | Read totals and factual highlights, then follow a finding to its supporting question. |
+| **Summary** | Explore response timing, compare surveys, and choose question charts before opening their details. |
 | **Questions** | Find a question by text, section, or identifier and inspect one question at a time. |
 | **Written answers** | Search comments, select a question, and open the response behind a comment. |
 | **Responses** | Review individual response records and choose which questions to display. |
@@ -44,11 +44,30 @@ The **Theme** selector in the header offers **System**, **Light**, and **Dark**.
 
 These counts describe the export you provided. They do not count everyone invited to the survey. The finished share is not the proportion of invited people who participated.
 
-The first three totals appear above the findings. Expand **Coverage and data quality** beneath the findings for the question, answer, unanswered-question, and unused-field totals, followed by the detailed diagnostics.
+The first three totals appear above the dashboard. Below the charts, expand **Coverage and data quality** for the question, answer, unanswered-question, and unused-field totals, followed by the detailed diagnostics.
+
+### Explore the Summary dashboard
+
+The dashboard follows the **Surveys** selector. It updates from the data inside the HTML file and works offline, including its chart controls and question links.
+
+| Chart | How to read it |
+| --- | --- |
+| **Recorded responses over time** | Switch between weekly and monthly counts to see when responses were recorded. Expand the count table for exact values. |
+| **Responses by survey** | Compare response volumes and each survey's finished share. The bars distinguish records marked finished from all other records. |
+| **Question spotlights** | Choose up to two question distributions to inspect together, then follow a question link to its full analysis. |
+| **Questions with little recorded data** | Inspect the eight questions with the lowest answer coverage across the selected surveys. Each link opens that question's details. |
+
+The timeline uses calendar dates as written in the exported recorded-date field; it does not convert timestamps to your browser's time zone. Missing or invalid dates are excluded from this chart and counted in its note. Those records still contribute to response totals and the other charts. A period without recorded responses appears as zero between the first and last usable dates. Very long spans group adjacent periods to keep the chart within 260 points; the note identifies the grouping and the table retains exact counts for each interval.
+
+Spotlight menus list available NPS questions first, then declared numeric fields, then categorical questions, with larger answer counts first within each type. The first chart defaults to the first available choice; the second prefers a different answer type when available. Changing the survey selection keeps a choice when it is still available and selects another when necessary. Questions from different surveys retain their own labels, answer counts, and denominators; the report does not combine their distributions. For categorical questions with more than 12 options, the spotlight shows the 12 most selected and links to the full distribution.
+
+An NPS spotlight shows the recorded score distribution. Numeric charts use usable numeric values and state any excluded values. Categorical percentages use the question's or field's answering respondents; multiple selections can make percentages add up to more than 100%. Written answers remain in their own view.
+
+Coverage divides respondents with an answer by all response records for that survey. Missing answers do not establish whether the question was shown: optional questions and survey branching can both produce low coverage. Use the chart to decide what to inspect, then open **Coverage and data quality** for the full coverage list.
 
 ### Follow a finding to the evidence
 
-Summary highlights describe observed answers, such as the most selected option or a median for a declared numeric field. Each highlight names the question and links to its analysis. Counts and denominators accompany the observations; ties remain explicit. A field containing numeric-looking text, such as an employee ID, stays text.
+Expand **Observed highlights** below the Summary dashboard to read factual observations, such as the most selected option or a median for a declared numeric field. Each highlight names the question and links to its analysis. Counts and denominators accompany the observations; ties remain explicit. A field containing numeric-looking text, such as an employee ID, stays text.
 
 Treat these highlights as a starting point for reading the charts. They do not infer sentiment, causes, or whether a score is good or bad. Question types without a suitable factual summary remain available under **Questions**.
 
