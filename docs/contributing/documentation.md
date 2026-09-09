@@ -33,6 +33,22 @@ Start with the reader's task, the files they need, and the command they should r
 
 `docs/superpowers/` contains internal implementation history. The `exclude_docs` setting keeps it out of the generated site and search index while preserving the files in Git.
 
+## Maintain the report showcase
+
+The [interactive report example](../examples/question-types.md) uses `scripts/question_type_showcase.py` to generate a synthetic QSF, 100 fictional responses, a coverage manifest, and a report through the production parser and renderer. Edit the generator when adding question cases; keep its coverage labels aligned with the actual exported fields and report presentation. The fixture is not import-tested in Qualtrics, and generic displays or definition-only cases must remain identified as such.
+
+The MkDocs hook in `scripts/docs_showcase.py` generates the four assets in a temporary directory, then adds their contents to the site under `assets/examples/question-types/`. It also fills the example page's coverage table from the generated manifest. Generated HTML and data are not written into `docs/` or committed to Git. The small `feedback.csv` and `feedback.qsf` tutorial files remain separate beginner examples.
+
+Build or preview with the usual `--group docs` commands above. The hook needs both toolkit runtime dependencies and MkDocs; `--only-group docs` skips the toolkit and cannot build this example. `mkdocs serve` watches the generator and toolkit source so code changes rebuild the embedded report. Restart the preview server after changing the hook itself, because MkDocs imports hook modules at startup.
+
+For an independent copy, run:
+
+```bash
+uv run python -m scripts.question_type_showcase --output data/question-type-showcase
+```
+
+Check the generated report and downloads at desktop and phone widths. Verify that its summary charts, question search, written answers, and codebook work, and keep all data fictional. The documentation tests build the site from outside the repository and check the embedded report and download paths with both directory URLs and `.html` URLs.
+
 ## Theme and plugin decisions
 
 **Maintenance check: 8 September 2026.** The [catalog's charts, images, tables, and graphs section](https://github.com/mkdocs/catalog#-charts-images-tables--graphs) is a useful starting point. Its inactivity badges can lag behind upstream releases. The decisions below use upstream repositories, release metadata, and Material's integration documentation.
@@ -88,7 +104,7 @@ Then inspect search, navigation, code copying, the enlarged figure, and the Merm
 
 ## Publish the site
 
-The **Deploy documentation** workflow in `.github/workflows/deploy-docs.yml` builds the static site and publishes it to GitHub Pages. It runs when documentation, site configuration, build dependencies, the Python version, or the workflow itself changes on `main`. Pull requests are checked by CI; deployment happens after merge.
+The **Deploy documentation** workflow in `.github/workflows/deploy-docs.yml` builds the static site and publishes it to GitHub Pages. It runs when documentation, toolkit source, repository scripts, site configuration, build dependencies, the Python version, or the workflow itself changes on `main`. Source changes rebuild the embedded report with the current renderer. Pull requests are checked by CI; deployment happens after merge.
 
 ### Enable GitHub Pages once
 
@@ -103,7 +119,7 @@ The default address for this repository is [https://luanee.github.io/qualtrics/]
 
 Open **Actions → Deploy documentation → Run workflow**, select **main**, then click **Run workflow**. This rebuilds and publishes the current documentation on `main`. Runs selected from other branches are skipped. The workflow must be on the default branch before GitHub displays the manual run button.
 
-The workflow installs the locked documentation dependencies, runs `mkdocs build --strict`, and uploads `site/` as a Pages artifact. Deployment starts only after that build succeeds. A failed build leaves the published site in place. The separate CI workflow continues to check documentation on pull requests.
+The workflow installs the toolkit and locked documentation dependencies, runs `mkdocs build --strict`, and uploads `site/` as a Pages artifact. Deployment starts only after that build succeeds. A failed build leaves the published site in place. The separate CI workflow continues to check documentation on pull requests.
 
 `mkdocs.yml` sets the public `site_url`, which MkDocs uses for canonical links and `sitemap.xml`. During deployment, `DOCS_SITE_URL` takes the URL from GitHub Pages, including a custom domain configured in Pages settings. Local builds use the repository's default Pages address. If you move the site permanently, update that fallback address too.
 
