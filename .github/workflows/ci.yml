@@ -55,6 +55,11 @@ jobs:
       - name: Build documentation
         run: uv run --locked --group docs mkdocs build --strict
 
+      - name: Test documentation showcase
+        run: >-
+          uv run --locked --group docs --group test pytest -o addopts=''
+          tests/unit/test_docs_showcase.py tests/integration/test_showcase_site.py
+
       - name: Build distributions
         run: uv run poe build
 
