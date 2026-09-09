@@ -14,7 +14,7 @@ uv run qualtrics report --help
 
 With a package installation, activate the environment containing `qualtrics` and run `qualtrics --help`. See [installation](../getting-started/installation.md).
 
-Check the [CLI reference](../reference/cli.md) for current options. In particular, `report` accepts entity inputs and an output path; it has no style, theme, or template flags. `build` defaults to JSON, while `entities combine` and `semantic-model build` default to Parquet.
+Check the [CLI reference](../reference/cli.md) for current options. In particular, `report` accepts entity inputs and an output path; it has no style, theme, or template flags. Change the appearance with the **Theme** selector inside the generated report. `build` defaults to JSON, while `entities combine` and `semantic-model build` default to Parquet.
 
 ## The CSV fails to parse or contains no responses
 

@@ -28,19 +28,23 @@ Use the side navigation to move between five views. On a narrow screen, navigati
 
 The **Surveys** selector applies across all views. Moving between views keeps your survey selection. Use your browser's Back and Forward buttons to return to earlier views or question details.
 
+The **Theme** selector in the header offers **System**, **Light**, and **Dark**. System follows your browser's preferred appearance. A manual choice applies until you reload the file.
+
 ### Understand the totals
 
 | Report label | Meaning |
 | --- | --- |
 | **Responses** | Response records in the selected surveys, including records marked unfinished. |
+| **Finished** | Responses whose exported finished flag is `true` or `1`. The percentage beside the label is their share of the selected response records. |
+| **Not marked finished** | All other response records, including records with no finished flag. This does not establish that each record is a partial response. |
 | **Response questions** | Questions classified as respondent-facing questions in the selected surveys. |
 | **Respondent answers** | Response-and-question pairs with at least one answer. A matrix question with several filled fields counts once for that response here. |
-| **Finished responses** | Responses whose exported finished flag is `true` or `1`. |
-| **Finished share of recorded responses** | Finished responses divided by all response records in the selected surveys. |
 | **Unanswered questions** | Questions with no observed respondent answer in the export. |
 | **Unused fields** | Concrete exported fields with no observed respondent value. |
 
 These counts describe the export you provided. They do not count everyone invited to the survey. The finished share is not the proportion of invited people who participated.
+
+The first three totals appear above the findings. Expand **Coverage and data quality** beneath the findings for the question, answer, unanswered-question, and unused-field totals, followed by the detailed diagnostics.
 
 ### Follow a finding to the evidence
 
@@ -54,13 +58,15 @@ Use **Search this report** in the header to find questions, written answers, res
 
 Search matches are case-insensitive and accent-insensitive. Searching changes what you can find, not the population used for statistics. Totals and charts continue to describe the selected surveys.
 
+Results replace the current view while you search. **Clear** restores that view; selecting a view in the sidebar clears the global search and opens it.
+
 Written answers, responses, search results, and codebook rows use page controls. The count shows the full matching total. Filtering resets the page so matches do not remain hidden on a previous page.
 
 ## Inspect questions and data quality
 
 1. Open **Questions**, use the question finder, and select a question to inspect its distributions, numeric summaries, or text answers.
-2. In **Summary**, expand **Question coverage** to see how many response records contain an answer to each question.
-3. Expand **Data quality** in **Summary** to see fields without values and defined options nobody selected.
+2. In **Summary**, expand **Coverage and data quality**, then **Question coverage**, to see how many response records contain an answer to each question.
+3. In the same area, expand **Data quality** to see fields without values and defined options nobody selected.
 
 Question coverage uses all response records for that survey as its denominator. A skipped question, optional question, or branching rule can lower coverage; low coverage alone does not establish an export error.
 
