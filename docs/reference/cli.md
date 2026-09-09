@@ -65,7 +65,7 @@ uv run qualtrics report \
 | `--responses PATH` | No | Explicit `responses` file. |
 | `--response-answers PATH` | No | Explicit `response_answers` file. |
 
-All input options default to unset. Entity files may use JSON, CSV, or Parquet. The renderer uses a fixed built-in design; the command has no style, theme, or template options.
+All input options default to unset. Entity files may use JSON, CSV, or Parquet. The renderer uses a built-in design; the command has no style, theme, or template options. Choose System, Light, or Dark using the **Theme** selector in the generated report.
 
 Prefer `--folder` for a complete collection. Explicit paths can override files in one collection, or load a subset without a folder, subject to relationship validation. You cannot combine explicit paths with multiple resolved folders. The CLI has no `--sections` option; load sections through `--folder`.
 

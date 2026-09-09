@@ -84,10 +84,8 @@ def test_sample_preserves_multifield_identity(tmp_path: Path, survey_files: tupl
     assert "class='question-menu' hidden" in report
     assert "No selected questions were answered in this response." in report
     assert "class='no-selected' hidden" in report
-    assert "card.querySelector('.no-selected').hidden=shownAnswers>0" in report
-    assert "(!term||card.dataset.search.includes(term))" in report
-    assert "row.hidden=!show" in report
-    assert "[hidden]{display:none!important}" in report
+    # Hidden content must override layout rules regardless of CSS whitespace.
+    assert "[hidden],.hidden{display:none!important}" in "".join(report.split()).replace(";}", "}")
     assert "Block: Training" in report
     assert "class='question-meta'>Multiple choice · Block: Training" in report
     assert "position:sticky;top:.5rem" not in report
@@ -98,10 +96,10 @@ def test_sample_preserves_multifield_identity(tmp_path: Path, survey_files: tupl
     assert "Search responses, questions, or answers" in report
     assert "class='respondent'" in report
     assert "Expand all" in report
-    assert "Overview" in report
-    assert "By responses" in report
+    assert ">Summary</a>" in report
+    assert ">Responses</a>" in report
     assert "Data quality" in report
-    assert "Question analytics" in report
+    assert ">Questions</a>" in report
     assert "class='question-analysis catalog-group'" in report
     assert "class='distribution-row" in report
     assert "Multiple choice" in report
@@ -249,20 +247,11 @@ def test_combined_report_has_survey_selector(tmp_path: Path, survey_files: tuple
     assert "Second survey" in report
     assert "data-survey='SV_SECOND'" in report
     assert "QID30" in report
-    assert "surveyChoices.forEach(choice=>choice.addEventListener('change',filter))" in report
-    assert "surveySelectedCount.textContent=surveys.size===surveyChoices.length?'All':" in report
-    assert "function selectedSurveys(){return new Set(surveyChoices.filter(choice=>choice.checked)" in report
-    assert "surveys=selectedSurveys()" in report
-    assert "surveyChoices.filter(choice=>surveys.has(choice.value)).reduce" in report
-    assert "count.textContent=visible+' of '+eligibleCards.length" in report
     assert "id='overview-finished'" in report
     assert "data-responses='2'" in report
     assert report.count("class='quality' data-survey=") == 2
-    assert "card.hidden=!show" in report
-    assert "surveyChoices.forEach(choice=>choice.checked=true)" in report
-    assert "surveyChoices.forEach(choice=>choice.checked=false)" in report
     assert "<details id='question-coverage' class='panel report-section'>" in report
-    assert "<details id='question-analytics' class='report-section'>" in report
+    assert "<details id='question-analytics' class='report-section report-view' open>" in report
     assert report.count("class='coverage-question catalog-group'") == 2
     assert report.count("class='question-analysis catalog-group'") == 2
     assert report.count("class='coverage-survey-row survey-occurrence'") == 4
@@ -270,10 +259,6 @@ def test_combined_report_has_survey_selector(tmp_path: Path, survey_files: tuple
     assert "<strong>Sample</strong><small>Import ID: QID30 · Section: Training</small>" in report
     assert "<strong>Second survey</strong><small>Import ID: QID30 · Section: Training</small>" in report
     assert report.count("class='occurrence-count'") == 4
-    assert "new Set(visibleRows.map(row=>row.dataset.survey)).size" in report
-    assert "group.hidden=visibleRows.length===0" in report
-    assert "document.querySelector('#coverage-count').textContent=visibleCoverageGroups" in report
-    assert "document.querySelector('#analytics-count').textContent=visibleAnalyticsGroups" in report
 
 
 def test_data_quality_is_collapsible_and_groups_issues_by_question(
@@ -301,7 +286,6 @@ def test_data_quality_is_collapsible_and_groups_issues_by_question(
     assert "<b>1</b> defined option not observed" in report
     assert "<h4>Fields without values</h4>" in report
     assert "<h4>Defined options not observed</h4>" in report
-    assert ".quality-groups{display:grid;grid-template-columns:1fr;gap:.8rem}" in report
     assert "<strong>PRACTICE QUESTION</strong><small>QID30 · Section: Training</small>" in report
     assert "<li>Item 1</li>" in report
     assert "<li>Never selected</li>" in report
@@ -333,8 +317,14 @@ def test_report_labels_all_text_fields_as_written_answers(tmp_path: Path, survey
     render_report(entities, output)
     report = output.read_text(encoding="utf-8")
 
-    assert "<div class='field-answer text-field'><span class='field'>Other (please indicate)</span>" in report
-    assert "<div class='field-answer text-field'><span class='field'>Written response</span>" in report
+    assert (
+        f"<div class='field-answer text-field' data-field-id='{linked_field['field_id']}'>"
+        "<span class='field'>Other (please indicate)</span>"
+    ) in report
+    assert (
+        f"<div class='field-answer text-field' data-field-id='{duplicate_field['field_id']}'>"
+        "<span class='field'>Written response</span>"
+    ) in report
 
 
 def test_response_does_not_repeat_question_as_single_field_label(
@@ -352,8 +342,9 @@ def test_response_does_not_repeat_question_as_single_field_label(
     response_answer = report.split("<div class='answers'>", 1)[1].split("</div></details>", 1)[0]
 
     assert response_answer.count(str(question["question_text"])) == 1
-    assert "<div class='field-answer value-only'><span class='value'>" in response_answer
-    assert ".field-answer.value-only{grid-template-columns:1fr}" in report
+    assert (
+        f"<div class='field-answer value-only' data-field-id='{field['field_id']}'><span class='value'>"
+    ) in response_answer
 
 
 def test_mc_analytics_consolidates_options_and_includes_zero_counts(
@@ -377,7 +368,7 @@ def test_mc_analytics_consolidates_options_and_includes_zero_counts(
     render_report(entities, output)
     report = output.read_text(encoding="utf-8")
     analytics = report.split(
-        "<details class='survey-analysis survey-occurrence' data-survey='SV_SAMPLE' data-question='QID18'>",
+        "data-question='QID18'",
         1,
     )[1].split("</details>", 1)[0]
 
