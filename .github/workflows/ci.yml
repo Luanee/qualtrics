@@ -38,37 +38,33 @@ jobs:
         run: uv python install 3.13
 
       - name: Install dependencies
-        run: uv sync --locked --all-groups --extra parquet
+        run: uv sync --locked --all-groups --all-extras
 
       - name: Lint
-        run: uv run poe lint
+        run: uv run --all-extras poe lint
 
       - name: Check formatting
-        run: uv run poe format-check
+        run: uv run --all-extras poe format-check
 
       - name: Check types
-        run: uv run poe type
+        run: uv run --all-extras poe type
 
       - name: Test report search utilities
         run: node --test tests/js/*.test.cjs
 
       - name: Build documentation
-        run: uv run --locked --group docs mkdocs build --strict
+        run: uv run --locked --all-extras --group docs mkdocs build --strict
 
       - name: Test documentation showcase
         run: >-
-          uv run --locked --group docs --group test pytest -o addopts=''
+          uv run --locked --all-extras --group docs --group test pytest -o addopts=''
           tests/unit/test_docs_showcase.py tests/integration/test_showcase_site.py
 
       - name: Build distributions
-        run: uv run poe build
+        run: uv run --all-extras poe build
 
       - name: Smoke-test built wheel
-        run: |
-          uv venv .wheel-venv
-          uv pip install --python .wheel-venv/bin/python dist/*.whl
-          .wheel-venv/bin/python -c "import qualtrics"
-          .wheel-venv/bin/qualtrics --help
+        run: bash scripts/smoke_wheel.sh
 
       - name: Upload distributions
         uses: actions/upload-artifact@v7
@@ -104,13 +100,13 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --locked --group test --extra parquet --python ${{ matrix.python-version }}
+        run: uv sync --locked --group test --all-extras --python ${{ matrix.python-version }}
 
       - name: Prepare report directory
         run: mkdir -p reports
 
       - name: Run tests
-        run: uv run --python ${{ matrix.python-version }} pytest
+        run: uv run --all-extras --python ${{ matrix.python-version }} pytest
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5

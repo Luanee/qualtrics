@@ -199,6 +199,10 @@ pip-selfcheck.json
 # Repository maintenance scripts are source files, not virtualenv scripts.
 !/scripts/
 !/scripts/*.py
+!/scripts/*.sh
 
 data/
 .superpowers/
+
+# Disposable installed-wheel smoke environments and outputs.
+/.wheel*

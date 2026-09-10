@@ -77,10 +77,10 @@ jobs:
 
       - name: Validate release changes
         run: |
-          uv sync --locked --all-groups --extra parquet
+          uv sync --locked --all-groups --all-extras
           mkdir -p reports
-          uv run poe check
-          uv run poe build
+          uv run --all-extras poe check
+          uv run --all-extras poe build
 
       - name: Create release pull request
         env:
