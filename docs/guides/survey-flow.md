@@ -1,6 +1,6 @@
 # Understand a survey flow
 
-Open **Flow** in the HTML report to see the order of blocks and the rules connecting them. Expand a card to inspect its questions, then follow a question link to its response analysis. The report includes definition-only questions even when the CSV has no answer column for them.
+Open **Flow** in the HTML report to see connected cards for the survey's blocks and rules. Select a card to inspect its settings and questions, then follow a question link to its response analysis. The report includes definition-only questions even when the CSV has no answer column for them.
 
 Try the [interactive flow example](../examples/survey-flow.md) with a fictional team survey and 24 fake responses.
 
@@ -57,23 +57,37 @@ The command uses Qualtrics' [Get Flow endpoint](https://www.postman.com/qualtric
 
 ## Read the map
 
+The canvas shows one survey at a time. **Map and walkthrough survey** chooses from the surveys in the report's current scope. Your selected card has a visible border; its details appear beside the map on a wide screen.
+
+| Control | Action |
+| --- | --- |
+| Drag the background or scroll over the canvas | Pan to another part of the route. |
+| **+** / **−**, or Ctrl/⌘ + scroll | Zoom in or out. |
+| **Fit** | Show the entire route. Large surveys may need zooming back in to read individual cards. |
+| **Selected step** | Return to the selected card at a readable scale. |
+| **Show outline** | Read the configured steps as an expandable list. This is also the printing and no-JavaScript view. |
+
+You can Tab to a card and select it with the keyboard. With the canvas focused, arrow keys pan, **+**/**−** zoom, and **Home** fits the route. The report keeps survey content inside the HTML file; these controls work offline.
+
+On a touch screen, swipe vertically to scroll the page. Select **Move map** to drag the route with your finger, then **Done moving** to return to page scrolling. Zoom buttons remain available in either mode.
+
 | Element | How to read it |
 | --- | --- |
 | Block | A set of questions encountered at this point in the survey. |
-| Branch | Enter the nested steps when its condition holds, then continue with the next step after the branch unless the survey ended. |
+| Branch | Follow **Condition met** into its steps, or **Condition not met** past them. Routes rejoin before the next shared step unless the survey ended. |
 | Group | Keep a set of steps together. |
-| Randomizer | Choose the configured number of eligible children in a randomized order. |
+| Randomizer | Choose the configured number of eligible children in a randomized order. Connections show alternatives; the walkthrough sets the actual order for your scenario. |
 | Embedded data | Set a field used by later rules, or read a value supplied from outside the survey. |
 | End of survey | Stop this route, including any later steps outside the current branch. |
 | Advanced or unknown element | Its position remains visible; the walkthrough explains what cannot be evaluated locally. |
 
-Blocks can occur more than once. The map keeps each occurrence in place and shows source Flow IDs as secondary information. Search finds a block, question, condition, or embedded-data field and opens the matching card.
+Blocks can occur more than once. The map keeps each occurrence in place and shows source Flow IDs as secondary information. Search finds a block, question, condition, or embedded-data field and centers the matching card, switching surveys when necessary. Joining markers explain where a shared route continues; a survey ending has no outgoing connection.
 
 Qualtrics documents [branch continuation](https://www.qualtrics.com/support/survey-platform/survey-module/survey-flow/standard-elements/branch-logic/) and [randomizer behavior](https://www.qualtrics.com/support/survey-platform/survey-module/survey-flow/standard-elements/randomizer/). In particular, randomizers selecting branches consider their conditions before selecting them.
 
 ## Try a hypothetical walkthrough
 
-Choose a survey and start the walkthrough. Enter hypothetical answers, continue through the blocks, and watch the map mark reached, skipped, and pending steps. Use Back to change an earlier answer or Reset to begin again. Changes replay the route and discard downstream answers that no longer belong to it.
+Open **What if**, choose a survey and start the walkthrough. Enter hypothetical answers, continue through the blocks, and watch the map mark reached, skipped, and pending steps. The canvas follows the current step. Use Back to change an earlier answer or Reset to begin again. Changes replay the route and discard downstream answers that no longer belong to it. Select **Step details** to inspect a card without changing your hypothetical answers.
 
 At a randomizer, explicitly choose the elements and their order for this scenario. This illustrates one possible outcome; it does not reproduce Qualtrics' allocation history or evenly-present counters.
 
