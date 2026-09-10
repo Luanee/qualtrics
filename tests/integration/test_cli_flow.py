@@ -3,6 +3,8 @@ from pathlib import Path
 
 import httpx
 import pytest
+from click import unstyle
+from typer import rich_utils
 from typer.testing import CliRunner
 
 from qualtrics.api import QualtricsClient
@@ -79,12 +81,16 @@ def test_build_accepts_flow_download_alongside_qsf(tmp_path: Path, survey_files)
     assert json.loads(surveys[0]["flow_definition_json"])["root"]["children"][0]["config"]["ID"] == "BL_1"
 
 
-def test_build_rejects_one_flow_for_multiple_surveys(tmp_path: Path, survey_files) -> None:
+@pytest.mark.parametrize("force_terminal", [False, True], ids=["plain", "styled"])
+def test_build_rejects_one_flow_for_multiple_surveys(tmp_path: Path, survey_files, monkeypatch, force_terminal) -> None:
+    monkeypatch.setattr(rich_utils, "FORCE_TERMINAL", force_terminal)
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("TERM", "xterm-256color")
     csv_path, _ = survey_files
     flow = tmp_path / "flow.json"
     flow.write_text(json.dumps(FLOW))
     output = tmp_path / "entities"
     result = CliRunner().invoke(app, ["build", str(csv_path), str(csv_path), "--flow", str(flow), "-o", str(output)])
     assert result.exit_code == 2
-    assert "--flow can only be used with one CSV or ZIP" in result.output
+    assert "--flow can only be used with one CSV or ZIP" in unstyle(result.output)
     assert not output.exists()
