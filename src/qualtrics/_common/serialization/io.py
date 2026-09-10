@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ..models.entities import ENTITY_NAMES, EntitySet
 
-CSV_FIELD_TYPES: dict[str, dict[str, type[object]]] = {
+CSV_FIELD_TYPES: dict[str, dict[str, type[int] | type[float] | type[bool]]] = {
     "sections": {"section_order": int},
     "answer_options": {"answer_order": int},
     "questions": {
@@ -145,7 +145,7 @@ def _coerce_csv_records(name: str, records: list[dict[str, str]]) -> list[dict[s
         record: dict[str, object] = dict(raw_record)
         for key, target_type in field_types.items():
             value = raw_record.get(key)
-            if value in {None, ""}:
+            if value is None or value == "":
                 record[key] = None
                 continue
             record[key] = value.casefold() == "true" if target_type is bool else target_type(value)
