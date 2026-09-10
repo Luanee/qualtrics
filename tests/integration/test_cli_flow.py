@@ -3,7 +3,7 @@ from pathlib import Path
 
 import httpx
 import pytest
-from click import unstyle
+from rich.text import Text
 from typer import rich_utils
 from typer.testing import CliRunner
 
@@ -92,5 +92,5 @@ def test_build_rejects_one_flow_for_multiple_surveys(tmp_path: Path, survey_file
     output = tmp_path / "entities"
     result = CliRunner().invoke(app, ["build", str(csv_path), str(csv_path), "--flow", str(flow), "-o", str(output)])
     assert result.exit_code == 2
-    assert "--flow can only be used with one CSV or ZIP" in unstyle(result.output)
+    assert "--flow can only be used with one CSV or ZIP" in Text.from_ansi(result.output).plain
     assert not output.exists()
