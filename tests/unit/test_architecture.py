@@ -1,6 +1,8 @@
 import ast
-import importlib
+import importlib.machinery
 import importlib.util
+import py_compile
+import sys
 from pathlib import Path
 
 import pytest
@@ -24,16 +26,91 @@ def test_catch_all_core_module_is_removed() -> None:
 
 def test_package_has_four_implementation_packages() -> None:
     package_root = Path(qualtrics.__file__).parent
-    packages = {path.name for path in package_root.iterdir() if path.is_dir() and path.name != "__pycache__"}
+    _assert_four_implementation_packages(package_root)
+
+
+def _assert_four_implementation_packages(package_root: Path) -> None:
+    packages = {path.name for path in package_root.iterdir() if (path / "__init__.py").is_file()}
     assert packages == {"_common", "api", "cli", "ui"}
 
 
 @pytest.mark.parametrize("name", ["models", "parsers", "analytics", "serialization", "reporting", "services"])
-def test_removed_deep_imports_are_unavailable(name: str) -> None:
-    module = f"qualtrics.{name}"
-    with pytest.raises(ModuleNotFoundError) as error:
-        importlib.import_module(module)
-    assert error.value.name == module
+def test_removed_deep_imports_have_no_implementation(name: str) -> None:
+    _assert_legacy_module_removed(f"qualtrics.{name}")
+
+
+def _assert_legacy_module_removed(module: str) -> None:
+    spec = importlib.util.find_spec(module)
+    if spec is None:
+        return
+    assert spec.origin is None, f"Legacy implementation: {spec.origin}"
+    assert spec.submodule_search_locations is not None, f"Legacy module is not an empty namespace: {module}"
+    implementations = [
+        path
+        for location in spec.submodule_search_locations
+        for path in Path(location).rglob("*")
+        if path.is_file()
+        and (
+            path.suffix == ".py"
+            or (
+                "__pycache__" not in path.relative_to(location).parts
+                and path.name.endswith(tuple(importlib.machinery.all_suffixes()))
+            )
+        )
+    ]
+    assert not implementations, f"Legacy implementation files: {implementations}"
+
+
+@pytest.fixture
+def cached_package_layout(tmp_path, monkeypatch):
+    package_root = tmp_path / "architecture_cache_probe"
+    package_root.mkdir()
+    (package_root / "__init__.py").write_text("")
+    for name in ("_common", "api", "cli", "ui"):
+        (package_root / name).mkdir()
+        (package_root / name / "__init__.py").write_text("")
+    for name in ("models", "parsers", "analytics", "serialization", "reporting", "services"):
+        legacy = package_root / name
+        legacy.mkdir()
+        source = legacy / "__init__.py"
+        source.write_text("raise RuntimeError('Stale legacy code must not execute')\n")
+        py_compile.compile(str(source), doraise=True)
+        source.unlink()
+    monkeypatch.syspath_prepend(str(tmp_path))
+    try:
+        yield package_root
+    finally:
+        for name in list(sys.modules):
+            if name == package_root.name or name.startswith(package_root.name + "."):
+                del sys.modules[name]
+
+
+def test_architecture_checks_allow_cache_only_legacy_directories(cached_package_layout) -> None:
+    _assert_four_implementation_packages(cached_package_layout)
+    for name in ("models", "parsers", "analytics", "serialization", "reporting", "services"):
+        _assert_legacy_module_removed(f"{cached_package_layout.name}.{name}")
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "models.py",
+        "models/__init__.py",
+        "models/entities.py",
+        "models/nested/entities.py",
+        "models/nested/legacy.pyc",
+        "models/__pycache__/legacy.py",
+    ],
+)
+def test_legacy_check_rejects_implementation_files(cached_package_layout, filename: str) -> None:
+    implementation = cached_package_layout / filename
+    implementation.parent.mkdir(parents=True, exist_ok=True)
+    if implementation.suffix == ".pyc":
+        py_compile.compile(str(cached_package_layout / "__init__.py"), cfile=str(implementation), doraise=True)
+    else:
+        implementation.write_text("from qualtrics._common.models import EntitySet\n")
+    with pytest.raises(AssertionError, match="Legacy implementation"):
+        _assert_legacy_module_removed(f"{cached_package_layout.name}.models")
 
 
 def _import_targets(path: Path, package_root: Path) -> set[str]:
