@@ -73,7 +73,9 @@ def test_build_accepts_flow_download_alongside_qsf(tmp_path: Path, survey_files)
     flow = tmp_path / "flow.json"
     flow.write_text(json.dumps(FLOW))
     output = tmp_path / "entities"
-    result = CliRunner().invoke(app, ["build", str(csv_path), "--qsf", str(qsf_path), "--flow", str(flow), "-o", str(output)])
+    result = CliRunner().invoke(
+        app, ["build", str(csv_path), "--qsf", str(qsf_path), "--flow", str(flow), "-o", str(output)]
+    )
     assert result.exit_code == 0, result.output
     surveys = json.loads((output / "surveys.json").read_text())
     assert json.loads(surveys[0]["flow_definition_json"])["root"]["children"][0]["config"]["ID"] == "BL_1"
