@@ -1,0 +1,10 @@
+{% macro navigation_icon(path) -%}
+<svg class='nav-icon' width='18' height='18' viewBox='0 0 24 24' aria-hidden='true' focusable='false'
+     fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='{{ path }}'/></svg>
+{%- endmacro %}
+<nav class='report-nav' aria-label='Report views'>
+  {% for page in pages %}
+  <a data-view='{{ page.view_id }}' href='#{{ page.view_id }}'{% if page.view_id == 'overview' %} aria-current='page'{% endif %}
+     >{{ navigation_icon(page.icon_path) }}<span class='nav-label'>{{ page.label }}</span></a>
+  {% endfor %}
+</nav>

@@ -1,0 +1,10 @@
+{% from 'flow/node.html.jinja' import flow_node %}
+{% for survey in maps %}
+<section class='flow-survey' data-survey='{{ survey.survey_id }}' aria-label='{{ survey.label }} flow'>
+  <h3>{{ survey.label }}</h3>
+  {% if survey.root %}{{ flow_node(survey.root) }}{% endif %}
+  {% if survey.message %}<p class='flow-empty'>{{ survey.message }}</p>{% endif %}
+</section>
+{% else %}
+<p class='flow-empty'>No surveys are available.</p>
+{% endfor %}

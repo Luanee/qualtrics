@@ -1,0 +1,43 @@
+{% import 'components/macros.html.jinja' as ui %}
+<details id='question-analytics' class='report-section report-view' open>
+  {{ ui.page_heading(
+      'Questions', 'Type-aware answer patterns grouped across surveys.', disclosure=true,
+      count=(groups|length|string) ~ ' canonical questions', count_id='analytics-count'
+  ) }}
+  <div class='section-body'>
+    <div class='question-browser'>
+      <div class='question-sidebar'>
+        {{ ui.search_control('question-filter', 'Find a question') }}
+        <div id='question-navigator'></div>
+        <p id='question-empty' hidden>No matching questions in the selected surveys.</p>
+      </div>
+      <div class='question-detail'>
+        {% for group in groups %}
+        <details class='question-analysis catalog-group' data-catalog='{{ group.id }}'>
+          <summary>
+            <span class='analysis-title'>{{ group.label }}{{ ui.occurrence_count(group.occurrences|length) }}</span>
+          </summary>
+          <div class='catalog-body'>
+            {% for occurrence in group.occurrences %}
+            <details class='survey-analysis survey-occurrence' data-survey='{{ occurrence.survey_id }}'
+                     id='{{ occurrence.id }}' data-question='{{ occurrence.external_id }}'
+                     data-label='{{ occurrence.label }}' data-section='{{ occurrence.section }}'
+                     data-question-token='{{ occurrence.token }}'>
+              <summary>
+                <span class='analysis-title'>{{ occurrence.survey_label }}<small>{{ occurrence.metadata }}</small></span>
+                <span class='analysis-summary'>
+                  <span><b>{{ '{:,}'.format(occurrence.respondents) }}</b> respondents</span>
+                  <span><b>{{ '{:.0f}'.format(occurrence.coverage) }}%</b> coverage</span>
+                  <span><b>{{ '{:,}'.format(occurrence.value_count) }}</b> {{ occurrence.value_label }}</span>
+                </span>
+              </summary>
+              <div class='analysis-body'>{{ occurrence.body }}</div>
+            </details>
+            {% endfor %}
+          </div>
+        </details>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</details>

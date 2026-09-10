@@ -26,7 +26,7 @@ Go back and change an earlier choice to see the route change. The report keeps t
 </ul>
 
 ```bash
-uv run python -m scripts.survey_flow_showcase --output data/survey-flow-showcase
+uv run --extra ui python -m scripts.survey_flow_showcase --output data/survey-flow-showcase
 ```
 
 The fixture is a reproducible toolkit example, not a live Qualtrics export, and has not been import-tested in Qualtrics. The fake responses are consistent with the illustrated branches; no live web service is configured.

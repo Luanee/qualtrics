@@ -1,6 +1,3 @@
-from ..codebook import render_codebook as render_codebook_content
-from ..context import ReportContext
+"""Compatibility imports; implementation lives in :mod:`qualtrics.ui.pages.codebook`."""
 
-
-def render_codebook(context: ReportContext) -> str:
-    return render_codebook_content(context.entities)
+from qualtrics.ui.pages.codebook import render_codebook as render_codebook

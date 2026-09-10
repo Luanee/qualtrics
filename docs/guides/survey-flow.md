@@ -9,11 +9,11 @@ Try the [interactive flow example](../examples/survey-flow.md) with a fictional 
 A QSF normally contains its survey flow. Build the entity files again with that definition, then generate the report:
 
 ```bash
-uv run qualtrics build data/customer.csv \
+uv run --extra cli --extra ui qualtrics build data/customer.csv \
   --qsf data/customer.qsf \
   --output output/customer/entities
 
-uv run qualtrics report \
+uv run --extra cli --extra ui qualtrics report \
   --folder output/customer/entities \
   --output output/customer/report.html
 ```
@@ -25,11 +25,11 @@ An API survey-definition JSON can also be passed to `--qsf`. Existing entity fol
 With [API credentials configured](api-access.md), download the flow separately:
 
 ```bash
-uv run qualtrics api flow \
+uv run --extra cli qualtrics api flow \
   --survey-id SV_EXAMPLE \
   --output data/customer-flow.json
 
-uv run qualtrics build data/customer.csv \
+uv run --extra cli --extra ui qualtrics build data/customer.csv \
   --qsf data/customer.qsf \
   --flow data/customer-flow.json \
   --output output/customer/entities

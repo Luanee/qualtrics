@@ -1,0 +1,20 @@
+{% macro flow_node(item) -%}
+<details id='{{ item.anchor }}' class='flow-node' data-flow-node='{{ item.node_id }}' open>
+  <summary><span class='flow-node-type'>{{ item.type_label }}</span><span class='flow-node-title'>{{ item.title }}</span><span class='flow-state'>Configured</span></summary>
+  <div class='flow-node-body'>
+    <p class='flow-node-ids'>{{ item.identifiers }}</p>
+    {% for setting in item.settings %}<p class='flow-setting'>{{ setting }}</p>{% endfor %}
+    {% if item.questions %}
+    <details class='flow-questions'>
+      <summary>{{ item.questions|length }} {{ 'question' if item.questions|length == 1 else 'questions' }} in this block</summary>
+      <ol>
+      {% for question in item.questions %}
+        <li>{% if question.target %}<a href='#{{ question.target }}'>{{ question.text }}</a>{% else %}{{ question.text }}{% endif %}<small>{{ question.question_id }}{% if question.flags %} · {{ question.flags }}{% endif %}</small></li>
+      {% endfor %}
+      </ol>
+    </details>
+    {% endif %}
+    {% if item.children %}<ol class='flow-children'>{% for child in item.children %}<li>{{ flow_node(child) }}</li>{% endfor %}</ol>{% endif %}
+  </div>
+</details>
+{%- endmacro %}

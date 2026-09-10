@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {createPagerFactory} = require('../../src/qualtrics/reporting/static/components/pagination.js');
+const {createPagerFactory} = require('../../src/qualtrics/ui/static/components/pagination.js');
 
 function element() {
   return {hidden: false, children: [], classList: {add() {}},

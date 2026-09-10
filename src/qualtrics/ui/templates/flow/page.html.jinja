@@ -1,0 +1,83 @@
+<section id='survey-flow' class='report-section report-view' aria-labelledby='flow-heading'>{{ heading }}
+  <p class='flow-intro'>Explore the configured route, then try hypothetical answers. This scenario uses the supplied definition; it does not show observed respondent routing or reproduce a Qualtrics preview.</p>
+  <div class='flow-layout'>
+    <div class='flow-map'>
+      <div class='flow-map-head'>
+        <h3>Configured route</h3>
+        <div class='flow-map-controls' hidden>
+          <button id='flow-outline-toggle' type='button' aria-expanded='false' aria-controls='flow-outline' hidden>Show outline</button>
+        </div>
+      </div>
+      <div id='flow-canvas-shell' class='flow-canvas-shell' hidden>
+        <div class='flow-canvas-toolbar'>
+          <h4 id='flow-canvas-title'>Configured route</h4>
+          <div class='flow-zoom-controls'>
+            <button id='flow-zoom-out' type='button' aria-label='Zoom out'>−</button>
+            <output id='flow-zoom-value' aria-label='Canvas zoom'>100%</output>
+            <button id='flow-zoom-in' type='button' aria-label='Zoom in'>+</button>
+            <button id='flow-fit' type='button'>Fit</button>
+            <button id='flow-move-toggle' class='flow-move-toggle' type='button' aria-pressed='false'>Move map</button>
+            <button id='flow-center' type='button'>Selected step</button>
+          </div>
+        </div>
+        <p id='flow-canvas-help' class='flow-canvas-help'>Drag or scroll to pan · Ctrl/⌘ + scroll to zoom. Tab to a card to inspect it. Focus the canvas for arrow keys, +/− zoom, or Home to fit. On touch screens, swipe to scroll the page; choose Move map to pan, then Done moving to scroll again.</p>
+        <div id='flow-canvas' class='flow-canvas' tabindex='0' role='region' aria-label='Survey route canvas' aria-describedby='flow-canvas-help'>
+          <div id='flow-canvas-layer' class='flow-canvas-layer'>
+          </div>
+        </div>
+        <p id='flow-canvas-empty' class='flow-empty' hidden>No flow definition is available for the selected scope.</p>
+      </div>
+      <div id='flow-outline' class='flow-outline'>
+        <div class='flow-outline-head'>
+          <h4>Accessible route outline</h4>
+          <div class='flow-map-controls' hidden>
+            <button id='flow-expand' type='button'>Expand outline</button>
+            <button id='flow-collapse' type='button'>Collapse outline</button>
+          </div>
+        </div>
+        <p class='flow-legend'>
+          <span>Reached</span>
+          <span>Skipped</span>
+          <span>Pending</span>
+          <span>Not reached</span>
+        </p>
+        <p id='flow-scope-empty' class='flow-empty' hidden>Select a survey to see its flow.</p>{% include 'flow/outline.html.jinja' %}</div>
+    </div>
+    <aside class='flow-walkthrough' aria-labelledby='flow-walkthrough-heading'>
+      <h3 id='flow-walkthrough-heading'>Explore this route</h3>
+      <noscript>Enable JavaScript to use the walkthrough. The configured map remains readable.</noscript>
+      <div id='flow-interactive' hidden>
+        <label for='flow-survey-select'>Map and walkthrough survey</label>
+        <select id='flow-survey-select'>
+        </select>
+        <div id='flow-panel-controls' class='flow-panel-controls' hidden aria-label='Flow panels'>
+          <button id='flow-panel-details' type='button' aria-pressed='false' aria-controls='flow-selection'>Step details</button>
+          <button id='flow-panel-scenario' type='button' aria-pressed='true' aria-controls='flow-scenario-panel'>What if</button>
+        </div>
+        <section id='flow-selection' class='flow-selection' aria-label='Selected step details' hidden>
+        </section>
+        <div id='flow-scenario-panel'>
+          <h4>Try a scenario</h4>
+          <p class='flow-walkthrough-intro'>Your hypothetical answers stay in this page. Choose one survey and follow its route step by step.</p>
+          <p id='flow-walkthrough-status' role='status' aria-live='polite'>
+          </p>
+          <div id='flow-current'>
+          </div>
+          <p id='flow-error' role='alert' hidden>
+          </p>
+          <div class='flow-actions'>
+            <button id='flow-back' type='button'>Back</button>
+            <button id='flow-continue' type='button' class='flow-primary'>Start walkthrough</button>
+            <button id='flow-reset' type='button'>Reset</button>
+          </div>
+          <details id='flow-assumptions' class='flow-assumptions' hidden open>
+            <summary>Scenario assumptions</summary>
+            <ol id='flow-assumption-list'>
+            </ol>
+          </details>
+        </div>
+      </div>
+    </aside>
+  </div>
+</section>
+<script id='flow-data' type='application/json'>{{ payload }}</script>

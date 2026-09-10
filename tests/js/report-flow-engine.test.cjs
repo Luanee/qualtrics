@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const engine = require('../../src/qualtrics/reporting/static/flow-engine.js');
+const engine = require('../../src/qualtrics/ui/static/flow-engine.js');
 const {evaluateCondition: evaluate, walkFlow: walk} = engine;
 const q = {text:'Department', type:'MC',selector:'SAVR',choices:{1:'Sales',2:'Engineering'},choice_order:['1','2']};
 const selected = (id='Q1', choice='1') => ({LogicType:'Question',QuestionID:id,ChoiceLocator:`q://${id}/SelectableChoice/${choice}`,Operator:'Selected'});

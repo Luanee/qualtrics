@@ -2,7 +2,7 @@
 
 Combine parsed tables from different surveys into one collection. Use that collection for a shared report or a Power BI model.
 
-You need at least two entity folders created with the current parser. Each must contain the [nine entity files](../understand/your-data.md), with one file format per table. Run the examples from the installed project folder; for an isolated CLI installation, replace `uv run qualtrics` with `qualtrics`.
+You need at least two entity folders created with the current parser. Each must contain the [nine entity files](../understand/your-data.md), with one file format per table. Run the examples from the installed project folder; for an isolated CLI installation, replace `uv run --extra cli --extra ui qualtrics` with `qualtrics`.
 
 ## 1. Check which surveys you are combining
 
@@ -25,13 +25,13 @@ Keep each input's table filenames intact. You may combine a CSV collection with 
 Choose a new output folder, then run:
 
 ```text
-uv run qualtrics entities combine data/survey-a/entities data/survey-b/entities --output data/combined/entities --format parquet
+uv run --extra cli --extra ui --extra parquet qualtrics entities combine data/survey-a/entities data/survey-b/entities --output data/combined/entities --format parquet
 ```
 
 Parquet is the default for this command and requires the optional dependency from the [installation guide](../getting-started/installation.md). To produce tables for a spreadsheet, use a separate output path:
 
 ```text
-uv run qualtrics entities combine data/survey-a/entities data/survey-b/entities --output data/combined-csv/entities --format csv
+uv run --extra cli --extra ui qualtrics entities combine data/survey-a/entities data/survey-b/entities --output data/combined-csv/entities --format csv
 ```
 
 The command creates the output folder. It refuses an output location that already contains recognized entity files in CSV, JSON, or Parquet format. For a later run, choose a new folder such as `data/combined-v2/entities`.
@@ -47,7 +47,7 @@ Combined 2 survey(s) as parquet entities in data/combined/entities
 Generate a report:
 
 ```text
-uv run qualtrics report --folder data/combined/entities --output data/combined/report.html
+uv run --extra cli --extra ui --extra parquet qualtrics report --folder data/combined/entities --output data/combined/report.html
 ```
 
 Open the HTML file and use **Surveys** to inspect each source survey. Check its response count against its individual report, then select all surveys to review the combined total.
@@ -59,7 +59,7 @@ The combined tables retain each survey's own questions, fields, and options. The
 You can pass survey folders containing `entities/`:
 
 ```text
-uv run qualtrics entities combine data/survey-a data/survey-b --output data/combined-v2/entities --format parquet
+uv run --extra cli --extra ui --extra parquet qualtrics entities combine data/survey-a data/survey-b --output data/combined-v2/entities --format parquet
 ```
 
 You can also pass the root created by the [API export example](api-access.md):
@@ -71,7 +71,7 @@ data/api-export/
 ```
 
 ```text
-uv run qualtrics entities combine data/api-export --output data/api-combined/entities --format parquet
+uv run --extra cli --extra ui --extra parquet qualtrics entities combine data/api-export --output data/api-combined/entities --format parquet
 ```
 
 Discovery checks the folder itself, its `entities/` subfolder, then immediate child folders containing `entities/`. It does not search through arbitrary nested directories. Put the output outside the input batch root so a later run does not discover it as another input.

@@ -1,6 +1,6 @@
 # CLI reference
 
-Run these commands from the repository with `uv run qualtrics`. If you installed the package into another environment, use `qualtrics` in place of `uv run qualtrics`. See [installation](../getting-started/installation.md) for setup.
+Run these commands from the repository with `uv run --extra cli --extra ui qualtrics`. If you installed the package into another environment, use `qualtrics` in place of `uv run --extra cli --extra ui qualtrics`. Install `qualtrics[cli,ui]` for every command shown here, or `qualtrics[cli]` if you do not generate HTML reports. See [installation](../getting-started/installation.md) for setup.
 
 | Command | Input | Output | Default format |
 | --- | --- | --- | --- |
@@ -18,7 +18,7 @@ Use `--help` after any command or command group. At the top level, `--install-co
 ## `build`
 
 ```bash
-uv run qualtrics build data/customer.csv \
+uv run --extra cli --extra ui qualtrics build data/customer.csv \
   --qsf data/customer.qsf \
   --output output/customer/entities
 ```
@@ -35,7 +35,7 @@ uv run qualtrics build data/customer.csv \
 Without `--qsf`, the parser checks for a same-stem `.qsf`, then `.json`, next to the CSV or ZIP. Filename matching ignores case. With multiple explicit definitions, the parser pairs inputs and definitions **by position**. Pass both lists in matching order.
 
 ```bash
-uv run qualtrics build data/north.csv data/south.csv \
+uv run --extra cli --extra ui qualtrics build data/north.csv data/south.csv \
   --qsf data/north.qsf --qsf data/south.qsf \
   --output output/all/entities --format csv
 ```
@@ -49,7 +49,7 @@ See [parse exports](../guides/parse-exports.md), [your data](../understand/your-
 ## `report`
 
 ```bash
-uv run qualtrics report \
+uv run --extra cli --extra ui qualtrics report \
   --folder output/customer/entities \
   --output output/customer/report.html
 ```
@@ -74,7 +74,7 @@ Prefer `--folder` for a complete collection. Explicit paths can override files i
 For multiple surveys, repeat `--folder` or pass a batch root:
 
 ```bash
-uv run qualtrics report \
+uv run --extra cli --extra ui qualtrics report \
   --folder output/north/entities --folder output/south/entities \
   --output output/comparison.html
 ```
@@ -94,7 +94,7 @@ Discovery stops at the first matching layout. It does not search deeper. Repeate
 ## `entities combine`
 
 ```bash
-uv run qualtrics entities combine output/north output/south \
+uv run --extra cli --extra ui qualtrics entities combine output/north output/south \
   --output output/combined/entities --format json
 ```
 
@@ -111,7 +111,7 @@ Use this command for distinct surveys. It does not append successive exports fro
 ## `semantic-model build`
 
 ```bash
-uv run qualtrics semantic-model build output/combined/entities \
+uv run --extra cli --extra ui --extra parquet qualtrics semantic-model build output/combined/entities \
   --output output/combined/semantic --format parquet
 ```
 
@@ -126,7 +126,7 @@ The command validates the entity collection and writes `fact_responses`, `fact_r
 For SQLite, use `--format sqlite`; the command writes `semantic_model.sqlite` inside the output directory. It preserves IDs as text, represents booleans as `0`/`1`, and includes typed columns even for empty tables. The database becomes available only after all five tables have been written successfully. Existing output is never replaced.
 
 !!! note "Parquet requires an extra dependency"
-    `entities combine` and `semantic-model build` default to Parquet. Install the extra with `uv sync --extra parquet`, or select `--format json` or `--format csv`. The semantic-model command also supports `--format sqlite` without an extra dependency. See [installation](../getting-started/installation.md).
+    `entities combine` and `semantic-model build` default to Parquet. Install the extra with `uv sync --extra cli --extra ui --extra parquet`, or select `--format json` or `--format csv`. The semantic-model command also supports `--format sqlite` without an extra dependency. See [installation](../getting-started/installation.md).
 
 ## API commands
 
@@ -137,7 +137,7 @@ All three API commands accept `--data-center TEXT`, with `QUALTRICS_DATA_CENTER`
 ### `api surveys`
 
 ```bash
-uv run qualtrics api surveys
+uv run --extra cli qualtrics api surveys
 ```
 
 List all survey pages available to the token. Print one survey ID and name per line, separated by a tab. There are no positional arguments or extra options beyond credentials and `--help`.
@@ -145,8 +145,8 @@ List all survey pages available to the token. Print one survey ID and name per l
 ### `api export`
 
 ```bash
-uv run qualtrics api export SV_EXAMPLE --output data
-uv run qualtrics api export SV_FIRST SV_SECOND SV_THIRD --output data --batch-size 2
+uv run --extra cli qualtrics api export SV_EXAMPLE --output data
+uv run --extra cli qualtrics api export SV_FIRST SV_SECOND SV_THIRD --output data --batch-size 2
 ```
 
 | Argument or option | Required | Default | Meaning |
@@ -193,7 +193,7 @@ If one survey fails, completed outputs are retained and the others continue. The
 ### `api flow`
 
 ```bash
-uv run qualtrics api flow --survey-id SV_EXAMPLE --output data/customer-flow.json
+uv run --extra cli qualtrics api flow --survey-id SV_EXAMPLE --output data/customer-flow.json
 ```
 
 `--survey-id` and `--output`/`-o` are required. The command reads the configured flow, creates the output parent directory, and replaces an existing file only after downloading and writing the new JSON successfully. It prints the saved path. `--retries` defaults to `3`; use `0` to disable read retries. Credentials use the same environment variables or `--api-token` and `--data-center` options as the other API commands.
@@ -203,7 +203,7 @@ Pass the download to `build --flow` alongside the matching `--qsf` definition. T
 ### `api import`
 
 ```bash
-uv run qualtrics api import SV_EXAMPLE data/responses-to-import.csv
+uv run --extra cli qualtrics api import SV_EXAMPLE data/responses-to-import.csv
 ```
 
 | Argument | Required | Meaning |

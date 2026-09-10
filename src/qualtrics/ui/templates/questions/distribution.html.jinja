@@ -1,0 +1,11 @@
+{% for row in rows %}
+  <div class='distribution-row{% if row.choice %} option-row{% if not row.count %} option-zero{% endif %}{% endif %}'>
+    <span title='{{ row.label }}'>{{ row.label }}</span>
+    <div class='distribution-bar'><i style='width:{{ row.width }}'></i></div><b>{{ "{:,}".format(row.count) }}</b><small>{{ row.percentage }}</small>
+  </div>
+{% else %}
+  <p class='meta'>{{ empty_message }}</p>
+{% endfor %}
+{% if other_count %}
+  <p class='meta'>Other values: {{ "{:,}".format(other_count) }}</p>
+{% endif %}

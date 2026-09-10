@@ -1,0 +1,40 @@
+{% import 'components/macros.html.jinja' as ui %}
+<section id='overview' class='report-view'>
+  {{ ui.page_heading('Summary', survey_name) }}
+  <div class='stats'>
+    {{ ui.metric('stat-responses', responses, 'Responses') }}
+    <div class='stat'>
+      <strong id='overview-finished'>{{ '{:,}'.format(finished) }}</strong>
+      <span>Finished · <span id='overview-completion'>{{ '{:.0f}'.format(completion) }}%</span></span>
+    </div>
+    {{ ui.metric('overview-other', other, 'Not marked finished') }}
+  </div>
+  {{ dashboard }}
+  <details class='summary-details'>
+    <summary>Observed highlights</summary>
+    <div class='findings'>{% for finding in findings %}{{ finding }}{% endfor %}</div>
+    {{ ui.empty_state('findings-empty', 'No observed highlights for the selected surveys.', hidden=findings|length > 0) }}
+  </details>
+  <details id='summary-details' class='summary-details'>
+    <summary>Coverage and data quality</summary>
+    <div class='section-body'>
+      <p class='meta'>Counts describe recorded answers. Missing values do not establish whether a question was shown.</p>
+      <div class='analytics'>
+        {{ ui.metric('stat-questions', response_questions, 'Response questions', kind='analytic') }}
+        {{ ui.metric('stat-answers', content_answers, 'Respondent answers', kind='analytic') }}
+        {{ ui.metric('overview-unanswered', unanswered, 'Unanswered questions', kind='analytic') }}
+        {{ ui.metric('overview-unused-fields', unused_fields, 'Unused fields', kind='analytic') }}
+      </div>
+      {% for panel in quality_panels %}{% include 'components/quality_panel.html.jinja' %}{% endfor %}
+      <details id='question-coverage' class='panel report-section'>
+        <summary class='section-summary'>
+          <span><strong>Question coverage</strong><small>Compare response coverage across survey occurrences.</small></span>
+          <span id='coverage-count' class='section-count'>{{ coverage_groups|length }} canonical questions</span>
+        </summary>
+        <div class='section-body'>
+          {% for group in coverage_groups %}{% include 'components/coverage_group.html.jinja' %}{% endfor %}
+        </div>
+      </details>
+    </div>
+  </details>
+</section>

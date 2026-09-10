@@ -1,0 +1,10 @@
+{% if count %}
+<div class='numeric-summary'>{% for label, value in measures %}<span><b>{{ value }}</b> {{ label }}</span>{% endfor %}</div>
+<p class='meta'>{{ "{:,}".format(count) }} numeric values. Sample standard deviation (n − 1); requires at least two values.</p>
+{% else %}<p class='meta'>No numeric values observed.</p>{% endif %}
+{% if excluded %}<p class='meta'>{{ "{:,}".format(excluded) }} non-numeric or non-finite values excluded.</p>{% endif %}
+{% if count %}
+<div class='numeric-distribution'><h4>Value distribution</h4>
+{% with other_count=0, empty_message='No numeric values observed.' %}{% include 'questions/distribution.html.jinja' %}{% endwith %}
+<p class='meta'>Percentages use {{ "{:,}".format(count) }} numeric {{ 'value' if count == 1 else 'values' }}. Up to 12 distinct values appear individually; larger domains use up to eight equal-width intervals.</p></div>
+{% endif %}

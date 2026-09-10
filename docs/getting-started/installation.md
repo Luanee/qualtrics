@@ -69,17 +69,17 @@ Then run these commands on either operating system:
 ```text
 git clone https://github.com/Luanee/qualtrics.git
 cd qualtrics
-uv sync --extra parquet
+uv sync --extra cli --extra ui --extra parquet
 ```
 
-Git creates the `qualtrics` folder. uv installs the project and its dependencies into a `.venv` folder inside it. The `parquet` extra adds support for the table format used in the Power BI guide.
+Git creates the `qualtrics` folder. uv installs the project and its dependencies into a `.venv` folder inside it. The `cli` extra installs the command-line tools, `ui` enables HTML reports, and `parquet` adds support for the table format used in the Power BI guide.
 
-Keep this terminal in the `qualtrics` folder when following the guides. The `uv run` prefix runs a command using this project's installed environment; you do not need to activate `.venv` yourself.
+Keep this terminal in the `qualtrics` folder when following the guides. The `uv run --extra cli --extra ui` prefix selects the command-line and report dependencies when running a command; you do not need to activate `.venv` yourself.
 
 ## 4. Check the installation
 
 ```text
-uv run qualtrics --help
+uv run --extra cli --extra ui qualtrics --help
 ```
 
 You should see command help listing `build`, `report`, `api`, `entities`, and `semantic-model`. Continue to [your first report](first-report.md).
@@ -99,15 +99,36 @@ On Windows, success messages may display those paths with backslashes instead.
 
 Commands in the guides use single lines so you can paste them into PowerShell or a macOS/Linux terminal.
 
-## Optional: install only the CLI
+## Optional: install the published command-line tool
 
 If you want the published command-line tool without a repository copy, install it in an isolated environment:
 
 ```text
-uv tool install 'qualtrics[parquet]'
+uv tool install 'qualtrics[cli,ui,parquet]'
 qualtrics --help
 ```
 
 If uv reports that its tools directory is missing from your path, run `uv tool update-shell` and reopen your terminal. See [uv's tool guide](https://docs.astral.sh/uv/guides/tools/).
 
-With this installation, use `qualtrics` wherever the guides show `uv run qualtrics`. Download the sample files from the [first-report page](first-report.md); the tool installation does not include the repository's example files or scripts. The published release may differ from the repository version documented here, so check your installed command's `--help` if an option is missing.
+With this installation, use `qualtrics` wherever the guides show `uv run --extra cli --extra ui qualtrics`. Download the sample files from the [first-report page](first-report.md); the tool installation does not include the repository's example files or scripts. The published release may differ from the repository version documented here, so check your installed command's `--help` if an option is missing.
+
+
+## Choose dependencies for Python projects
+
+The SDK and data functions work with the base package:
+
+```bash
+python -m pip install qualtrics
+```
+
+Choose extras for the interfaces you use:
+
+| Installation | Includes |
+| --- | --- |
+| `qualtrics` | API SDK, parsing, analytics, JSON/CSV data functions. |
+| `qualtrics[cli]` | Typer/Rich command-line API and data commands. |
+| `qualtrics[ui]` | Jinja HTML reports from Python, without CLI dependencies. |
+| `qualtrics[cli,ui]` | Command-line tools including report generation. |
+| `qualtrics[cli,ui,parquet]` | Complete command-line/report workflow with Parquet. |
+
+For example, install Python report support with `python -m pip install 'qualtrics[ui]'` and import `render_report` from `qualtrics.ui`. The existing `from qualtrics import render_report` import remains supported. Parquet is independent of both interfaces; add it only when reading or writing Parquet tables.

@@ -4,7 +4,7 @@ Use the API to download response exports from your Qualtrics account. You can sk
 
 You need the [installed project](../getting-started/installation.md), an API token with access to the surveys, and your account's data-center identifier or custom API base URL. Ask your Qualtrics administrator for the values and access your account permits. Keep your token private.
 
-Run the examples from the `qualtrics` project folder. The example script in the last section requires the repository copy. For individual CLI commands, an isolated installation uses `qualtrics` in place of `uv run qualtrics`.
+Run the examples from the `qualtrics` project folder. The example script in the last section requires the repository copy. For individual CLI commands, an isolated installation uses `qualtrics` in place of `uv run --extra cli --extra ui qualtrics`.
 
 ## 1. Set your connection details
 
@@ -51,7 +51,7 @@ Environment variables override values in `.env`. Commands typed into a shell can
 This command contacts Qualtrics and lists the surveys available to your token:
 
 ```text
-uv run qualtrics api surveys
+uv run --extra cli qualtrics api surveys
 ```
 
 Each output line contains a survey ID and a survey name. For example:
@@ -67,7 +67,7 @@ If you see an authentication or access error, check the token, endpoint, and acc
 ## 3. Download a response export
 
 ```text
-uv run qualtrics api export SV_123 --output data/api-exports --labels
+uv run --extra cli qualtrics api export SV_123 --output data/api-exports --labels
 ```
 
 The command starts a CSV export, waits for Qualtrics to finish, downloads the compressed result, and prints its local path. With the default filename strategy, the expected file is:
@@ -81,7 +81,7 @@ data/api-exports/SV_123.zip
 If you already have the matching QSF, parse the ZIP without extracting it:
 
 ```text
-uv run qualtrics build data/api-exports/SV_123.zip --qsf data/my-survey/definition.qsf --output data/my-survey/entities --format csv
+uv run --extra cli --extra ui qualtrics build data/api-exports/SV_123.zip --qsf data/my-survey/definition.qsf --output data/my-survey/entities --format csv
 ```
 
 Replace the QSF path with your actual definition file. Use a new export folder when you want to retain earlier downloads; repeating an export to the same path replaces the local file.
@@ -91,7 +91,7 @@ Replace the QSF path with your actual definition file. Use a new export folder w
 List the survey IDs in the same command. The default runs one survey at a time. Increase `--batch-size` to set the maximum number of concurrent surveys:
 
 ```text
-uv run qualtrics api export SV_123 SV_456 SV_789 --output data/api-exports --batch-size 2
+uv run --extra cli qualtrics api export SV_123 SV_456 SV_789 --output data/api-exports --batch-size 2
 ```
 
 This starts at most two surveys at once. A new survey starts when a slot becomes available. You can use the same command for one or two surveys; the effective concurrency never exceeds the number of surveys supplied. The default ID naming writes `SV_123.zip`, `SV_456.zip`, and `SV_789.zip` in the output directory. Other naming strategies use a separate subdirectory for each survey so equal survey names or download filenames cannot overwrite each other.
@@ -111,7 +111,7 @@ Authentication and permission failures do not retry. A mutation such as starting
 For example, request January responses and two questions:
 
 ```text
-uv run qualtrics api export SV_123 --output data/january --start-date 2026-01-01 --end-date 2026-02-01 --question-id QID1 --question-id QID2 --limit 5000
+uv run --extra cli qualtrics api export SV_123 --output data/january --start-date 2026-01-01 --end-date 2026-02-01 --question-id QID1 --question-id QID2 --limit 5000
 ```
 
 Dates and timestamps without an offset are interpreted as UTC; timestamps with an offset are converted to UTC. Repeat `--embedded-data-id` or `--metadata-id` to select additional embedded-data or survey metadata columns. `--filter-id` applies a saved filter to one survey. Qualtrics determines which options and fields your survey and export format support.
@@ -143,13 +143,13 @@ The stages are `starting`, `exporting`, `downloading`, and `complete`. `percent_
 The repository includes `examples/export_parse_and_report.py`. With your connection configured, run:
 
 ```text
-uv run python examples/export_parse_and_report.py SV_123 --output data/api-export
+uv run --extra ui --extra parquet python examples/export_parse_and_report.py SV_123 --output data/api-export
 ```
 
 For several surveys, list their IDs:
 
 ```text
-uv run python examples/export_parse_and_report.py SV_123 SV_456 SV_789 --output data/api-export --batch-size 2
+uv run --extra ui --extra parquet python examples/export_parse_and_report.py SV_123 SV_456 SV_789 --output data/api-export --batch-size 2
 ```
 
 The script defaults to one survey at a time. It uses the same progress display and retry policy as `api export`; `--batch-size`, `--retries`, and `--no-progress` control them. Its overall completed count includes parsing and report generation. If a survey fails, the other surveys continue and the command exits with an error after printing the successful results.
@@ -169,7 +169,7 @@ data/api-export/SV_123/
 This script uses Parquet by default, so keep the `parquet` extra installed. Add `--format csv` or `--format json` for another entity format. Its `--labels` default, optional `--codes`, and `--start-date` / `--end-date` export filters appear in:
 
 ```text
-uv run python examples/export_parse_and_report.py --help
+uv run --extra ui --extra parquet python examples/export_parse_and_report.py --help
 ```
 
 Choose a fresh output root for a new snapshot if you want to keep the previous files. Open each `report.html`, or follow [read and share reports](reports.md) to generate one report across the batch.

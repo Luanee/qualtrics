@@ -2,14 +2,14 @@
 
 Export five analysis tables as Parquet files or one SQLite database, then connect them in Power BI. You can follow the export steps on any supported operating system; the import steps use Power BI Desktop.
 
-You need the [installed project](../getting-started/installation.md) and a complete entity folder. Install the Parquet extra if you choose Parquet output; SQLite output needs no extra Python dependency. The commands below use the folder from [your first report](../getting-started/first-report.md). Run them from the project folder; for an isolated CLI installation, replace `uv run qualtrics` with `qualtrics`.
+You need the [installed project](../getting-started/installation.md) and a complete entity folder. Install the Parquet extra if you choose Parquet output; SQLite output needs no extra Python dependency. The commands below use the folder from [your first report](../getting-started/first-report.md). Run them from the project folder; for an isolated CLI installation, replace `uv run --extra cli --extra ui qualtrics` with `qualtrics`.
 
 ## 1. Export the analysis tables
 
 ### Parquet files (default)
 
 ```text
-uv run qualtrics semantic-model build data/first-report/entities --output data/first-report/power-bi --format parquet
+uv run --extra cli --extra ui --extra parquet qualtrics semantic-model build data/first-report/entities --output data/first-report/power-bi --format parquet
 ```
 
 The command checks the input collection and creates these files:
@@ -30,7 +30,7 @@ You should see `Wrote 5 parquet semantic tables to data/first-report/power-bi`.
 To keep all five tables in one file, choose SQLite:
 
 ```text
-uv run qualtrics semantic-model build data/first-report/entities --output data/first-report/power-bi-sqlite --format sqlite
+uv run --extra cli --extra ui qualtrics semantic-model build data/first-report/entities --output data/first-report/power-bi-sqlite --format sqlite
 ```
 
 This creates `data/first-report/power-bi-sqlite/semantic_model.sqlite`. The `--output` value is a directory for both formats. The database contains the same tables, columns, and identifiers as the Parquet export, including the schema for tables with no rows. Numeric answers use `REAL`, booleans use `INTEGER` values `0` and `1`, and IDs and timestamps remain text. Missing values are SQL `NULL`.

@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const search = require('../../src/qualtrics/reporting/static/report-search.js');
+const search = require('../../src/qualtrics/ui/static/report-search.js');
 
 // Minimal DOM surface; execute the entire production controller, including its
 // registered change handlers, without copying its filtering/linking logic.
@@ -70,12 +70,12 @@ function fixture({paginated = false} = {}) {
       reveal(id) { flowReveals.push(id); assert.equal(flowView.hidden, false); return true; },
       records() { return [{node: flowCard, title: 'Sales route', content: 'Department is Sales', context: 'Survey A', scope: 'Flow'}]; }}};
   const location = {hash: '#by-responses'};
-  const manifest = fs.readFileSync(require.resolve('../../src/qualtrics/reporting/assets.py'), 'utf8')
+  const manifest = fs.readFileSync(require.resolve('../../src/qualtrics/ui/assets.py'), 'utf8')
     .split('SCRIPT_ASSETS = (')[1].split(')')[0];
   const files = [...manifest.matchAll(/"([^"]+\.js)"/g)].map(match => match[1])
     .filter(name => /^(components\/|pages\/|layouts\/|report\.js$)/.test(name));
   const context = vm.createContext({document, window, location});
-  for (const name of files) vm.runInContext(fs.readFileSync(require.resolve('../../src/qualtrics/reporting/static/' + name), 'utf8'), context);
+  for (const name of files) vm.runInContext(fs.readFileSync(require.resolve('../../src/qualtrics/ui/static/' + name), 'utf8'), context);
   return {surveyA, surveyB, a, b, field2, link, select, optionA, optionB, empty,
     cards, written, responsePagination, writtenPagination, window, location, document,
     overview, responseView, reportSearch, searchResults, searchClear, theme, other, dashboardSelections, dashboardResizes,

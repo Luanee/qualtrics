@@ -1,0 +1,2 @@
+{% if written and count %}<p class='meta'>{{ "{:,}".format(count) }} written responses · {{ "{:,}".format(unique_count) }} unique. Most frequent values:</p>{% endif %}
+{% include 'questions/distribution.html.jinja' %}

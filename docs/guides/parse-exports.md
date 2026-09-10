@@ -2,7 +2,7 @@
 
 Convert a Qualtrics response CSV or response-export ZIP into nine related tables. You can then generate a report, combine different surveys, or prepare a Power BI model.
 
-You need the [installed project](../getting-started/installation.md), a response export, and, if available, its matching survey definition (`.qsf`). Run the commands from the `qualtrics` project folder. If you installed only the CLI, replace `uv run qualtrics` with `qualtrics`.
+You need the [installed project](../getting-started/installation.md), a response export, and, if available, its matching survey definition (`.qsf`). Run the commands from the `qualtrics` project folder. If you installed only the CLI, replace `uv run --extra cli --extra ui qualtrics` with `qualtrics`.
 
 ## 1. Prepare the files
 
@@ -33,13 +33,13 @@ The report command reads all three formats. Use one format per entity folder.
 For the file layout above:
 
 ```text
-uv run qualtrics build data/my-survey/responses.csv --qsf data/my-survey/definition.qsf --output data/my-survey/entities --format csv
+uv run --extra cli --extra ui qualtrics build data/my-survey/responses.csv --qsf data/my-survey/definition.qsf --output data/my-survey/entities --format csv
 ```
 
 For a ZIP export, replace the input filename:
 
 ```text
-uv run qualtrics build data/my-survey/export.zip --qsf data/my-survey/definition.qsf --output data/my-survey/entities --format csv
+uv run --extra cli --extra ui qualtrics build data/my-survey/export.zip --qsf data/my-survey/definition.qsf --output data/my-survey/entities --format csv
 ```
 
 The ZIP must contain exactly one CSV response file. You do not need to extract it first.
@@ -47,7 +47,7 @@ The ZIP must contain exactly one CSV response file. You do not need to extract i
 To parse without a definition, omit `--qsf`:
 
 ```text
-uv run qualtrics build data/my-survey/responses.csv --output data/my-survey/entities-without-definition --format csv
+uv run --extra cli --extra ui qualtrics build data/my-survey/responses.csv --output data/my-survey/entities-without-definition --format csv
 ```
 
 The parser still looks for a definition with the same filename stem in the same folder. For example, it pairs `feedback.csv` or `feedback.zip` with `feedback.qsf`; it also recognizes a matching `.json` definition. An explicit `--qsf` path removes any uncertainty about the pairing.
@@ -59,7 +59,7 @@ Look for a success message naming the survey count, format, and destination. Ope
 Generate a report to check the response count, question labels, and defined choices:
 
 ```text
-uv run qualtrics report --folder data/my-survey/entities --output data/my-survey/report.html
+uv run --extra cli --extra ui qualtrics report --folder data/my-survey/entities --output data/my-survey/report.html
 ```
 
 Open `data/my-survey/report.html` in your browser. See [read and share reports](reports.md) for the controls and count definitions.
@@ -69,7 +69,7 @@ Open `data/my-survey/report.html` in your browser. See [read and share reports](
 For a small set of surveys, list each response file and each matching QSF in the same order:
 
 ```text
-uv run qualtrics build data/survey-a/responses.csv data/survey-b/responses.csv --qsf data/survey-a/definition.qsf --qsf data/survey-b/definition.qsf --output data/combined/entities --format csv
+uv run --extra cli --extra ui qualtrics build data/survey-a/responses.csv data/survey-b/responses.csv --qsf data/survey-a/definition.qsf --qsf data/survey-b/definition.qsf --output data/combined/entities --format csv
 ```
 
 Each survey must have a distinct survey identity. The parser rejects two inputs with the same survey ID. You cannot apply one QSF to several survey files.

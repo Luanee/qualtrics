@@ -1,0 +1,38 @@
+<details id='codebook' class='report-section'>
+  {{ heading }}
+  <div class='section-body'>
+    <p class='meta'>One row per exported question field. Choices come from the survey definition when available. Response metadata columns are not included.</p>
+    <div class='codebook-controls'>
+      {{ search }}<span id='codebook-count' aria-live='polite'></span>
+      <button id='codebook-download' type='button' data-header='{{ csv_header }}'>Download CSV</button>
+    </div>
+    <div class='codebook-scroll' tabindex='0' role='region' aria-label='Codebook table'>
+      <table class='codebook-table'>
+        <caption>Exported question fields</caption>
+        <thead>
+          <tr>
+            <th scope='col'>Survey</th>
+            <th scope='col'>Export column</th>
+            <th scope='col'>Question</th>
+            <th scope='col'>Field / part</th>
+            <th scope='col'>Type</th>
+            <th scope='col'>Codes and labels</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for row in rows %}{% set entry = row.entry %}
+          <tr class='codebook-row' data-survey='{{ entry.survey_id }}' data-search='{{ row.search }}' data-csv='{{ row.csv }}'>
+            <td>{{ entry.survey }}</td>
+            <td><code>{{ entry.export_column }}</code><small>ImportId: {{ entry.import_id or 'Unavailable' }}</small></td>
+            <td><strong>{{ entry.question or entry.question_id }}</strong><small>{{ entry.question_id }}{% if entry.section %} · {{ entry.section }}{% endif %}</small></td>
+            <td>{{ entry.field }}</td>
+            <td>{{ entry.question_type|replace('_', ' ') }}<small>{{ entry.value_type }}</small></td>
+            <td class='codebook-choices'>{{ entry.choices or '—' }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p id='codebook-empty' class='meta'{% if rows %} hidden{% endif %}>{{ empty_message }}</p>
+  </div>
+</details>
