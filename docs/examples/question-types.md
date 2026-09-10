@@ -49,7 +49,7 @@ The table is generated from the same case manifest as the downloadable fixture. 
 From a repository checkout, run:
 
 ```bash
-uv run python -m scripts.question_type_showcase --output data/question-type-showcase
+uv run --extra ui python -m scripts.question_type_showcase --output data/question-type-showcase
 ```
 
 Open `data/question-type-showcase/report.html`. The folder also contains `survey.qsf`, `responses.csv`, and `coverage.json`. The generator uses fixed fictional data and the production parser and report renderer; running it again with the same code produces the same example.

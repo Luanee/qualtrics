@@ -7,10 +7,10 @@ Explore the [question-type showcase](docs/examples/question-types.md) for an int
 Preview the Material for MkDocs site from this repository:
 
 ```bash
-uv run --group docs mkdocs serve
+uv run --group docs --extra ui mkdocs serve
 ```
 
-Open `http://127.0.0.1:8000` in your browser. Build the site with `uv run --group docs mkdocs build --strict`. See [documentation setup and plugin choices](docs/contributing/documentation.md) and [publishing to GitHub Pages](docs/contributing/documentation.md#publish-the-site) for details, and the [entity model](docs/entity-model.md) and [DBML contract](docs/entity-model.dbml) for analytical relationships.
+Open `http://127.0.0.1:8000` in your browser. Build the site with `uv run --group docs --extra ui mkdocs build --strict`. See [documentation setup and plugin choices](docs/contributing/documentation.md) and [publishing to GitHub Pages](docs/contributing/documentation.md#publish-the-site) for details, and the [entity model](docs/entity-model.md) and [DBML contract](docs/entity-model.dbml) for analytical relationships.
 
 [![Python](https://img.shields.io/pypi/pyversions/qualtrics?logo=python&logoColor=white)](https://pypi.org/project/qualtrics/)
 [![Ruff](https://img.shields.io/badge/code%20style-Ruff-D7FF64?logo=ruff&logoColor=261230)](https://docs.astral.sh/ruff/)
@@ -34,7 +34,15 @@ offline survey data. It can:
 uv add qualtrics
 ```
 
-Install Parquet support when needed:
+The base installation provides the SDK, parsing, analytics, and JSON/CSV serialization.
+Install the command-line tools and HTML reports together:
+
+```bash
+uv add "qualtrics[cli,ui]"
+```
+
+Use `qualtrics[cli]` for API/data commands without reports, or `qualtrics[ui]`
+for reports from Python without Typer/Rich. Add Parquet support when needed:
 
 ```bash
 uv add "qualtrics[parquet]"
@@ -43,7 +51,7 @@ uv add "qualtrics[parquet]"
 For development from this repository:
 
 ```bash
-uv sync --all-groups --extra parquet
+uv sync --all-groups --all-extras
 ```
 
 ## Configure the API
@@ -63,11 +71,11 @@ precedence over environment settings.
 
 The complete example accepts a survey ID, downloads its definition and
 responses, extracts the original CSV, creates Parquet entities, and renders an
-HTML report:
+HTML report. It needs the `ui` and `parquet` extras:
 
 ```bash
-uv run python examples/export_parse_and_report.py SV_123
-uv run python examples/export_parse_and_report.py SV_123 SV_456
+uv run --extra ui --extra parquet python examples/export_parse_and_report.py SV_123
+uv run --extra ui --extra parquet python examples/export_parse_and_report.py SV_123 SV_456
 ```
 
 It creates:
@@ -99,7 +107,7 @@ Parquet is the default. Select another entity format with `--format json` or
 Parse a CSV and matching survey definition:
 
 ```bash
-uv run qualtrics build responses.csv \
+uv run --extra cli --extra ui --extra parquet qualtrics build responses.csv \
   --qsf definition.qsf \
   --output entities \
   --format parquet
@@ -108,7 +116,7 @@ uv run qualtrics build responses.csv \
 Response-export ZIP files can be parsed directly:
 
 ```bash
-uv run qualtrics build export.zip \
+uv run --extra cli --extra ui --extra parquet qualtrics build export.zip \
   --qsf definition.qsf \
   --output entities \
   --format parquet
@@ -198,12 +206,12 @@ with QualtricsClient() as client:
 Common CLI commands:
 
 ```bash
-uv run qualtrics api surveys
-uv run qualtrics api export SV_123 --output exports --labels
-uv run qualtrics api import SV_123 responses.csv
-uv run qualtrics entities combine exports/run-1 exports/run-2 --output combined
-uv run qualtrics report --folder entities --output report.html
-uv run qualtrics report --folder data --output combined-report.html
+uv run --extra cli qualtrics api surveys
+uv run --extra cli qualtrics api export SV_123 --output exports --labels
+uv run --extra cli qualtrics api import SV_123 responses.csv
+uv run --extra cli --extra ui --extra parquet qualtrics entities combine exports/run-1 exports/run-2 --output combined
+uv run --extra cli --extra ui --extra parquet qualtrics report --folder entities --output report.html
+uv run --extra cli --extra ui --extra parquet qualtrics report --folder data --output combined-report.html
 ```
 
 `entities combine` accepts entity directories, survey directories containing an
@@ -230,10 +238,10 @@ with QualtricsClient() as client:
 ## Development
 
 ```bash
-uv sync --all-groups --extra parquet
+uv sync --all-groups --all-extras
 uv run pre-commit install --hook-type pre-commit --hook-type pre-push
-uv run poe check
-uv run poe build
+uv run --all-extras poe check
+uv run --all-extras poe build
 ```
 
 CI tests Python 3.11–3.14. Ruff checks formatting and linting, `ty` checks

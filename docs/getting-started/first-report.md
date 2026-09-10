@@ -22,7 +22,7 @@ The survey asks one satisfaction question and one free-text question. The three 
 Run this command as one line:
 
 ```text
-uv run qualtrics build docs/assets/examples/feedback.csv --qsf docs/assets/examples/feedback.qsf --output data/first-report/entities --format csv
+uv run --extra cli --extra ui qualtrics build docs/assets/examples/feedback.csv --qsf docs/assets/examples/feedback.qsf --output data/first-report/entities --format csv
 ```
 
 The `build` command reads the responses and the definition. It creates the output folders for you. `--format csv` makes the resulting tables easy to inspect; the command's default is JSON if you omit that option.
@@ -53,7 +53,7 @@ You can leave these files together and proceed to the report. [Understand your d
 ## 3. Generate the report
 
 ```text
-uv run qualtrics report --folder data/first-report/entities --output data/first-report/report.html
+uv run --extra cli --extra ui qualtrics report --folder data/first-report/entities --output data/first-report/report.html
 ```
 
 You should see:

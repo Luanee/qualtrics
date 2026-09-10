@@ -7,9 +7,9 @@ Start with the command's error message and the matching case below. If you are n
 From the repository, run:
 
 ```bash
-uv sync
-uv run qualtrics --help
-uv run qualtrics report --help
+uv sync --extra cli --extra ui
+uv run --extra cli --extra ui qualtrics --help
+uv run --extra cli --extra ui qualtrics report --help
 ```
 
 With a package installation, activate the environment containing `qualtrics` and run `qualtrics --help`. See [installation](../getting-started/installation.md).
@@ -36,7 +36,7 @@ Try a fresh export before editing the file by hand. See [parse exports](../guide
 `api export` requests compressed CSV by default. Pass the resulting ZIP directly:
 
 ```bash
-uv run qualtrics build data/SV_EXAMPLE.zip \
+uv run --extra cli --extra ui qualtrics build data/SV_EXAMPLE.zip \
   --qsf data/SV_EXAMPLE.qsf \
   --output output/example/entities
 ```
@@ -50,7 +50,7 @@ Use a `.zip` filename for compressed output. Passing `--output data/export.csv` 
 A CSV can contain response values without the definition needed to interpret their question types and available choices. Supply the matching QSF or API definition JSON:
 
 ```bash
-uv run qualtrics build data/customer.csv \
+uv run --extra cli --extra ui qualtrics build data/customer.csv \
   --qsf data/customer.qsf \
   --output output/customer-rebuilt/entities
 ```
@@ -71,12 +71,22 @@ For exported multi-select fields that each represent a single defined choice, a 
 
 The parser does not invent choices from observed response values. `answer_options` describes choices from the definition for supported exported fields, including choices with no responses. See [your data](../understand/your-data.md) and the [entity model](../entity-model.md).
 
+## A command requests the CLI or UI extra
+
+The base Python package includes the SDK and data functions. The command-line interface and report rendering are separate extras. For command-line reports in a package environment, install both:
+
+```bash
+python -m pip install 'qualtrics[cli,ui]'
+```
+
+From the repository, run `uv sync --extra cli --extra ui`. API and data commands need only `cli`; reports called directly from Python need only `ui`. A CLI-only installation can still show `qualtrics report --help`, but generating HTML requires `ui`.
+
 ## Parquet fails with `Install qualtrics[parquet]`
 
 Install the optional dependency in the environment that runs the command:
 
 ```bash
-uv sync --extra parquet
+uv sync --extra cli --extra ui --extra parquet
 ```
 
 For an existing package environment:
@@ -94,7 +104,7 @@ Or select `--format json` or `--format csv` when writing. Reading existing Parqu
 `entities combine` and `semantic-model build` refuse to overwrite recognized output tables, even when the existing files use another format. Choose a new destination:
 
 ```bash
-uv run qualtrics semantic-model build output/customer/entities \
+uv run --extra cli --extra ui qualtrics semantic-model build output/customer/entities \
   --output output/customer/semantic-v2 --format csv
 ```
 
@@ -111,7 +121,7 @@ For a report error mentioning a missing output path, create the parent directory
 `semantic-model build` requires the entity folder itself:
 
 ```bash
-uv run qualtrics semantic-model build output/customer/entities \
+uv run --extra cli --extra ui qualtrics semantic-model build output/customer/entities \
   --output output/customer/semantic --format json
 ```
 
@@ -130,10 +140,10 @@ Keep exactly one file per entity name: for example, `surveys.json` or `surveys.c
 Rebuild from the original response exports and their matching definitions using the installed version:
 
 ```bash
-uv run qualtrics build data/customer.csv \
+uv run --extra cli --extra ui qualtrics build data/customer.csv \
   --qsf data/customer.qsf \
   --output output/customer-current/entities
-uv run qualtrics semantic-model build output/customer-current/entities \
+uv run --extra cli --extra ui qualtrics semantic-model build output/customer-current/entities \
   --output output/customer-current/semantic --format csv
 ```
 

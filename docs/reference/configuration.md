@@ -19,7 +19,7 @@ For a POSIX shell such as Bash or Zsh:
 ```bash
 export QUALTRICS_API_TOKEN='your-token'
 export QUALTRICS_DATA_CENTER='your-data-center'
-uv run qualtrics api surveys
+uv run --extra cli qualtrics api surveys
 ```
 
 For PowerShell:
@@ -27,7 +27,7 @@ For PowerShell:
 ```powershell
 $env:QUALTRICS_API_TOKEN = 'your-token'
 $env:QUALTRICS_DATA_CENTER = 'your-data-center'
-uv run qualtrics api surveys
+uv run --extra cli qualtrics api surveys
 ```
 
 Use your own values. Treat tokens as secrets and keep them out of source control and shared examples.

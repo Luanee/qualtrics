@@ -7,8 +7,8 @@ The site uses [MkDocs](https://www.mkdocs.org/) with the requested [Material for
 From the repository root, run:
 
 ```bash
-uv sync --locked --group docs
-uv run --locked --group docs mkdocs serve
+uv sync --locked --group docs --extra cli --extra ui
+uv run --locked --group docs --extra ui mkdocs serve
 ```
 
 Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser. MkDocs rebuilds the preview when you save a page. Press **Ctrl+C** in the terminal to stop the server.
@@ -16,7 +16,7 @@ Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser. MkDocs rebu
 To check the site without starting a server:
 
 ```bash
-uv run --locked --group docs mkdocs build --strict
+uv run --locked --group docs --extra ui mkdocs build --strict
 ```
 
 The command writes the site to `site/`, which Git ignores. CI runs this strict build for pull requests and changes to `main`. Missing pages, broken internal links, missing anchors, and pages omitted from navigation cause a build failure. The equivalent task shortcuts are `uv run poe docs-serve` and `uv run poe docs-build`.
@@ -25,7 +25,7 @@ The command writes the site to `site/`, which Git ignores. CI runs this strict b
 
 Start with the reader's task, the files they need, and the command they should run. Explain what they should see afterwards. Define a new term the first time you use it, or link to the [glossary](../understand/glossary.md).
 
-- Verify commands against the current CLI before publishing them. `uv run qualtrics COMMAND --help` shows the actual flags and defaults.
+- Verify commands against the current CLI before publishing them. `uv run --extra cli --extra ui qualtrics COMMAND --help` shows the actual flags and defaults.
 - Use the synthetic survey in `docs/assets/examples/` for tutorials. Keep real survey responses and credentials out of documentation assets.
 - Add new pages to `nav` in `mkdocs.yml` and use relative Markdown links.
 - Give images descriptive alternative text and explain a diagram's meaning in prose.
@@ -44,24 +44,30 @@ Build or preview with the usual `--group docs` commands above. The hook needs bo
 For an independent copy, run:
 
 ```bash
-uv run python -m scripts.question_type_showcase --output data/question-type-showcase
+uv run --extra ui python -m scripts.question_type_showcase --output data/question-type-showcase
 ```
 
 Check the generated report and downloads at desktop and phone widths. Verify that its summary charts, question search, written answers, and codebook work, and keep all data fictional. The documentation tests build the site from outside the repository and check the embedded report and download paths with both directory URLs and `.html` URLs.
 
-The [flow example](../examples/survey-flow.md) has a separate generator, `scripts/survey_flow_showcase.py`, and hook, `scripts/docs_flow_showcase.py`. It produces a QSF, standalone flow JSON, 24 fictional responses, and an embedded report under `assets/examples/survey-flow/`. Rebuild locally with `uv run python -m scripts.survey_flow_showcase --output data/survey-flow-showcase`. Keep fake responses consistent with the defined branches, and verify the early ending, randomizer, Back/Reset controls, unknown-rule assumptions, and cross-view question links after changing flow behavior.
+The [flow example](../examples/survey-flow.md) has a separate generator, `scripts/survey_flow_showcase.py`, and hook, `scripts/docs_flow_showcase.py`. It produces a QSF, standalone flow JSON, 24 fictional responses, and an embedded report under `assets/examples/survey-flow/`. Rebuild locally with `uv run --extra ui python -m scripts.survey_flow_showcase --output data/survey-flow-showcase`. Keep fake responses consistent with the defined branches, and verify the early ending, randomizer, Back/Reset controls, unknown-rule assumptions, and cross-view question links after changing flow behavior.
 
 ## Maintain the report components
 
-The generated report has six views inside one offline HTML document. The renderer lives in `src/qualtrics/reporting/`:
+The generated report has six views inside one offline HTML document. The canonical renderer lives in `src/qualtrics/ui/`; `src/qualtrics/reporting/` contains compatibility delegates. The API SDK lives in `qualtrics.api`, the optional command-line adapters in `qualtrics.cli`, and the shared analytics/models/parsers/serialization packages remain usable without either interface extra.
+
+Install contributor dependencies with `uv sync --all-groups --all-extras`. Documentation hooks generate both showcase reports, so even a docs-only environment needs the `ui` extra.
+
+The UI modules have these boundaries:
 
 | Module | Responsibility |
 | --- | --- |
 | `report.py` | Public entry point: build the context, render pages, and write the document. |
 | `context.py` | Analyze the entity set once and prepare shared lookups for page renderers. |
-| `layouts/document.py` | Assemble the document, global search, survey scope, navigation, and bundled assets. |
-| `components/` | Reusable headings, search controls, metrics, empty states, navigation, and field labels. |
+| `layouts/document.py` | Prepare document context for the shared Jinja layout. |
+| `components/` | Prepare reusable controls, navigation, and field labels for template macros. |
 | `pages/` | Render Summary, Flow, Questions, Written answers, Responses, and Codebook from the shared context. |
+| `templating.py` | Cached Jinja environment with packaged templates, strict undefined values, and explicit autoescaping. |
+| `templates/` | HTML layouts, page templates, includes, and reusable macros. |
 | `assets.py` | Ordered stylesheet and script manifest. Dependencies must precede consumers. |
 | `static/components/` | Shared browser controls, pagination, and common styles. |
 | `static/pages/` | Page filtering, search, presentation, and page-specific styles. |
@@ -71,9 +77,9 @@ The generated report has six views inside one offline HTML document. The rendere
 
 Survey Flow separates configured structure (`flow-graph.js`), canvas interaction (`flow-canvas.js`), scenario evaluation (`flow-engine.js`), and the walkthrough controller (`flow.js`). Keep graph edges faithful to branch continuation and terminal endings. A randomizer's alternatives must not imply that every child runs in a fixed sequence. Use occurrence IDs, since a block or question can appear more than once.
 
-Add new assets to the manifest; the renderer embeds their contents rather than linking to a server or CDN. Use escaped Python markup and DOM `textContent` for survey data. Preserve stable anchors when moving components: search, chart links, walkthroughs, and browser history depend on them.
+Add new assets to the manifest; the renderer embeds their contents rather than linking to a server or CDN. Keep HTML in `.html.jinja` templates and prepare explicit view models in Python. The shared environment uses `PackageLoader`, `StrictUndefined`, and `autoescape=True`, including the `.jinja` suffix. Only already-rendered internal markup and bundled assets cross the narrow trusted-HTML boundary; survey text must remain escaped. Use DOM `textContent` for survey data and script-safe serialization for inline JSON. Preserve stable anchors when moving components: search, chart links, walkthroughs, and browser history depend on them.
 
-Run `node --test tests/js/*.test.cjs` for browser logic and `uv run pytest` for Python behavior. The generated showcase integration tests also check the embedded reports with both MkDocs URL modes. Before shipping a UI change, inspect desktop and phone widths, both themes, all six pages, empty survey selections, deep links, the canvas controls, and print output.
+Run `node --test tests/js/*.test.cjs` for browser logic and `uv run --all-extras pytest` for Python behavior. The generated showcase integration tests also check the embedded reports with both MkDocs URL modes. Validate built-wheel imports and operations with base, CLI-only, UI-only, and combined installations; optional dependencies must be absent in the corresponding environments. Before shipping a UI change, inspect desktop and phone widths, both themes, all six pages, empty survey selections, deep links, the canvas controls, and print output.
 
 ## Theme and plugin decisions
 
@@ -122,8 +128,8 @@ For a deliberate update, run:
 
 ```bash
 uv lock --upgrade-package mkdocs --upgrade-package mkdocs-material --upgrade-package mkdocs-glightbox --upgrade-package pymdown-extensions
-uv sync --locked --group docs
-uv run --locked --group docs mkdocs build --strict
+uv sync --locked --group docs --extra cli --extra ui
+uv run --locked --group docs --extra ui mkdocs build --strict
 ```
 
 Then inspect search, navigation, code copying, the enlarged figure, and the Mermaid diagram at desktop and phone widths. Check the [first-report tutorial](../getting-started/first-report.md) against the current parser and CLI. Update the maintenance notes above when you review the upstream projects again.

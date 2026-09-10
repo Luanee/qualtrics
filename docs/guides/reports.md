@@ -4,12 +4,12 @@ Create one HTML file from a folder of parsed tables. You can open it in a browse
 
 Try the [interactive report example](../examples/question-types.md) with fictional responses across every question family recognized by the toolkit. It includes the survey definition, response CSV, and a table explaining each case's presentation and limits.
 
-You need a parsed entity folder from [your first report](../getting-started/first-report.md) or [your own export](parse-exports.md). Run the examples from the project folder; for an isolated CLI installation, replace `uv run qualtrics` with `qualtrics`.
+Install `qualtrics[cli,ui]` for the report command (`uv sync --extra cli --extra ui` in the repository). You need a parsed entity folder from [your first report](../getting-started/first-report.md) or [your own export](parse-exports.md). Run the examples from the project folder; for an isolated CLI installation, replace `uv run --extra cli --extra ui qualtrics` with `qualtrics`.
 
 ## Generate the HTML file
 
 ```text
-uv run qualtrics report --folder data/first-report/entities --output data/first-report/report.html
+uv run --extra cli --extra ui qualtrics report --folder data/first-report/entities --output data/first-report/report.html
 ```
 
 Replace the two paths with your entity folder and desired report location. The output's parent folder must already exist. If an HTML file already exists at that path, the command replaces it.
@@ -137,13 +137,13 @@ The survey selector updates the summary totals. Local search and the question se
 Pass one `--folder` option per input:
 
 ```text
-uv run qualtrics report --folder data/survey-a/entities --folder data/survey-b/entities --output data/combined-report.html
+uv run --extra cli --extra ui qualtrics report --folder data/survey-a/entities --folder data/survey-b/entities --output data/combined-report.html
 ```
 
 For the batch layout made by the [API example](api-access.md), you can pass its shared root:
 
 ```text
-uv run qualtrics report --folder data/api-export --output data/api-export/report.html
+uv run --extra cli --extra ui --extra parquet qualtrics report --folder data/api-export --output data/api-export/report.html
 ```
 
 The command discovers immediate `<survey-id>/entities/` folders. It also accepts a survey folder containing `entities/`. Inputs must represent different surveys; overlapping survey IDs cause an error. See [combine surveys](combine-surveys.md) if you also want a combined table collection.

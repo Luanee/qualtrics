@@ -20,6 +20,8 @@ from qualtrics import (
 )
 ```
 
+The canonical report interface is `from qualtrics.ui import render_report`; install `qualtrics[ui]` before generating a report. The root import above and existing `qualtrics.reporting` imports remain compatible. Base SDK/data imports do not load Jinja, Typer, or Rich; UI rendering does not require CLI dependencies.
+
 For semantic tables, use the defining modules:
 
 ```python
