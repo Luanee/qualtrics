@@ -1,0 +1,21 @@
+.pagination, .page-controls, #search-pagination, #written-pagination,
+#response-pagination, #codebook-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.pagination > span, .page-controls > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pagination [aria-current="page"], .page-controls [aria-current="page"] {
+  border-color: var(--brand);
+  background: var(--selected);
+  color: var(--ink);
+}

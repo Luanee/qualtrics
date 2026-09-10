@@ -53,23 +53,46 @@ function fixture({paginated = false} = {}) {
     '#search-results': [searchResults], '#search-result-list': [node()], '#search-pagination': [node()],
     '#search-clear': [searchClear], '#theme-choice': [theme], '#overview-other': [other]};
   const document = node({}, selectors);
-  document.getElementById = id => [overview, responseView, flowView, flowCard, ...cards].find(item => item.id === id) || null;
+  document.addEventListener = (event, callback) => {
+    const previous = document.handlers[event];
+    document.handlers[event] = previous ? value => { previous(value); callback(value); } : callback;
+  };
+  const content = node(); content.id = 'report-content'; content.focus = () => { content.focused = true; };
+  document.getElementById = id => [content, overview, responseView, flowView, flowCard, ...cards].find(item => item.id === id) || null;
   document.createElement = () => node(); document.documentElement = node();
   const dashboardSelections = [];
   const dashboardResizes = [];
-  const flowSelections = [], flowReveals = [];
+  const flowSelections = [], flowReveals = [], flowResizes = [];
   const window = {ReportSearch: search, handlers: {}, addEventListener(event, callback) { this.handlers[event] = callback; },
     ReportDashboard: {update(selected) { dashboardSelections.push([...selected]); }, resize() { dashboardResizes.push(true); }},
-    ReportFlow: {update(selected) { flowSelections.push([...selected]); }, reveal(id) { flowReveals.push(id); },
+    ReportFlow: {update(selected) { flowSelections.push([...selected]); },
+      resize() { flowResizes.push(flowView.hidden); },
+      reveal(id) { flowReveals.push(id); assert.equal(flowView.hidden, false); return true; },
       records() { return [{node: flowCard, title: 'Sales route', content: 'Department is Sales', context: 'Survey A', scope: 'Flow'}]; }}};
   const location = {hash: '#by-responses'};
-  vm.runInNewContext(fs.readFileSync(require.resolve('../../src/qualtrics/reporting/static/report.js'), 'utf8'),
-    {document, window, location});
+  const manifest = fs.readFileSync(require.resolve('../../src/qualtrics/reporting/assets.py'), 'utf8')
+    .split('SCRIPT_ASSETS = (')[1].split(')')[0];
+  const files = [...manifest.matchAll(/"([^"]+\.js)"/g)].map(match => match[1])
+    .filter(name => /^(components\/|pages\/|layouts\/|report\.js$)/.test(name));
+  const context = vm.createContext({document, window, location});
+  for (const name of files) vm.runInContext(fs.readFileSync(require.resolve('../../src/qualtrics/reporting/static/' + name), 'utf8'), context);
   return {surveyA, surveyB, a, b, field2, link, select, optionA, optionB, empty,
     cards, written, responsePagination, writtenPagination, window, location, document,
     overview, responseView, reportSearch, searchResults, searchClear, theme, other, dashboardSelections, dashboardResizes,
-    flowView, flowCard, flowSelections, flowReveals};
+    flowView, flowCard, flowSelections, flowReveals, flowResizes, content};
 }
+
+test('skip to content focuses the main landmark without changing the current page', () => {
+  const f = fixture();
+  let prevented = false;
+  const link = {getAttribute: () => '#report-content'};
+  f.document.handlers.click({target: {closest: selector => selector === 'a[href^="#"]' ? link : null},
+    preventDefault() { prevented = true; }});
+  assert.equal(prevented, true);
+  assert.equal(f.content.focused, true);
+  assert.equal(f.location.hash, '#by-responses');
+  assert.equal(f.responseView.hidden, false);
+});
 
 test('flow participates in shared survey selection, global search and exact-link navigation', () => {
   const f = fixture();
@@ -80,6 +103,7 @@ test('flow participates in shared survey selection, global search and exact-link
   assert.equal(f.surveyA.checked, true);
   assert.equal(f.flowView.hidden, false);
   assert.equal(f.flowReveals.at(-1), 'flow-sales');
+  assert.equal(f.flowResizes.at(-1), false);
   f.reportSearch.value = 'Sales route'; f.reportSearch.handlers.input();
   assert.equal(f.document.querySelector('#search-result-list').children.length, 1);
   f.surveyA.checked = false; f.surveyA.handlers.change();

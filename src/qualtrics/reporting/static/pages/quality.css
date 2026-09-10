@@ -1,0 +1,69 @@
+.quality-head i {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.quality-title {
+  flex: 1;
+}
+
+.quality-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.quality-summary b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.quality-groups {
+  display: grid;
+  gap: 12px;
+}
+
+.quality-group h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.quality-group ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+
+.quality-question + .quality-question {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.quality-question strong, .quality-question small {
+  display: block;
+}
+
+.quality-question strong {
+  font-weight: 500;
+}
+
+.quality-question small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.healthy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.healthy span {
+  color: var(--muted);
+}

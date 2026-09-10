@@ -1,0 +1,71 @@
+.distribution-row {
+  display: grid;
+  grid-template-columns: minmax(92px, 28%) minmax(32px, 1fr) 44px 48px;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.distribution-row > span {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.distribution-row b, .distribution-row small {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.distribution-row b {
+  font-weight: 500;
+}
+
+.distribution-row small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.distribution-bar {
+  height: 16px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--track);
+}
+
+.distribution-bar i {
+  display: block;
+  height: 100%;
+  background: var(--brand);
+}
+
+.option-zero {
+  color: var(--muted);
+}
+
+.numeric-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.numeric-summary span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.numeric-summary b {
+  margin-right: 4px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.numeric-distribution {
+  margin-top: 18px;
+}
