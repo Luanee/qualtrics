@@ -11,6 +11,7 @@ from ..models.entities import EntitySet
 from .assets import load_asset
 from .codebook import render_codebook
 from .dashboard_view import render_dashboard
+from .flow import render_flow
 from .insights import field_value_type, question_highlight
 from .question_presentation import render_question_analysis
 
@@ -179,6 +180,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         )
 
     analytics_by_catalog: dict[str, dict[str, Any]] = {}
+    flow_question_targets: dict[tuple[str, str], str] = {}
     findings = []
     for occurrence_index, (key, question) in enumerate(response_questions.items(), 1):
         question_id = str(question["question_id"])
@@ -203,6 +205,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         )
         block_label = str(question.get("block_name") or "")
         survey_id = str(key[0])
+        flow_question_targets[(survey_id, question_external_id)] = f"question-detail-{occurrence_index}"
         survey_label = str(survey_lookup.get(survey_id, {}).get("survey_name") or survey_id)
         catalog_id = str(question.get("question_catalog_id") or f"{survey_id}::{question_id}")
         catalog_label = str(question_catalog_lookup.get(catalog_id, {}).get("question_text") or label)
@@ -284,10 +287,10 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>",
         "<meta name='viewport' content='width=device-width,initial-scale=1'>",
         f"<title>{html.escape(survey_name)} · Response report</title>",
-        f"<style>{load_asset('report.css')}\n{load_asset('codebook.css')}\n{load_asset('question-charts.css')}\n{load_asset('dashboard.css')}</style></head><body>",
+        f"<style>{load_asset('report.css')}\n{load_asset('codebook.css')}\n{load_asset('question-charts.css')}\n{load_asset('dashboard.css')}\n{load_asset('flow.css')}</style></head><body>",
         f"<header class='report-header'><div class='header-inner'><div class='report-title'><small>Response report</small><h1>{html.escape(survey_name)}</h1></div>"
         "<div class='global-search'><label for='report-search'>Search this report</label>"
-        "<input id='report-search' type='search' placeholder='Questions, answers, field names…'>"
+        "<input id='report-search' type='search' placeholder='Questions, answers, flow, field names…'>"
         "<button id='search-clear' type='button' hidden>Clear</button>"
         "<label for='theme-choice'>Theme</label><select id='theme-choice'>"
         "<option value='system'>System</option><option value='light'>Light</option><option value='dark'>Dark</option>"
@@ -299,6 +302,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         "<button id='survey-select-all' type='button'>Select all</button>"
         f"<button id='survey-clear' type='button'>Clear</button></div>{survey_options}</div></div></div>"
         "<nav class='report-nav' aria-label='Report views'><a data-view='overview' href='#overview' aria-current='page'>Summary</a>"
+        "<a data-view='survey-flow' href='#survey-flow'>Flow</a>"
         "<a data-view='question-analytics' href='#question-analytics'>Questions</a>"
         "<a data-view='written-answers' href='#written-answers'>Written answers</a>"
         "<a data-view='by-responses' href='#by-responses'>Responses</a>"
@@ -344,6 +348,7 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         f"<p id='written-empty'{' hidden' if written_answers else ''}>No written answers in the selected surveys.</p>"
         "<div id='written-pagination' class='pagination'></div></section>"
         f"{render_codebook(entities)}"
+        f"{render_flow(entities, flow_question_targets)}"
         "<section id='by-responses' class='report-view'><h2>Responses</h2>"
         "<p class='section-intro'>Review individual answers and filter to the questions you need.</p>",
         "<div class='toolbar'><label for='search'>Search responses</label><input id='search' type='search' "
@@ -458,6 +463,10 @@ def render_report(entities: EntitySet, output: str | Path) -> None:
         + load_asset("codebook.js")
         + "\n"
         + load_asset("dashboard.js")
+        + "\n"
+        + load_asset("flow-engine.js")
+        + "\n"
+        + load_asset("flow.js")
         + "\n"
         + load_asset("report.js")
         + "</script></body></html>"

@@ -42,6 +42,10 @@ function fixture({paginated = false} = {}) {
   cards.forEach((item, index) => { item.tagName = 'DETAILS'; item.open = index % 2 === 0; });
   const responseView = node({}, {details: cards}); responseView.id = 'by-responses';
   const overview = node(); overview.id = 'overview';
+  const flowView = node(); flowView.id = 'survey-flow';
+  const flowCard = node({survey: 'a'}); flowCard.id = 'flow-sales';
+  flowCard.closest = selector => selector === '[data-survey]' ? flowCard : null;
+  flowView.contains = item => item === flowCard;
   const reportSearch = node(), searchResults = node(), searchClear = node(), theme = node(), other = node();
   const selectors = {'.survey-choice': [surveyA, surveyB], '.respondent': cards, '.written-answer': written,
     details: cards, '#response-pagination': [responsePagination], '#written-pagination': [writtenPagination],
@@ -49,19 +53,38 @@ function fixture({paginated = false} = {}) {
     '#search-results': [searchResults], '#search-result-list': [node()], '#search-pagination': [node()],
     '#search-clear': [searchClear], '#theme-choice': [theme], '#overview-other': [other]};
   const document = node({}, selectors);
-  document.getElementById = id => [overview, responseView, ...cards].find(item => item.id === id) || null;
+  document.getElementById = id => [overview, responseView, flowView, flowCard, ...cards].find(item => item.id === id) || null;
   document.createElement = () => node(); document.documentElement = node();
   const dashboardSelections = [];
   const dashboardResizes = [];
+  const flowSelections = [], flowReveals = [];
   const window = {ReportSearch: search, handlers: {}, addEventListener(event, callback) { this.handlers[event] = callback; },
-    ReportDashboard: {update(selected) { dashboardSelections.push([...selected]); }, resize() { dashboardResizes.push(true); }}};
+    ReportDashboard: {update(selected) { dashboardSelections.push([...selected]); }, resize() { dashboardResizes.push(true); }},
+    ReportFlow: {update(selected) { flowSelections.push([...selected]); }, reveal(id) { flowReveals.push(id); },
+      records() { return [{node: flowCard, title: 'Sales route', content: 'Department is Sales', context: 'Survey A', scope: 'Flow'}]; }}};
   const location = {hash: '#by-responses'};
   vm.runInNewContext(fs.readFileSync(require.resolve('../../src/qualtrics/reporting/static/report.js'), 'utf8'),
     {document, window, location});
   return {surveyA, surveyB, a, b, field2, link, select, optionA, optionB, empty,
     cards, written, responsePagination, writtenPagination, window, location, document,
-    overview, responseView, reportSearch, searchResults, searchClear, theme, other, dashboardSelections, dashboardResizes};
+    overview, responseView, reportSearch, searchResults, searchClear, theme, other, dashboardSelections, dashboardResizes,
+    flowView, flowCard, flowSelections, flowReveals};
 }
+
+test('flow participates in shared survey selection, global search and exact-link navigation', () => {
+  const f = fixture();
+  assert.deepEqual(f.flowSelections.at(-1), ['a', 'b']);
+  f.surveyA.checked = false; f.surveyA.handlers.change();
+  assert.deepEqual(f.flowSelections.at(-1), ['b']);
+  f.location.hash = '#flow-sales'; f.window.handlers.hashchange();
+  assert.equal(f.surveyA.checked, true);
+  assert.equal(f.flowView.hidden, false);
+  assert.equal(f.flowReveals.at(-1), 'flow-sales');
+  f.reportSearch.value = 'Sales route'; f.reportSearch.handlers.input();
+  assert.equal(f.document.querySelector('#search-result-list').children.length, 1);
+  f.surveyA.checked = false; f.surveyA.handlers.change();
+  assert.equal(f.document.querySelector('#search-result-list').children.length, 0);
+});
 
 test('report forwards the shared survey scope to dashboard charts on initial load and changes', () => {
   const f = fixture();

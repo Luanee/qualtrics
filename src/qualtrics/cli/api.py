@@ -1,9 +1,12 @@
+import json
 import math
 import os
 from datetime import UTC, datetime
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Annotated
 
+import httpx
 import typer
 
 from ..api import (
@@ -11,6 +14,7 @@ from ..api import (
     ExportResult,
     FilenameStrategy,
     ImportFormat,
+    QualtricsAPIError,
     QualtricsClient,
     ResponseExportRequest,
 )
@@ -39,6 +43,30 @@ def surveys(
     with _client(api_token, data_center) as client:
         for survey in client.surveys.iter():
             typer.echo(f"{survey.id}\t{survey.name}")
+
+
+@app.command("flow")
+def survey_flow(
+    survey_id: Annotated[str, typer.Option("--survey-id", help="Survey whose flow to download")],
+    output: Annotated[Path, typer.Option("--output", "-o", dir_okay=False)],
+    api_token: Annotated[str | None, typer.Option(envvar="QUALTRICS_API_TOKEN", hidden=True)] = None,
+    data_center: Annotated[str | None, typer.Option(envvar="QUALTRICS_DATA_CENTER")] = None,
+    retries: Annotated[int, typer.Option(min=0, help="Retries per safe request; 0 disables retries")] = 3,
+) -> None:
+    """Download a flow definition for offline inspection and report walkthroughs."""
+    validate_survey_ids([survey_id])
+    try:
+        with _client(api_token, data_center, max_retries=retries) as client:
+            flow = client.survey_definitions.get_flow(survey_id)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        with TemporaryDirectory(prefix=".qualtrics-flow-", dir=output.parent) as temporary:
+            staged = Path(temporary) / "flow.json"
+            staged.write_text(json.dumps(flow, ensure_ascii=False, indent=2), encoding="utf-8")
+            staged.replace(output)
+    except (QualtricsAPIError, httpx.HTTPError, OSError, ValueError) as error:
+        typer.echo(f"Could not download survey flow: {error}", err=True)
+        raise typer.Exit(1) from error
+    typer.echo(output)
 
 
 def _export_date(value: str | None) -> str | None:

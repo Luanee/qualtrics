@@ -22,6 +22,13 @@ class SurveyDefinitionsAPI(APIDomain):
     def create(self, definition: dict[str, Any]) -> dict[str, Any]:
         return self._client.request("POST", "/survey-definitions", json=definition)
 
+    def get_flow(self, survey_id: str) -> dict[str, Any]:
+        """Retrieve the configured survey flow, preserving its ordered hierarchy."""
+        result = self._client.request("GET", f"/survey-definitions/{survey_id}/flow")
+        if not isinstance(result, dict) or not isinstance(result.get("Flow"), list):
+            raise ValueError("Qualtrics did not return a survey flow object with a Flow list")
+        return result
+
     def delete(self, survey_id: str) -> dict[str, Any] | None:
         return self._client.request("DELETE", f"/survey-definitions/{survey_id}")
 

@@ -49,6 +49,8 @@ uv run python -m scripts.question_type_showcase --output data/question-type-show
 
 Check the generated report and downloads at desktop and phone widths. Verify that its summary charts, question search, written answers, and codebook work, and keep all data fictional. The documentation tests build the site from outside the repository and check the embedded report and download paths with both directory URLs and `.html` URLs.
 
+The [flow example](../examples/survey-flow.md) has a separate generator, `scripts/survey_flow_showcase.py`, and hook, `scripts/docs_flow_showcase.py`. It produces a QSF, standalone flow JSON, 24 fictional responses, and an embedded report under `assets/examples/survey-flow/`. Rebuild locally with `uv run python -m scripts.survey_flow_showcase --output data/survey-flow-showcase`. Keep fake responses consistent with the defined branches, and verify the early ending, randomizer, Back/Reset controls, unknown-rule assumptions, and cross-view question links after changing flow behavior.
+
 ## Theme and plugin decisions
 
 **Maintenance check: 8 September 2026.** The [catalog's charts, images, tables, and graphs section](https://github.com/mkdocs/catalog#-charts-images-tables--graphs) is a useful starting point. Its inactivity badges can lag behind upstream releases. The decisions below use upstream repositories, release metadata, and Material's integration documentation.

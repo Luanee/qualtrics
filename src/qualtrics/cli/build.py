@@ -13,6 +13,10 @@ def build(
     qsf: Annotated[list[Path] | None, typer.Option(exists=True, readable=True)] = None,
     format: Annotated[str, typer.Option("--format", "-f")] = "json",
     survey_id: Annotated[str | None, typer.Option()] = None,
+    flow: Annotated[
+        Path | None,
+        typer.Option(exists=True, readable=True, dir_okay=False, help="Optional API flow JSON for one CSV or ZIP"),
+    ] = None,
 ) -> None:
     """Build canonical entities from one or more CSV/QSF exports."""
     if format not in {"csv", "json", "parquet"}:
@@ -27,11 +31,14 @@ def build(
         raise typer.BadParameter("provide at most one QSF for one CSV")
     if survey_id and len(expanded_csvs) != 1:
         raise typer.BadParameter("--survey-id can only be used with one CSV")
+    if flow and len(expanded_csvs) != 1:
+        raise typer.BadParameter("--flow can only be used with one CSV or ZIP")
     entities = (
         parse_survey(
             expanded_csvs[0],
             expanded_qsfs[0] if expanded_qsfs else None,
             survey_id=survey_id,
+            **({"flow_path": flow} if flow else {}),
         )
         if len(expanded_csvs) == 1
         else parse_surveys(expanded_csvs, expanded_qsfs)

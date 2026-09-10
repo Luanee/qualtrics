@@ -4,20 +4,23 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .flow import _unwrap, extract_flow_definition
+
 
 def _qsf(
     path: Path | None,
+    *,
+    flow_path: Path | None = None,
 ) -> tuple[
     dict[str, Any],
     dict[str, dict[str, Any]],
     dict[str, dict[str, Any]],
     list[dict[str, Any]],
 ]:
-    if not path:
+    if not path and not flow_path:
         return {}, {}, {}, []
-    document = json.loads(path.read_text(encoding="utf-8"))
-    wrapped_payload = document.get("payload")
-    data = wrapped_payload if isinstance(wrapped_payload, dict) else document
+    document = json.loads(path.read_text(encoding="utf-8")) if path else {}
+    data = dict(_unwrap(document))
     raw_entry = data.get("SurveyEntry")
     entry = (
         dict(raw_entry)
@@ -31,6 +34,31 @@ def _qsf(
     # SurveyDefinition.model_dump_json() uses snake_case wrapper fields.
     entry.setdefault("SurveyID", document.get("survey_id"))
     entry.setdefault("SurveyName", document.get("survey_name"))
+    if flow_path:
+        try:
+            flow_document = json.loads(flow_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Invalid survey flow JSON in {flow_path}: {exc.msg}") from exc
+        if not isinstance(flow_document, dict):
+            raise ValueError(f"Invalid survey flow in {flow_path}: expected an object")
+        flow_definition = extract_flow_definition(flow_document)
+        if flow_definition is None:
+            raise ValueError(f"Invalid survey flow in {flow_path}: no Flow or root was found")
+        if path:
+            metadata_source = dict(data)
+            metadata_source["Flow"] = []
+            metadata_definition = extract_flow_definition(metadata_source)
+            if metadata_definition is not None:
+                flow_definition["blocks"].update(metadata_definition["blocks"])
+                flow_definition["questions"].update(metadata_definition["questions"])
+    else:
+        flow_definition = extract_flow_definition(data)
+    if flow_definition is not None:
+        entry["flow_definition_json"] = json.dumps(
+            flow_definition,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
     questions = {}
     for element in data.get("SurveyElements", []):
         if element.get("Element") == "SQ":

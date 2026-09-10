@@ -28,7 +28,7 @@ def test_views_written_answer_types_and_escaped_deep_links(tmp_path):
     target = tmp_path / "report.html"
     render_report(entities, target)
     document = target.read_text()
-    for view in ("overview", "question-analytics", "written-answers", "by-responses", "codebook"):
+    for view in ("overview", "question-analytics", "written-answers", "by-responses", "codebook", "survey-flow"):
         assert f"data-view='{view}' href='#{view}'" in document
     assert "id='question-detail-1'" in document
     assert "data-label='&lt;Question&gt;'" in document
