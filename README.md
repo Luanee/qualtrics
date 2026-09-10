@@ -141,6 +141,23 @@ Wildcards support multiple surveys and lakehouse-style layouts:
 entities = parse_survey("/lakehouse/default/Files/qualtrics/run-1/*/*.csv")
 ```
 
+Use the root API for analytics and semantic tables too:
+
+```python
+from qualtrics import analyze_entities, build_semantic_model, write_semantic_model
+
+analytics = analyze_entities(entities)
+print(analytics.response_count)
+semantic = build_semantic_model(entities)
+write_semantic_model(semantic, "semantic", format="csv")
+```
+
+The root also exports `EntitySet`, `SemanticModel`, and `ReportAnalytics` for
+type annotations. Earlier deep imports such as `qualtrics.models`,
+`qualtrics.serialization`, and `qualtrics.reporting` have been removed; see the
+[Python import migration](docs/reference/python.md#migrate-earlier-deep-imports)
+for replacements.
+
 ## Why the survey definition matters
 
 A Qualtrics CSV commonly starts with three header rows:
@@ -246,6 +263,13 @@ uv run --all-extras poe build
 
 CI tests Python 3.11–3.14. Ruff checks formatting and linting, `ty` checks
 types, and pytest enforces at least 75% branch-aware coverage.
+
+Implementation code has four packages: `api` for the remote SDK, `cli` for
+terminal commands, `ui` for HTML reports, and `_common` for shared models,
+parsers, analytics, and serialization. Use the root public API for shared data
+operations; `_common` is private. The base SDK dependencies and `cli`, `ui`, and
+`parquet` extras are unchanged. See the [package architecture](docs/contributing/documentation.md#package-architecture)
+for contributor boundaries.
 
 Releases are prepared through the **Prepare Release** GitHub workflow. See
 [`release-notes.md`](release-notes.md) for version history and
