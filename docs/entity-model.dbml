@@ -1,6 +1,7 @@
 Table surveys {
   survey_id varchar [pk]
   survey_name varchar
+  source_columns_json text [note: 'JSON list of source-column classification and storage mappings']
 }
 
 Table sections {
@@ -62,6 +63,7 @@ Table question_fields {
 }
 
 Table responses {
+  Note: 'Additional response-property columns vary by survey. See surveys.source_columns_json for source names and storage mappings.'
   response_id varchar [pk]
   response_external_id varchar [not null]
   survey_id varchar [not null, ref: > surveys.survey_id]

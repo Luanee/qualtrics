@@ -24,6 +24,32 @@ Questions retain `question_type`, `selector`, and `sub_selector` exactly and add
 
 `question_fields.choice_external_id` preserves the Choice or matrix-row lineage determined from export metadata and the full `ImportId`. Its optional `statement_text` preserves a matrix statement's label from the survey definition; `field_text` still describes the concrete exported field, which can include an individual option. `response_answers` preserves `answer_text` and provides nullable `answer_numeric`, `answer_boolean`, `is_selected`, and `answer_option_id` for analysis. Unknown or ambiguous response values remain raw with a null option ID. There is no cross-survey answer-option catalog.
 
+## Response properties and source columns
+
+`responses` has one row per submission, including the existing normalized system columns and additional columns for embedded data, technical metadata, and unclassified source values. Custom columns contain the original text or null. No additional entity table is created.
+
+`surveys.source_columns_json` is a JSON-encoded list of column descriptors. It travels with JSON, CSV, and Parquet entity files and with `dim_surveys` in the semantic model. Each descriptor contains:
+
+| Key | Meaning |
+| --- | --- |
+| `source_column` | Original CSV column name, including duplicates |
+| `source_column_index` | Zero-based CSV position |
+| `source_import_id` | Export metadata identifier, when available |
+| `label` | Exported column label |
+| `kind` | `question`, `derived`, `system`, `embedded`, `quality`, `metadata`, `timing`, or `unclassified` |
+| `reason` | Evidence used for classification |
+| `storage_table` | `responses` for properties or `response_answers` for question fields |
+| `storage_column` | Response property key, or external question-field key for answer rows |
+| `question_external_id` | Question lineage when applicable |
+
+Explicit question metadata and matching QSF definitions identify answer fields. Standard export identifiers identify system fields; embedded declarations are read recursively from the configured survey flow. Unique question export tags can supply a fallback. Missing or ambiguous evidence preserves the column as an unclassified response property. Business names alone do not identify question answers, and flow defaults never populate observed responses.
+
+Standard columns retain existing normalized keys; `ResponseId` maps to `response_external_id` while `response_id` remains the internal stable identifier. Other property names normally retain their source spelling. The parser disambiguates duplicate headers and names that collide case-insensitively with normalized response columns. Combining surveys reconciles these mappings, preserves different source properties, and fills absent columns with null. Read the dictionary for the actual column name rather than depending on a generated suffix.
+
+Technical browser and timing values are stored on responses. Existing question-field definitions can still describe those exported fields. Derived question outputs retain their question relationship and existing answer identities; their dictionary classification distinguishes them from direct answers. The established entity and catalog hash algorithms are unchanged.
+
+Reparse the original export to recover fields omitted by older versions. An older entity folder without `source_columns_json` remains readable, but it cannot provide source evidence or values it never retained.
+
 ## Semantic projection
 
 `qualtrics semantic-model build ENTITY_FOLDER --output MODEL_FOLDER` writes Parquet by default. Use `--format json` or `--format csv` when needed. It creates:
