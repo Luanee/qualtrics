@@ -9,6 +9,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
+from ..models.response_columns import read_source_columns
 from ..models.semantic import SEMANTIC_TABLE_NAMES, SemanticModel
 
 SEMANTIC_COLUMNS = {
@@ -110,9 +111,15 @@ _INT_COLUMNS = {"source_column_index", "section_order", "answer_order"}
 SEMANTIC_SQLITE_FILENAME = "semantic_model.sqlite"
 
 
-def _column_names(name: str, rows: list[dict[str, Any]]) -> list[str]:
+def _column_names(name: str, rows: list[dict[str, Any]], model: SemanticModel) -> list[str]:
     keys = list(SEMANTIC_COLUMNS[name])
     keys.extend(key for row in rows for key in row if key not in keys)
+    if name == "fact_responses":
+        for survey in model.dim_surveys:
+            for column in read_source_columns(survey):
+                key = column.get("storage_column")
+                if column.get("storage_table") == "responses" and isinstance(key, str) and key and key not in keys:
+                    keys.append(key)
     return keys
 
 
@@ -120,7 +127,9 @@ def _quote_identifier(name: str) -> str:
     return '"' + name.replace('"', '""') + '"'
 
 
-def _sqlite_type(column: str) -> str:
+def _sqlite_type(name: str, column: str) -> str:
+    if column not in SEMANTIC_COLUMNS[name]:
+        return "TEXT"
     if column in _FLOAT_COLUMNS:
         return "REAL"
     if column in _BOOL_COLUMNS or column in _INT_COLUMNS:
@@ -148,8 +157,8 @@ def _write_sqlite(model: SemanticModel, destination: Path) -> None:
         with closing(sqlite3.connect(temporary_path)) as connection, connection:
             for name in SEMANTIC_TABLE_NAMES:
                 rows = getattr(model, name)
-                keys = _column_names(name, rows)
-                types = [_sqlite_type(key) for key in keys]
+                keys = _column_names(name, rows, model)
+                types = [_sqlite_type(name, key) for key in keys]
                 columns = ", ".join(
                     f"{_quote_identifier(key)} {column_type}" for key, column_type in zip(keys, types, strict=True)
                 )
@@ -178,7 +187,7 @@ def write_semantic_model(model: SemanticModel, folder: str | Path, format: str =
         if format == "json":
             path.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
         elif format == "csv":
-            keys = _column_names(name, rows)
+            keys = _column_names(name, rows, model)
             with path.open("w", encoding="utf-8", newline="") as handle:
                 writer = csv.DictWriter(handle, fieldnames=keys)
                 writer.writeheader()
@@ -189,14 +198,14 @@ def write_semantic_model(model: SemanticModel, folder: str | Path, format: str =
                 import pyarrow.parquet as pq
             except ImportError as exc:
                 raise RuntimeError("Install qualtrics[parquet]") from exc
-            keys = _column_names(name, rows)
+            keys = _column_names(name, rows, model)
             fields = []
             for key in keys:
-                if key in _FLOAT_COLUMNS:
+                if key in SEMANTIC_COLUMNS[name] and key in _FLOAT_COLUMNS:
                     data_type = pa.float64()
-                elif key in _BOOL_COLUMNS:
+                elif key in SEMANTIC_COLUMNS[name] and key in _BOOL_COLUMNS:
                     data_type = pa.bool_()
-                elif key in _INT_COLUMNS:
+                elif key in SEMANTIC_COLUMNS[name] and key in _INT_COLUMNS:
                     data_type = pa.int64()
                 else:
                     data_type = pa.string()

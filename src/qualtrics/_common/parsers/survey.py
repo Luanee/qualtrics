@@ -13,47 +13,11 @@ from ..models.entities import EntitySet
 from ..models.entity_set import merge_entity_sets
 from ..models.identity import canonicalize, entity_id, semantic_id
 from ..models.question_types import classify_question_role, resolve_question_type
-from .identity import _clean, _field_text, _hash, _qid
+from ..models.response_columns import RESPONSE_SYSTEM_COLUMNS
+from .columns import classify_columns, field_source_parts, parse_column_metadata
+from .identity import _clean, _field_text, _hash
 from .paths import _expand_paths
 from .qsf import _matching_definition, _qsf
-
-META = {
-    "StartDate",
-    "EndDate",
-    "Status",
-    "IPAddress",
-    "Progress",
-    "Finished",
-    "RecordedDate",
-    "ResponseId",
-    "RecipientLastName",
-    "RecipientFirstName",
-    "RecipientEmail",
-    "ExternalReference",
-    "DistributionChannel",
-    "UserLanguage",
-    "Duration (in seconds)",
-}
-
-RESPONSE_METADATA_COLUMNS = {
-    "Status": "status",
-    "IPAddress": "ip_address",
-    "Progress": "progress",
-    "Duration (in seconds)": "duration_seconds",
-    "RecipientLastName": "recipient_last_name",
-    "RecipientFirstName": "recipient_first_name",
-    "RecipientEmail": "recipient_email",
-    "ExternalReference": "external_reference",
-    "DistributionChannel": "distribution_channel",
-}
-
-BROWSER_METADATA_FIELDS = {
-    "BROWSER": "browser",
-    "VERSION": "browser_version",
-    "OS": "operating_system",
-    "RESOLUTION": "screen_resolution",
-    "USERAGENT": "user_agent",
-}
 
 
 def populate_typed_answer(
@@ -503,7 +467,11 @@ def _parse_survey_file(
         raise ValueError("Qualtrics CSV must contain column and question-text rows")
     columns, headers = rows[0], rows[1]
     metadata = rows[2] if len(rows) > 2 else [""] * len(columns)
-    has_import = any("ImportId" in value for value in metadata)
+    has_import = any(
+        set(parse_column_metadata(value)) & {"ImportId", "questionId", "questionID", "QuestionID"} for value in metadata
+    )
+    if not has_import:
+        metadata = [""] * len(columns)
     entry, qsf_questions, question_blocks, sections = _qsf(
         qsf_path,
         flow_path=Path(flow_path) if flow_path else None,
@@ -525,24 +493,19 @@ def _parse_survey_file(
         ]
     )
     entities.sections = [{"survey_id": sid, **section} for section in sections]
-    field_specs: list[tuple[int, str, str, str, dict[str, object]]] = []
+    source_columns = classify_columns(columns, headers, metadata, qsf_questions, entry)
+    entities.surveys[0]["source_columns_json"] = json.dumps(
+        [column.descriptor() for column in source_columns], ensure_ascii=False, separators=(",", ":")
+    )
+    field_specs = [column for column in source_columns if column.question_external_id]
     grouped_headers: dict[str, list[str]] = {}
-    for index, (column, header, raw_meta) in enumerate(zip(columns, headers, metadata, strict=True)):
-        import_id = ""
-        field_metadata: dict[str, object] = {}
-        if has_import:
-            with contextlib.suppress(json.JSONDecodeError, AttributeError):
-                parsed_metadata = json.loads(raw_meta)
-                if isinstance(parsed_metadata, dict):
-                    field_metadata = parsed_metadata
-                    import_id = str(field_metadata.get("ImportId") or "")
-        question_id = _qid(import_id or column) or _qid(str(field_metadata.get("questionId") or ""))
-        if question_id and column not in META:
-            field_specs.append((index, column, header, import_id, field_metadata))
-            grouped_headers.setdefault(question_id, []).append(header)
+    for specification in field_specs:
+        grouped_headers.setdefault(str(specification.question_external_id), []).append(specification.label)
     seen = set()
-    for index, column, header, import_id, field_metadata in field_specs:
-        question_id = _qid(import_id or column) or _qid(str(field_metadata.get("questionId") or ""))
+    for specification in field_specs:
+        index, column, header = specification.source_column_index, specification.field_key, specification.label
+        import_id, field_metadata = specification.source_import_id, specification.metadata
+        question_id = specification.question_external_id
         if question_id is None:
             continue
         definition = qsf_questions.get(question_id, {})
@@ -557,11 +520,11 @@ def _parse_survey_file(
         catalog_id = _hash(question_text.casefold())
         if question_id not in seen:
             question_import_ids = [
-                item[3]
-                for item in field_specs
-                if (_qid(item[3] or item[1]) or _qid(str(item[4].get("questionId") or ""))) == question_id
+                item.source_import_id for item in field_specs if item.question_external_id == question_id
             ]
             role = classify_question_role(definition, question_import_ids)
+            if role == "response" and specification.kind in {"metadata", "timing"}:
+                role = specification.kind
             entities.questions.append({
                 "survey_id": sid,
                 "question_id": question_id,
@@ -576,11 +539,11 @@ def _parse_survey_file(
                 **question_blocks.get(question_id, {}),
             })
             seen.add(question_id)
-        suffix = (import_id.replace(question_id, "", 1).strip("_") or None) if import_id else None
+        suffix, choice_import_id, choice_column = field_source_parts(specification, definition)
         field_text = _field_text(header, question_text, column, suffix)
-        choice_external_id = _field_choice_id(field_metadata, import_id, column, question_id, definition)
+        choice_external_id = _field_choice_id(field_metadata, choice_import_id, choice_column, question_id, definition)
         matrix_answer_external_id = _field_matrix_answer_id(
-            field_metadata, import_id, column, question_id, choice_external_id, definition
+            field_metadata, choice_import_id, choice_column, question_id, choice_external_id, definition
         )
         entities.question_fields.append({
             "survey_id": sid,
@@ -598,14 +561,6 @@ def _parse_survey_file(
             "_matrix_answer_external_id": matrix_answer_external_id,
         })
     _build_answer_option_domains(entities, qsf_questions)
-    field_map = {row["field_id"]: row["question_id"] for row in entities.question_fields}
-    question_roles = {row["question_id"]: row["question_role"] for row in entities.questions}
-    browser_field_map = {
-        row["field_id"]: BROWSER_METADATA_FIELDS[row["source_field_suffix"]]
-        for row in entities.question_fields
-        if question_roles.get(row["question_id"]) == "metadata"
-        and row.get("source_field_suffix") in BROWSER_METADATA_FIELDS
-    }
     entities.question_catalog = list(
         {
             item["question_catalog_id"]: {
@@ -628,37 +583,29 @@ def _parse_survey_file(
         }.values()
     )
     for values in rows[3 if has_import else 2 :]:
-        record = dict(zip(columns, values, strict=False))
-        response_id = record.get("ResponseId", "")
+        response: dict[str, object] = dict.fromkeys(RESPONSE_SYSTEM_COLUMNS)
+        for specification in source_columns:
+            if specification.storage_table == "responses":
+                index = specification.source_column_index
+                response[specification.storage_column] = _optional_value(values[index] if index < len(values) else None)
+        response_id = response["response_external_id"]
         if not response_id:
             continue
-        response = {
-            "survey_id": sid,
-            "response_id": response_id,
-            "started_at": _optional_value(record.get("StartDate")),
-            "ended_at": _optional_value(record.get("EndDate")),
-            "recorded_at": _optional_value(record.get("RecordedDate")),
-            "is_finished": _optional_value(record.get("Finished")),
-            "user_language": _optional_value(record.get("UserLanguage")),
-            **{target: _optional_value(record.get(source)) for source, target in RESPONSE_METADATA_COLUMNS.items()},
-            **dict.fromkeys(BROWSER_METADATA_FIELDS.values()),
-        }
-        for column, target in browser_field_map.items():
-            value = _optional_value(record.get(column))
-            if value and not response[target]:
-                response[target] = value
+        response["survey_id"] = sid
+        response["response_id"] = response_id
         entities.responses.append(response)
-        for column, question_id in field_map.items():
-            if column in browser_field_map:
+        for specification in source_columns:
+            if specification.storage_table != "response_answers":
                 continue
-            value = record.get(column, "")
+            index = specification.source_column_index
+            value = values[index] if index < len(values) else ""
             if value:
                 entities.response_answers.append({
                     "survey_id": sid,
                     "response_id": response_id,
-                    "question_id": question_id,
-                    "field_id": column,
-                    "user_language": record.get("UserLanguage"),
+                    "question_id": specification.question_external_id,
+                    "field_id": specification.field_key,
+                    "user_language": response["user_language"],
                     "answer_text": value,
                 })
     _apply_identity_contract(entities)
