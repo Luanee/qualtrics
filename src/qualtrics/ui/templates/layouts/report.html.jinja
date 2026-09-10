@@ -1,0 +1,44 @@
+{% extends 'layouts/base.html.jinja' %}
+{% import 'components/macros.html.jinja' as ui %}
+{% block body %}
+<header class='report-header'>
+  <div class='header-inner'>
+    <div class='report-title'><small>Response report</small><h1>{{ survey_name }}</h1></div>
+    <div class='global-search'>
+      <label for='report-search'>Search this report</label>
+      <input id='report-search' type='search' placeholder='Questions, answers, flow, field names…'>
+      <button id='search-clear' type='button' hidden>Clear</button>
+      <label for='theme-choice'>Theme</label>
+      <select id='theme-choice'>
+        <option value='system'>System</option><option value='light'>Light</option><option value='dark'>Dark</option>
+      </select>
+    </div>
+  </div>
+</header>
+<div class='shell report-layout'>
+  <aside>
+    <div class='survey-switcher'>
+      <div class='survey-filter filter-wrap'>
+        <button id='survey-toggle' type='button' aria-expanded='false'>Surveys · <span id='survey-selected-count'>All</span></button>
+        <div id='survey-menu' class='survey-menu' hidden>
+          <div class='selector-actions'>
+            <button id='survey-select-all' type='button'>Select all</button>
+            <button id='survey-clear' type='button'>Clear</button>
+          </div>
+          {{ survey_options }}
+        </div>
+      </div>
+    </div>
+    {% with pages=navigation_pages %}{% include 'components/navigation.html.jinja' %}{% endwith %}
+  </aside>
+  <main id='report-content' class='report-main' tabindex='-1'>
+    <section id='search-results' hidden aria-label='Search results'>
+      <h2>Search results</h2>
+      <p class='meta'>Search locates content. Statistics use the selected surveys.</p>
+      <p id='search-result-count' role='status'></p><div id='search-result-list'></div>
+      {{ ui.pagination('search-pagination') }}
+    </section>
+    {% for page in pages %}{{ page }}{% endfor %}
+  </main>
+</div>
+{% endblock %}

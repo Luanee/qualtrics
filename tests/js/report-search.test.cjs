@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const search = require('../../src/qualtrics/reporting/static/report-search.js');
+const search = require('../../src/qualtrics/ui/static/report-search.js');
 test('normalizes case, German sharp s and accents', () => {
   assert.equal(search.normalize('Straße CAFÉ'), 'strasse cafe');
   assert.equal(search.normalize('STRASSE Cafe\u0301'), 'strasse cafe');

@@ -1,0 +1,51 @@
+{% import 'components/macros.html.jinja' as ui %}
+<section id='by-responses' class='report-view'>
+  {{ ui.page_heading('Responses', 'Review individual answers and filter to the questions you need.') }}
+  <div class='toolbar'>
+    <label for='search'>Search responses</label>
+    <input id='search' type='search' placeholder='Search responses, questions, or answers…'>
+    <span id='count'></span>
+    <div class='filter-wrap'>
+      <button id='question-toggle' type='button' aria-expanded='false'>Questions · <span id='selected-count'>All</span></button>
+      <div id='question-menu' class='question-menu' hidden>
+        <div class='selector-actions'>
+          <button id='select-all' type='button'>Select all</button>
+          <button id='clear-all' type='button'>Clear</button>
+        </div>
+        {{ question_choices }}
+      </div>
+    </div>
+    <button id='expand'>Expand all</button><button id='collapse'>Collapse</button>
+  </div>
+  <div id='response-list'>
+    {%- for card in cards %}
+    <details class='respondent' id='{{ card.id }}' data-survey='{{ card.survey_id }}'
+             data-total-answers='{{ card.questions|length }}' data-search='{{ card.searchable }}'{% if card.open %} open{% endif %}>
+      <summary>
+        <span class='identity'>{{ card.label }}</span><span class='badge'>{{ card.questions|length }} answers</span>
+      </summary>
+      <div class='response-meta'>
+        {% for value in card.metadata %}
+        <span>{% if value.label %}<b>{{ value.label }}</b> {% endif %}{{ value.value }}</span>
+        {% endfor %}
+      </div>
+      <div class='answers'>
+        {% for question in card.questions %}
+        <div class='answer' data-question='{{ question.token }}'>
+          <div class='question-head'>
+            <span class='question'>{{ question.label }}</span><span class='question-meta'>{{ question.metadata }}</span>
+          </div>
+          {% for field in question.fields %}
+          <div class='field-answer{% if not field.label %} value-only{% elif field.text %} text-field{% endif %}' data-field-id='{{ field.id }}'>
+            {%- if field.label %}<span class='field'>{{ field.label }}</span>{% endif %}<span class='value'>{{ field.value }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% endfor %}
+        <div class='no-selected' hidden>No selected questions were answered in this response.</div>
+      </div></details>
+    {% endfor -%}
+  </div>
+  {{ ui.pagination('response-pagination') }}
+  <div id='empty' class='empty hidden'>No matching responses.</div>
+</section>

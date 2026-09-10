@@ -1,0 +1,9 @@
+{% for choice in choices %}
+<label>
+  <input class='survey-choice' type='checkbox' value='{{ choice.id }}' checked
+         data-responses='{{ choice.responses }}' data-finished='{{ choice.finished }}'
+         data-questions='{{ choice.questions }}' data-answers='{{ choice.answers }}'
+         data-unanswered='{{ choice.unanswered }}' data-unused-fields='{{ choice.unused_fields }}'>
+  <span>{{ choice.label }}</span>
+</label>
+{% endfor %}

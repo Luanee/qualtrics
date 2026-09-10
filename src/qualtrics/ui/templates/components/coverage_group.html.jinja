@@ -1,0 +1,19 @@
+<details class='coverage-question catalog-group' data-catalog='{{ group.id }}'>
+  <summary>
+    <span class='analysis-title'>{{ group.label }}{{ ui.occurrence_count(group.rows|length) }}</span>
+  </summary>
+  <div class='catalog-body'>
+    <table>
+      <thead><tr><th>Survey occurrence</th><th>Responses</th><th>Coverage</th></tr></thead>
+      <tbody>
+        {% for row in group.rows %}
+        <tr class='coverage-survey-row survey-occurrence' data-survey='{{ row.survey_id }}'>
+          <td><strong>{{ row.label }}</strong><small>{{ row.metadata }}</small></td>
+          <td>{{ '{:,}'.format(row.count) }}</td>
+          <td><div class='meter'><i style='width:{{ row.rate }}%'></i></div>{{ row.rate }}%</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>

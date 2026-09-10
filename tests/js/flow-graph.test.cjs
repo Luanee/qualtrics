@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const path = '../../src/qualtrics/reporting/static/flow-graph.js';
+const path = '../../src/qualtrics/ui/static/flow-graph.js';
 const graph = fs.existsSync(require('node:path').resolve(__dirname,path)) ? require(path) : {};
 const n=(node_id,type='Block',children=[],config={})=>({node_id,type,children,config,external_id:'duplicated'});
 const build=children=>graph.build({root:n('root','Root',children),blocks:{},questions:{}});

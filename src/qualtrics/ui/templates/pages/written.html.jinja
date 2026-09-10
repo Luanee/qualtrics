@@ -1,0 +1,29 @@
+{% import 'components/macros.html.jinja' as ui %}
+<section id='written-answers' class='report-view'>
+  {{ ui.page_heading('Written answers', 'Read text responses and open the full response for context.') }}
+  <div class='toolbar'>
+    {{ ui.search_control('written-search', 'Search written answers') }}
+    <label for='written-question'>Question</label>
+    <select id='written-question'>
+      <option value=''>All questions</option>
+      {% for question in questions %}
+      <option value='{{ question.token }}' data-survey='{{ question.survey_id }}' data-label='{{ question.label }}'>{{ question.label }}</option>
+      {% endfor %}
+    </select>
+    <span id='written-count' role='status'>{{ '{:,}'.format(answers|length) }} written answers</span>
+  </div>
+  <div id='written-list'>
+    {% for answer in answers %}
+    <article class='written-answer' id='{{ answer.id }}' data-survey='{{ answer.survey_id }}'
+             data-question-token='{{ answer.token }}' data-response-target='{{ answer.response_target }}'
+             data-field-id='{{ answer.field_id }}'>
+      <h3 class='written-question'>{{ answer.label }}</h3>
+      <small>{{ answer.metadata }}</small>
+      <p class='written-value'>{{ answer.value }}</p>
+      <a href='#{{ answer.response_target }}'>Response {{ answer.response_label }}</a>
+    </article>
+    {% endfor %}
+  </div>
+  {{ ui.empty_state('written-empty', 'No written answers in the selected surveys.', hidden=answers|length > 0) }}
+  {{ ui.pagination('written-pagination') }}
+</section>

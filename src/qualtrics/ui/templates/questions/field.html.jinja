@@ -1,0 +1,5 @@
+<div class='field-analysis{% if style %} {{ style }}{% endif %}'>
+  {% if heading %}<h4>{{ heading }}</h4>{% endif %}
+  {{- content }}
+  {% if note %}<p class='meta'>{{ note }}</p>{% endif %}
+</div>

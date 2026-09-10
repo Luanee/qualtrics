@@ -1,0 +1,36 @@
+{% macro page_heading(title, introduction='', heading_id='', disclosure=false, count='', count_id='') -%}
+{% if disclosure -%}
+<summary class='section-summary'>
+  <span>
+    <strong role='heading' aria-level='2'>{{ title }}</strong>
+    <small>{{ introduction }}</small>
+  </span>
+  {% if count %}<span{% if count_id %} id='{{ count_id }}'{% endif %} class='section-count'>{{ count }}</span>{% endif %}
+</summary>
+{%- else -%}
+<div class='view-heading'>
+  <h2{% if heading_id %} id='{{ heading_id }}'{% endif %}>{{ title }}</h2>
+  {% if introduction %}<p class='section-intro'>{{ introduction }}</p>{% endif %}
+</div>
+{%- endif %}
+{%- endmacro %}
+
+{% macro occurrence_count(count) -%}
+<small class='occurrence-count'>{{ count }} {{ 'survey occurrence' if count == 1 else 'survey occurrences' }}</small>
+{%- endmacro %}
+
+{% macro search_control(control_id, label, placeholder='') -%}
+<label for='{{ control_id }}'>{{ label }}</label><input id='{{ control_id }}' type='search'{% if placeholder %} placeholder='{{ placeholder }}'{% endif %}>
+{%- endmacro %}
+
+{% macro empty_state(element_id, message, hidden=false) -%}
+<p id='{{ element_id }}'{% if hidden %} hidden{% endif %}>{{ message }}</p>
+{%- endmacro %}
+
+{% macro pagination(element_id) -%}
+<div id='{{ element_id }}' class='pagination'></div>
+{%- endmacro %}
+
+{% macro metric(element_id, value, label, kind='stat') -%}
+<div class='{{ kind }}'><strong id='{{ element_id }}'>{{ '{:,}'.format(value) }}</strong><span>{{ label }}</span></div>
+{%- endmacro %}

@@ -1,0 +1,31 @@
+{% macro issues(groups, empty) -%}
+  {% for group in groups %}
+  <div class='quality-question'>
+    <strong>{{ group.label }}</strong><small>{{ group.metadata }}</small>
+    <ul>{% for label in group.items %}<li>{{ label }}</li>{% endfor %}</ul>
+  </div>
+  {% else %}
+  <p class='meta'>{{ empty }}</p>
+  {% endfor %}
+{%- endmacro %}
+<details class='quality' data-survey='{{ panel.survey_id }}'>
+  <summary class='quality-head'>
+    <i></i><span class='quality-title'><strong>Data quality{% if multiple_surveys %} · {{ panel.label }}{% endif %}</strong></span>
+    <span class='quality-summary'>
+      <span><b>{{ panel.field_count }}</b> {{ 'field without values' if panel.field_count == 1 else 'fields without values' }}</span>
+      <span><b>{{ panel.option_count }}</b> {{ 'defined option not observed' if panel.option_count == 1 else 'defined options not observed' }}</span>
+    </span>
+  </summary>
+  <div class='quality-body'>
+    <div class='quality-groups'>
+      <div class='quality-group'>
+        <h4>Fields without values</h4>
+        {{ issues(panel.fields, 'No fields without values.') }}
+      </div>
+      <div class='quality-group'>
+        <h4>Defined options not observed</h4>
+        {{ issues(panel.options, 'Every defined option was observed.') }}
+      </div>
+    </div>
+  </div>
+</details>

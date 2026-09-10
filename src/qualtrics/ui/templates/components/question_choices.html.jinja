@@ -1,0 +1,7 @@
+{% for choice in choices %}
+<label data-survey='{{ choice.survey_id }}'>
+  <input class='question-choice' type='checkbox' value='{{ choice.token }}' checked>
+  <span>{{ choice.label }}{% if multiple_surveys %}<em>{{ choice.survey_label }}</em>{% endif %}</span>
+  <small>{{ choice.count }}/{{ choice.total }}</small>
+</label>
+{% endfor %}

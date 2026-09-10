@@ -1,0 +1,35 @@
+<div class='field-analysis matrix-analysis'>
+  <div class='matrix-scroll' tabindex='0' role='region' aria-label='Matrix answer distribution'>
+    <table class='matrix-summary'>
+      <caption>Responses by statement and answer option</caption>
+      <thead>
+        <tr>
+          <th scope='col'>Statement</th>
+          <th scope='col'>Answered (n)</th>
+          {% for label in columns %}
+            <th scope='col'><span>{{ label }}</span></th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <th scope='row'>{{ row.label }}</th>
+            <td class='matrix-n'>{{ "{:,}".format(row.denominator) }}</td>
+            {% for cell in row.cells %}
+              {% if cell.count is none %}
+                <td class='matrix-cell unavailable' title='No exported option for this row'>—</td>
+              {% else %}
+                <td class='matrix-cell{% if not cell.count %} option-zero{% endif %}'>
+                  <b>{{ "{:,}".format(cell.count) }}</b><small>{{ cell.percentage }}</small>
+                  <span class='matrix-meter' aria-hidden='true'><i style='width:{{ cell.width }}'></i></span>
+                </td>
+              {% endif %}
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class='meta'>Each cell shows a respondent count and percentage of respondents who answered that row. Answer options follow the survey definition order. Multiple selections can total more than 100%. A missing answer does not tell us whether the question was shown. — means no row responses or no exported option for that row.</p>
+</div>

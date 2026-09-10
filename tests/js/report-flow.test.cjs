@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const engine = require('../../src/qualtrics/reporting/static/flow-engine.js');
-const {createController} = require('../../src/qualtrics/reporting/static/flow.js');
+const engine = require('../../src/qualtrics/ui/static/flow-engine.js');
+const {createController} = require('../../src/qualtrics/ui/static/flow.js');
 
 // Native DOM operations only are represented here; the real controller and
 // production engine run together, including their registered button handlers.
@@ -62,7 +62,7 @@ function fixture(def=definition(),withCanvas=false) {
     return {id,label:id==='s'?'Team survey':'Other survey',definition:def,nodes,targets:{}};
   });
   document.getElementById=id=>ids[id] || null;
-  const controller=createController(document,{surveys},engine,withCanvas?require('../../src/qualtrics/reporting/static/flow-canvas.js'):undefined,withCanvas?require('../../src/qualtrics/reporting/static/flow-graph.js'):undefined);
+  const controller=createController(document,{surveys},engine,withCanvas?require('../../src/qualtrics/ui/static/flow-canvas.js'):undefined,withCanvas?require('../../src/qualtrics/ui/static/flow-graph.js'):undefined);
   controller.update(['s']);
   const click=id=>ids['flow-'+id].handlers.click({preventDefault(){}});
   const inputs=()=>ids['flow-current'].querySelectorAll('select');

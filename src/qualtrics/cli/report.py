@@ -4,7 +4,6 @@ from typing import Annotated
 import typer
 
 from ..models import merge_entity_sets
-from ..reporting import render_report
 from ..serialization import load_entities
 from .entity_folders import resolve_entity_folders
 
@@ -53,5 +52,14 @@ def report(
         if entity_sets
         else load_entities(**paths)
     )
-    render_report(entities, output)
+    try:
+        from ..ui import render_report
+
+        render_report(entities, output)
+    except ModuleNotFoundError as error:
+        if (error.name or "").split(".")[0] not in {"jinja2", "markupsafe"}:
+            raise
+        raise typer.BadParameter(
+            'HTML reports require optional UI dependencies. Install with: pip install "qualtrics[ui]"'
+        ) from None
     typer.echo(f"Wrote HTML report to {output}")

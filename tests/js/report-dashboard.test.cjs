@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {aggregateTimeline, createDashboard} = require('../../src/qualtrics/reporting/static/dashboard.js');
+const {aggregateTimeline, createDashboard} = require('../../src/qualtrics/ui/static/dashboard.js');
 
 test('weekly timeline uses Monday boundaries, fills gaps and counts undated records', () => {
   const result = aggregateTimeline([

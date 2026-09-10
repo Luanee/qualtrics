@@ -1,7 +1,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-const path='../../src/qualtrics/reporting/static/flow-canvas.js';
+const path='../../src/qualtrics/ui/static/flow-canvas.js';
 const canvas=fs.existsSync(require('node:path').resolve(__dirname,path)) ? require(path) : {};
 const graph={width:1000,height:1800,nodes:[{id:'first',occurrenceId:'first',x:100,y:100,width:260,height:126},{id:'last',occurrenceId:'last',x:100,y:1400,width:260,height:126}]};
 test('fit contains the whole graph and resize recenters the selected occurrence at readable zoom',()=>{
