@@ -5,11 +5,12 @@
   const fresh = () => ({answers:{}, blockAnswers:{}, embedded:{}, choices:{}, completed:[]});
   const owns = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
 
-  function createController(document, payload, engine) {
+  function createController(document, payload, engine, canvasApi = root.QualtricsFlowCanvas, graphApi = root.QualtricsFlowGraph) {
     const $ = id => document.getElementById('flow-' + id);
     const all = selector => [...document.querySelectorAll(selector)];
     const surveys = payload.surveys || [];
-    let currentSurvey = null, started = false, scenario = fresh(), history = [], result = null, readInputs = [];
+    let lastPending = null, selectedSurveyIds = [], currentSurvey = null, started = false, scenario = fresh(), history = [], result = null, readInputs = [];
+    const canvas = canvasApi && graphApi ? canvasApi.create(document, graphApi,()=>showPanel('details'),engine) : null;
     const node = (tag, className, text) => {
       const element = document.createElement(tag);
       if (className) element.className = className;
@@ -32,7 +33,14 @@
     };
     const titleFor = item => item ? currentSurvey.definition.blocks?.[item.config?.ID]?.name
       || item.config?.Description || ({Root:'Survey start', Block:'Question block', Standard:'Question block', Branch:'Branch', Group:'Group', Randomizer:'Randomizer', BlockRandomizer:'Randomizer', EndSurvey:'Survey ending', EmbeddedData:'Embedded data', WebService:'Web service', Authenticator:'Authenticator', Quota:'Quota', ReferenceSurvey:'Referenced survey'}[item.type]) || item.type : 'Survey flow';
+    function showPanel(panel) {
+      if(!$('scenario-panel')) return;
+      $('scenario-panel').hidden=panel==='details';$('selection').hidden=panel!=='details';
+      $('panel-details').setAttribute('aria-pressed',String(panel==='details'));
+      $('panel-scenario').setAttribute('aria-pressed',String(panel!=='details'));
+    }
     function reset() {
+      showPanel('scenario');
       started = false; scenario = fresh(); history = []; result = null; render();
     }
     function openAncestors(target, focus = false) {
@@ -42,6 +50,15 @@
       if (focus) { target.setAttribute('tabindex', '-1'); target.focus(); target.scrollIntoView({block:'nearest', behavior:'smooth'}); }
     }
     function markMap() {
+      canvas?.setSurvey(currentSurvey);
+      if(canvas && !currentSurvey) $('canvas-empty').textContent=selectedSurveyIds.length
+        ? 'No flow definition is available for this scope. Rebuild the survey data with a QSF or flow JSON, then generate the report again.'
+        : 'Select a survey to see its flow.';
+      canvas?.mark(started ? result : null);
+      const pendingKey=started && result?.pending ? currentSurvey.id+'\u0000'+result.pending.node_id : null;
+      if(pendingKey && pendingKey!==lastPending) canvas?.select(result.pending.node_id, {notify:false});
+      lastPending=pendingKey;
+      all('.flow-survey').forEach(map=>{map.hidden=canvas ? !selectedSurveyIds.includes(map.dataset.survey) : !selectedSurveyIds.includes(map.dataset.survey) || (currentSurvey && map.dataset.survey !== currentSurvey.id);});
       for (const survey of surveys) {
         for (const [id, anchor] of Object.entries(survey.nodes)) {
           const element = document.getElementById(anchor); if (!element) continue;
@@ -112,7 +129,7 @@
       }
       if (!started) {
         $('walkthrough-status').textContent='Ready to explore ' + currentSurvey.label + '.';
-        $('current').append(node('p','flow-note','Expand any map card to inspect its settings and questions. Start when you are ready to choose hypothetical answers.'));
+        $('current').append(node('p','flow-note','Select any map card to inspect its settings and questions. Start when you are ready to choose hypothetical answers.'));
         $('assumptions').hidden=true; markMap(); return;
       }
       result=engine.walkFlow(currentSurvey.definition,scenario);
@@ -192,6 +209,7 @@
       }
     }
     function proceed() {
+      showPanel('scenario');
       if(!currentSurvey) return;
       if(!started) { started=true;render();return; }
       if(!result?.pending || result.pending.canContinue === false) return;
@@ -205,7 +223,8 @@
       if(pending.kind === 'block') draft.completed=[...(result.completed || scenario.completed),pending.node_id];
       scenario=draft;render();
     }
-    function update(selectedSurveyIds) {
+    function update(ids) {
+      selectedSurveyIds=[...ids];
       const selected=new Set(selectedSurveyIds), available=surveys.filter(survey=>selected.has(survey.id));
       all('.flow-survey').forEach(map=>{map.hidden=!selected.has(map.dataset.survey);});
       $('scope-empty').hidden=selected.size>0;
@@ -213,11 +232,20 @@
       $('survey-select').replaceChildren();available.forEach(survey=>addOption($('survey-select'),survey.id,survey.label));
       currentSurvey=available.find(survey=>survey.id===previous) || available[0] || null;
       $('survey-select').disabled=available.length<2; $('survey-select').value=currentSurvey?.id || '';
-      if(currentSurvey?.id !== previous) reset();
+      if(currentSurvey?.id !== previous) reset(); else markMap();
     }
     function reveal(targetId) {
       const target=document.getElementById(String(targetId).replace(/^#/,''));
       if(!target || !all('.flow-node').includes(target)) return false;
+      const survey=surveys.find(survey=>Object.values(survey.nodes).includes(target.id));
+      if(survey && survey !== currentSurvey) {
+        if(!selectedSurveyIds.includes(survey.id)) selectedSurveyIds.push(survey.id);
+        currentSurvey=survey;update(selectedSurveyIds);reset();
+      }
+      if(canvas) {
+        const occurrence=Object.keys(survey.nodes).find(id=>survey.nodes[id]===target.id);
+        $('canvas-shell').hidden=false;canvas.select(occurrence,{focus:true});return true;
+      }
       openAncestors(target,true);return true;
     }
     function records() {
@@ -239,6 +267,19 @@
       }
       return rows;
     }
+    if(canvas && $('outline')) {
+      $('outline').hidden=true;
+      $('panel-controls').hidden=false;
+      $('panel-details').addEventListener('click',()=>showPanel('details'));
+      $('panel-scenario').addEventListener('click',()=>showPanel('scenario'));
+      showPanel('scenario');
+      $('outline-toggle').hidden=false;
+      $('outline-toggle').addEventListener('click',()=>{
+        $('outline').hidden=!$('outline').hidden;
+        $('outline-toggle').textContent=$('outline').hidden?'Show outline':'Hide outline';
+        $('outline-toggle').setAttribute('aria-expanded',String(!$('outline').hidden));
+      });
+    }
     $('interactive').hidden=false;all('.flow-map-controls').forEach(control=>{control.hidden=false;});
     $('continue').addEventListener('click',proceed);
     $('back').addEventListener('click',()=>{if(history.length) {scenario=history.pop();render();}});
@@ -247,7 +288,7 @@
     $('expand').addEventListener('click',()=>all('.flow-survey').filter(map=>!map.hidden).forEach(map=>map.querySelectorAll('details').forEach(detail=>{detail.open=true;})));
     $('collapse').addEventListener('click',()=>all('.flow-survey').filter(map=>!map.hidden).forEach(map=>map.querySelectorAll('.flow-node').forEach(detail=>{detail.open=false;})));
     render();
-    return {update,reveal,records};
+    return {update,reveal,records,resize:()=>canvas?.resize()};
   }
   let controller;
   const api={createController,
@@ -260,6 +301,7 @@
       }
       return controller;
     },
+    resize() { api.init()?.resize(); },
     update(ids) { api.init()?.update(ids); },reveal(id) { return api.init()?.reveal(id) || false; },records() { return api.init()?.records() || []; },
   };
   if(typeof module === 'object' && module.exports) module.exports=api;

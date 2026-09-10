@@ -31,6 +31,8 @@ SCRIPT_ASSETS = (
     "codebook.js",
     "dashboard.js",
     "flow-engine.js",
+    "flow-graph.js",
+    "flow-canvas.js",
     "flow.js",
     "pages/responses.js",
     "pages/written.js",
