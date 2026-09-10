@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from qualtrics import parse_survey
-from qualtrics.serialization.io import load_entities, write_entities
+from qualtrics._common.serialization.io import load_entities, write_entities
 
 
 def test_csv_round_trip_preserves_analytical_answer_types(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:

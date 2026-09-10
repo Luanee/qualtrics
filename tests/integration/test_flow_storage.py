@@ -9,9 +9,9 @@ from pathlib import Path
 import pytest
 
 from qualtrics import load_entities, parse_survey, write_entities
-from qualtrics.models.entity_set import merge_entity_sets
-from qualtrics.models.semantic import build_semantic_model
-from qualtrics.serialization.semantic import write_semantic_model
+from qualtrics._common.models.entity_set import merge_entity_sets
+from qualtrics._common.models.semantic import build_semantic_model
+from qualtrics._common.serialization.semantic import write_semantic_model
 
 
 def _survey_files(tmp_path: Path, *, include_flow: bool = True) -> tuple[Path, Path]:

@@ -1,7 +1,7 @@
 import pytest
 
-from qualtrics.models.entities import EntitySet
-from qualtrics.models.entity_set import merge_entity_sets, validate_entity_set
+from qualtrics._common.models.entities import EntitySet
+from qualtrics._common.models.entity_set import merge_entity_sets, validate_entity_set
 
 
 def test_validation_rejects_duplicate_primary_ids() -> None:

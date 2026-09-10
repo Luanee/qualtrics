@@ -3,8 +3,8 @@ from typing import Annotated
 
 import typer
 
-from ..parsers import parse_survey, parse_surveys
-from ..serialization import write_entities
+from .._common.parsers import parse_survey, parse_surveys
+from .._common.serialization import write_entities
 
 
 def build(

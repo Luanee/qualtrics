@@ -9,9 +9,9 @@ from datetime import datetime
 from statistics import median
 from typing import Any
 
-from ..analytics.report import QuestionKey, ReportAnalytics
-from ..models import EntitySet
-from ..models.question_types import resolve_question_type
+from .._common.analytics.report import QuestionKey, ReportAnalytics
+from .._common.models import EntitySet
+from .._common.models.question_types import resolve_question_type
 from .insights import field_value_type
 from .question_presentation import numeric_distribution, option_counts
 

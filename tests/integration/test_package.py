@@ -145,7 +145,7 @@ def test_response_answers_have_typed_values_and_option_ids(survey_files: tuple[P
     assert categorical["answer_numeric"] is None
     assert categorical["is_selected"] is True
 
-    from qualtrics.parsers.survey import populate_typed_answer
+    from qualtrics._common.parsers.survey import populate_typed_answer
 
     option: dict[str, object] = {
         "answer_option_id": "option-1",
@@ -161,7 +161,7 @@ def test_response_answers_have_typed_values_and_option_ids(survey_files: tuple[P
 
 
 def test_typed_answers_do_not_guess_ambiguous_options_or_boolean_text() -> None:
-    from qualtrics.parsers.survey import populate_typed_answer
+    from qualtrics._common.parsers.survey import populate_typed_answer
 
     ambiguous: dict[str, object] = {"answer_text": "Same", "answer_value_type": "categorical"}
     populate_typed_answer(
@@ -180,7 +180,7 @@ def test_field_identity_uses_the_export_column_with_or_without_import_metadata(
 ) -> None:
     entities = parse_survey(*survey_files)
     field = entities.question_fields[0]
-    from qualtrics.models.identity import entity_id
+    from qualtrics._common.models.identity import entity_id
 
     assert field["question_field_id"] == entity_id("question-field", field["question_id"], field["field_external_id"])
 

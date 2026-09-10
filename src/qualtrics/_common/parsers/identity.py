@@ -20,23 +20,6 @@ def _qid(value: str) -> str | None:
     return match.group(1).upper() if match else None
 
 
-def _question_role(definition: dict[str, Any], import_ids: list[str]) -> str:
-    question_type = str(definition.get("QuestionType") or "").casefold()
-    selector = str(definition.get("Selector") or "").casefold()
-    if question_type in {"meta", "metadata"} or selector == "browser":
-        return "metadata"
-    if question_type == "timing" or selector == "timing":
-        return "timing"
-    technical = " ".join(import_ids).upper()
-    metadata_suffixes = ("_BROWSER", "_VERSION", "_OS", "_RESOLUTION", "_USERAGENT")
-    if technical and all(any(code in item.upper() for code in metadata_suffixes) for item in import_ids):
-        return "metadata"
-    timing_suffixes = ("FIRST_CLICK", "LAST_CLICK", "PAGE_SUBMIT", "CLICK_COUNT")
-    if any(code in technical for code in timing_suffixes):
-        return "timing"
-    return "response"
-
-
 def _field_text(header: str, question_text: str, column: str, suffix: str | None) -> str:
     """Return a compact field label without losing its technical identity."""
     cleaned_header = _clean(header)

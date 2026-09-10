@@ -6,7 +6,7 @@ import math
 from statistics import median
 from typing import Any
 
-from ..models.question_types import resolve_question_type
+from .._common.models.question_types import resolve_question_type
 from .question_presentation import option_counts
 
 Row = dict[str, Any]

@@ -3,8 +3,8 @@ from typing import Annotated
 
 import typer
 
-from ..models import merge_entity_sets
-from ..serialization import load_entities
+from .._common.models import merge_entity_sets
+from .._common.serialization import load_entities
 from .entity_folders import resolve_entity_folders
 
 

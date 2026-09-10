@@ -13,9 +13,40 @@ uv venv --clear .wheel-venv
 uv pip install --python .wheel-venv/bin/python "${wheel_files[0]}"
 .wheel-venv/bin/python - <<'PYTHON'
 import importlib.util
+import pkgutil
+from pathlib import Path
+
 import qualtrics
-from qualtrics.analytics import analyze_entities
-assert analyze_entities(qualtrics.EntitySet()).response_count == 0
+from qualtrics import (
+    EntitySet,
+    QualtricsClient,
+    ReportAnalytics,
+    SemanticModel,
+    __version__,
+    analyze_entities,
+    build_semantic_model,
+    load_entities,
+    merge_entity_sets,
+    parse_survey,
+    parse_surveys,
+    render_report,
+    write_entities,
+    write_semantic_model,
+)
+
+package_path = Path(qualtrics.__file__).parent
+assert "site-packages" in package_path.parts, package_path
+assert (package_path / "py.typed").is_file()
+packages = {module.name for module in pkgutil.iter_modules(qualtrics.__path__) if module.ispkg}
+assert packages == {"_common", "api", "cli", "ui"}, packages
+analytics = analyze_entities(EntitySet())
+assert isinstance(analytics, ReportAnalytics)
+assert analytics.response_count == 0
+entities = parse_survey("docs/assets/examples/feedback.csv", "docs/assets/examples/feedback.qsf")
+semantic = build_semantic_model(entities)
+assert isinstance(semantic, SemanticModel)
+assert len(semantic.fact_responses) == len(entities.responses) > 0
+assert len(semantic.dim_questions) == len(entities.question_fields) > 0
 for dependency in ("typer", "rich", "jinja2", "markupsafe", "pyarrow"):
     assert importlib.util.find_spec(dependency) is None, dependency
 PYTHON

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from qualtrics import parse_survey
-from qualtrics.models.semantic import build_semantic_model
+from qualtrics._common.models.semantic import build_semantic_model
 
 
 def test_semantic_model_flattens_question_fields_and_preserves_fact_grains(

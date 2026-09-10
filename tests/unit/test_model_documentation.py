@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from qualtrics.models.entities import ENTITY_NAMES
+from qualtrics._common.models.entities import ENTITY_NAMES
 
 
 def test_entity_documentation_names_every_normalized_entity_and_semantic_table() -> None:

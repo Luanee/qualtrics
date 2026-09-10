@@ -7,9 +7,9 @@ import pytest
 from scripts.question_type_showcase import build_showcase
 
 from qualtrics import parse_survey
-from qualtrics.analytics import analyze_entities
-from qualtrics.models.entity_set import validate_entity_set
-from qualtrics.reporting.question_presentation import render_question_analysis
+from qualtrics._common.analytics import analyze_entities
+from qualtrics._common.models.entity_set import validate_entity_set
+from qualtrics.ui.question_presentation import render_question_analysis
 
 FAMILIES = {
     "multiple_choice_single",

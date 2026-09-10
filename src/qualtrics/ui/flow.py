@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from ..models import EntitySet
+from .._common.models import EntitySet
 from .components.primitives import page_heading
 from .templating import render_template, trusted_html
 

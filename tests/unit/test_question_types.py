@@ -1,6 +1,6 @@
 import pytest
 
-from qualtrics.models.question_types import resolve_question_type
+from qualtrics._common.models.question_types import resolve_question_type
 
 
 @pytest.mark.parametrize(

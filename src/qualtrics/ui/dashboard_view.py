@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import json
 
-from ..analytics.report import ReportAnalytics
-from ..models import EntitySet
+from .._common.analytics.report import ReportAnalytics
+from .._common.models import EntitySet
 from .dashboard import build_dashboard
 from .templating import render_template, trusted_html
 

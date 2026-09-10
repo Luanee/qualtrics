@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..models import EntitySet
-from ..parsers.identity import _question_role
+from ..models.question_types import classify_question_role
 
 QuestionKey = tuple[str, str]
 FieldKey = tuple[str, str, str]
@@ -58,7 +58,7 @@ def analyze_entities(entities: EntitySet) -> ReportAnalytics:
     question_roles = {
         key: str(
             question.get("question_role")
-            or _question_role(
+            or classify_question_role(
                 question,
                 [str(item.get("source_import_id") or "") for field_key, item in fields.items() if field_key[:2] == key],
             )

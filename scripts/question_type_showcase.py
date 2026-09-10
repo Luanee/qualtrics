@@ -18,8 +18,8 @@ from pathlib import Path
 from typing import Any
 
 from qualtrics import parse_survey, render_report
-from qualtrics.models.entity_set import validate_entity_set
-from qualtrics.models.question_types import resolve_question_type
+from qualtrics._common.models.entity_set import validate_entity_set
+from qualtrics._common.models.question_types import resolve_question_type
 
 QUESTION_GUIDE = (
     "https://www.qualtrics.com/support/survey-platform/survey-module/editing-questions/question-types-guide/"

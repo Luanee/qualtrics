@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from qualtrics.models.semantic import SemanticModel
-from qualtrics.serialization.semantic import write_semantic_model
+from qualtrics._common.models.semantic import SemanticModel
+from qualtrics._common.serialization.semantic import write_semantic_model
 
 
 def test_sqlite_empty_model_has_all_tables_with_useful_types(tmp_path: Path) -> None:
