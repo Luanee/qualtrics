@@ -1,9 +1,9 @@
 {% import 'components/macros.html.jinja' as ui %}
 <section id='by-responses' class='report-view'>
-  {{ ui.page_heading('Responses', 'Review individual answers and filter to the questions you need.') }}
+  {{ ui.page_heading('Responses', 'Review individual answers and response properties, then filter to the questions you need.') }}
   <div class='toolbar'>
     <label for='search'>Search responses</label>
-    <input id='search' type='search' placeholder='Search responses, questions, or answers…'>
+    <input id='search' type='search' placeholder='Search responses, properties, questions, or answers…'>
     <span id='count'></span>
     <div class='filter-wrap'>
       <button id='question-toggle' type='button' aria-expanded='false'>Questions · <span id='selected-count'>All</span></button>
@@ -29,6 +29,19 @@
         <span>{% if value.label %}<b>{{ value.label }}</b> {% endif %}{{ value.value }}</span>
         {% endfor %}
       </div>
+      {% if card.properties %}
+      <details class='response-properties'>
+        <summary>Response properties <span class='property-count'>{{ card.properties|length }}</span></summary>
+        <dl>
+          {% for property in card.properties %}
+          <div class='response-property' id='{{ card.id }}-property-{{ loop.index }}'>
+            <dt class='property-label'>{{ property.label }}{% if property.source != property.label %}<small>{{ property.source }}</small>{% endif %}</dt>
+            <dd class='property-value'>{{ property.value }}</dd>
+          </div>
+          {% endfor %}
+        </dl>
+      </details>
+      {% endif %}
       <div class='answers'>
         {% for question in card.questions %}
         <div class='answer' data-question='{{ question.token }}'>

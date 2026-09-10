@@ -20,6 +20,11 @@
     const identity = card.querySelector('.identity')?.textContent || 'Response';
     const context = `${identity} · ${surveyNames.get(card.dataset.survey) || card.dataset.survey}`;
     record('Response metadata', card, identity, card.querySelector('.response-meta')?.textContent || '', surveyNames.get(card.dataset.survey) || '');
+    [...card.querySelectorAll('.response-property')].forEach((property, propertyIndex) => {
+      property.id ||= `${card.id}-property-${propertyIndex + 1}`;
+      record('Response property', property, property.querySelector('.property-label')?.textContent || 'Property',
+        property.querySelector('.property-value')?.textContent || '', context);
+    });
     cardCache.get(card).answers.forEach(({row}, rowIndex) => {
       row.id ||= `${card.id}-answer-${rowIndex + 1}`;
       [...row.querySelectorAll('.field-answer')].forEach((field, fieldIndex) => {

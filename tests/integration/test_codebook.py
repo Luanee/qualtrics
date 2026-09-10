@@ -91,9 +91,11 @@ def test_codebook_with_no_definition_does_not_invent_choices(survey_files: tuple
 
     entities = parse_survey(survey_files[0])
     rows = build_codebook(entities)
-    assert len(rows) == len(entities.question_fields)
+    field_columns = {str(row["field_external_id"]) for row in entities.question_fields}
+    represented_fields = [row for row in rows if row["export_column"] in field_columns]
+    assert len(represented_fields) == len(entities.question_fields)
     assert all(not row["choices"] for row in rows)
-    assert {row["export_column"] for row in rows} == {str(row["field_external_id"]) for row in entities.question_fields}
+    assert {row["export_column"] for row in represented_fields} == field_columns
 
 
 class _CodebookParser(HTMLParser):
@@ -129,7 +131,7 @@ def test_empty_codebook_is_explicit() -> None:
     from qualtrics.ui.codebook import render_codebook
 
     rendered = render_codebook(EntitySet())
-    assert "No question fields are available" in rendered
+    assert "No fields are available" in rendered
 
 
 def test_report_includes_offline_codebook_controls(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
