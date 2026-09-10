@@ -8,10 +8,10 @@ from zipfile import ZIP_DEFLATED, ZipFile
 import pytest
 
 from qualtrics import load_entities, parse_survey, write_entities
-from qualtrics.analytics import analyze_entities
-from qualtrics.models.entity_set import validate_entity_set
-from qualtrics.models.semantic import build_semantic_model
-from qualtrics.reporting import render_report
+from qualtrics._common.analytics import analyze_entities
+from qualtrics._common.models.entity_set import validate_entity_set
+from qualtrics._common.models.semantic import build_semantic_model
+from qualtrics.ui import render_report
 
 
 @pytest.fixture

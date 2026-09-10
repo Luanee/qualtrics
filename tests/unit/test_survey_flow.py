@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from qualtrics.parsers.flow import extract_flow_definition
+from qualtrics._common.parsers.flow import extract_flow_definition
 
 
 def _questions() -> dict[str, object]:

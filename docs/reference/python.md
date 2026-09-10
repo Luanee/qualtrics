@@ -10,26 +10,41 @@ The package root exports the offline workflow and the API client:
 from qualtrics import (
     EntitySet,
     QualtricsClient,
+    ReportAnalytics,
+    SemanticModel,
     __version__,
+    analyze_entities,
+    build_semantic_model,
     load_entities,
     merge_entity_sets,
     parse_survey,
     parse_surveys,
     render_report,
     write_entities,
+    write_semantic_model,
 )
 ```
 
-The canonical report interface is `from qualtrics.ui import render_report`; install `qualtrics[ui]` before generating a report. The root import above and existing `qualtrics.reporting` imports remain compatible. Base SDK/data imports do not load Jinja, Typer, or Rich; UI rendering does not require CLI dependencies.
-
-For semantic tables, use the defining modules:
-
-```python
-from qualtrics.models.semantic import SemanticModel, build_semantic_model
-from qualtrics.serialization.semantic import write_semantic_model
-```
+The canonical report interface is `from qualtrics.ui import render_report`; you can also use the root import above. Install `qualtrics[ui]` before generating a report. Base SDK/data imports work without Jinja, Typer, or Rich; UI rendering does not require CLI dependencies.
 
 Importing these names does not read credentials or make API calls. The client reads connection settings when you construct it; service methods make requests when you call them.
+
+### Migrate earlier deep imports
+
+The package layout now has four implementation packages: `api`, `cli`, `ui`, and `_common`. The earlier `qualtrics.models`, `qualtrics.parsers`, `qualtrics.analytics`, `qualtrics.serialization`, `qualtrics.reporting`, and `qualtrics.services` paths have been removed. Update imports to the public interfaces:
+
+| Earlier import | Replacement |
+| --- | --- |
+| `from qualtrics.models import EntitySet, merge_entity_sets` | `from qualtrics import EntitySet, merge_entity_sets` |
+| `from qualtrics.models.semantic import SemanticModel, build_semantic_model` | `from qualtrics import SemanticModel, build_semantic_model` |
+| `from qualtrics.parsers import parse_survey, parse_surveys` | `from qualtrics import parse_survey, parse_surveys` |
+| `from qualtrics.analytics import ReportAnalytics, analyze_entities` | `from qualtrics import ReportAnalytics, analyze_entities` |
+| `from qualtrics.serialization import load_entities, write_entities` | `from qualtrics import load_entities, write_entities` |
+| `from qualtrics.serialization.semantic import write_semantic_model` | `from qualtrics import write_semantic_model` |
+| `from qualtrics.reporting import render_report` | `from qualtrics.ui import render_report` or `from qualtrics import render_report` |
+| `from qualtrics.services import merge_entity_sets` | `from qualtrics import merge_entity_sets` |
+
+Use the root imports for shared data operations. Treat `_common` and its submodules as private implementation details; they are not supported application imports. Existing root imports and the `cli`, `ui`, and `parquet` dependency extras retain their behavior. The base installation still includes the API SDK dependencies.
 
 ## Offline functions
 
@@ -57,6 +72,8 @@ load_entities(folder: str | Path | None = None, **paths: str | Path) -> EntitySe
 
 render_report(entities: EntitySet, output: str | Path) -> None
 
+analyze_entities(entities: EntitySet) -> ReportAnalytics
+
 build_semantic_model(entities: EntitySet) -> SemanticModel
 
 write_semantic_model(
@@ -74,6 +91,7 @@ write_semantic_model(
 | `write_entities` | Writes all nine entities as `json`, `csv`, or `parquet`. Creates the folder and overwrites matching files. |
 | `load_entities` | Loads entity files named for their tables. Explicit keyword paths use table names, such as `responses="responses.json"`. Validates the full contract when you supply a folder; without a folder, validates the supplied subset's keys and relationships. Rejects multiple formats for the same entity in a folder. |
 | `render_report` | Writes a self-contained HTML report with the built-in design. The output's parent directory must exist. Overwrites the target file. |
+| `analyze_entities` | Calculates response counts, question roles, answer groupings, and unused or unanswered content for reports. Returns a `ReportAnalytics` without requiring the `ui` extra. |
 | `build_semantic_model` | Requires a complete, valid entity collection. Returns five tables in a `SemanticModel`. |
 | `write_semantic_model` | Writes all five tables as `json`, `csv`, or `parquet`. Creates the folder and overwrites matching files. |
 
@@ -84,9 +102,14 @@ The Python writers do not apply the CLI combine and semantic commands' occupied-
 ```python
 from pathlib import Path
 
-from qualtrics import load_entities, parse_survey, render_report, write_entities
-from qualtrics.models.semantic import build_semantic_model
-from qualtrics.serialization.semantic import write_semantic_model
+from qualtrics import (
+    build_semantic_model,
+    load_entities,
+    parse_survey,
+    render_report,
+    write_entities,
+    write_semantic_model,
+)
 
 
 def main() -> None:
@@ -116,6 +139,8 @@ Use the downloadable inputs in [your first report](../getting-started/first-repo
 `EntitySet` is a dataclass with lists of dictionaries named `surveys`, `sections`, `question_catalog`, `question_field_catalog`, `questions`, `answer_options`, `question_fields`, `responses`, and `response_answers`. Prefer `parse_survey` or `load_entities` to construct a collection with the metadata needed for strict validation.
 
 `SemanticModel` is a dataclass with `fact_responses`, `fact_response_answers`, `dim_surveys`, `dim_questions`, and `dim_answer_options`, also lists of dictionaries. `dim_questions` has one row per exported question field.
+
+Use `analyze_entities(entities)` to calculate report metrics in Python. Its `ReportAnalytics` result includes `response_count`, `finished_count`, `question_roles`, and the question, field, and answer lookups used by HTML reports.
 
 Use the [entity model](../entity-model.md) and [DBML schema](../entity-model.dbml) for columns, keys, and relationships. The [glossary](../understand/glossary.md) explains the terminology.
 

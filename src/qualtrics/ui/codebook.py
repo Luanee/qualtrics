@@ -4,7 +4,7 @@ import csv
 from io import StringIO
 from typing import Any
 
-from ..models import EntitySet
+from .._common.models import EntitySet
 from .components.primitives import page_heading, search_control
 from .templating import render_template, trusted_html
 

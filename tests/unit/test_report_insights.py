@@ -1,4 +1,4 @@
-from qualtrics.reporting.insights import question_highlight
+from qualtrics.ui.insights import question_highlight
 
 
 def answer(response, value, field="f"):

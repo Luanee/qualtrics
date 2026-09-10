@@ -1,8 +1,8 @@
 import json
 from html.parser import HTMLParser
 
-from qualtrics.models import EntitySet
-from qualtrics.reporting import render_report
+from qualtrics._common.models import EntitySet
+from qualtrics.ui import render_report
 
 
 class ReportDocument(HTMLParser):

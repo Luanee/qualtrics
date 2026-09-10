@@ -51,9 +51,26 @@ Check the generated report and downloads at desktop and phone widths. Verify tha
 
 The [flow example](../examples/survey-flow.md) has a separate generator, `scripts/survey_flow_showcase.py`, and hook, `scripts/docs_flow_showcase.py`. It produces a QSF, standalone flow JSON, 24 fictional responses, and an embedded report under `assets/examples/survey-flow/`. Rebuild locally with `uv run --extra ui python -m scripts.survey_flow_showcase --output data/survey-flow-showcase`. Keep fake responses consistent with the defined branches, and verify the early ending, randomizer, Back/Reset controls, unknown-rule assumptions, and cross-view question links after changing flow behavior.
 
+## Package architecture
+
+Keep implementation code in four packages under `src/qualtrics/`:
+
+| Package | Responsibility |
+| --- | --- |
+| `api/` | Remote SDK: HTTP clients, endpoints, API models, settings, and errors. |
+| `cli/` | Typer commands and terminal progress. |
+| `ui/` | Report preparation, Jinja templates, and bundled browser assets. |
+| `_common/` | Shared `models`, `parsers`, `analytics`, and `serialization` implementations. |
+
+Keep public exports, command entry points, version information, and `py.typed` at the package root. Use root imports for shared operations in examples and application code; `_common` is private. See [Python import migration](../reference/python.md#migrate-earlier-deep-imports) for the removed deep paths and their replacements.
+
+Keep `_common/__init__.py` minimal. Shared code must not import `api`, `cli`, `ui`, Typer, Rich, or Jinja. Parsers, analytics, and serialization can use shared models; analytics must not depend on parsers. Put question-role classification in the shared question models. Preserve the separate identity algorithms in the parser and model modules when changing them, since their identifiers serve different contracts.
+
+The package layout does not change installation requirements. The base package still installs the remote SDK dependencies and supports parsing, analytics, and JSON/CSV serialization. Keep Typer/Rich in `cli`, Jinja/MarkupSafe in `ui`, and PyArrow in `parquet`. Import Parquet dependencies only when a Parquet operation needs them, and keep the root `render_report` import usable before installing UI dependencies.
+
 ## Maintain the report components
 
-The generated report has six views inside one offline HTML document. The canonical renderer lives in `src/qualtrics/ui/`; `src/qualtrics/reporting/` contains compatibility delegates. The API SDK lives in `qualtrics.api`, the optional command-line adapters in `qualtrics.cli`, and the shared analytics/models/parsers/serialization packages remain usable without either interface extra.
+The generated report has six views inside one offline HTML document. Maintain the canonical renderer in `src/qualtrics/ui/` and expose it through `qualtrics.ui.render_report` and the root `qualtrics.render_report` import.
 
 Install contributor dependencies with `uv sync --all-groups --all-extras`. Documentation hooks generate both showcase reports, so even a docs-only environment needs the `ui` extra.
 
@@ -79,7 +96,7 @@ Survey Flow separates configured structure (`flow-graph.js`), canvas interaction
 
 Add new assets to the manifest; the renderer embeds their contents rather than linking to a server or CDN. Keep HTML in `.html.jinja` templates and prepare explicit view models in Python. The shared environment uses `PackageLoader`, `StrictUndefined`, and `autoescape=True`, including the `.jinja` suffix. Only already-rendered internal markup and bundled assets cross the narrow trusted-HTML boundary; survey text must remain escaped. Use DOM `textContent` for survey data and script-safe serialization for inline JSON. Preserve stable anchors when moving components: search, chart links, walkthroughs, and browser history depend on them.
 
-Run `node --test tests/js/*.test.cjs` for browser logic and `uv run --all-extras pytest` for Python behavior. The generated showcase integration tests also check the embedded reports with both MkDocs URL modes. Validate built-wheel imports and operations with base, CLI-only, UI-only, and combined installations; optional dependencies must be absent in the corresponding environments. Before shipping a UI change, inspect desktop and phone widths, both themes, all six pages, empty survey selections, deep links, the canvas controls, and print output.
+Run `node --test tests/js/*.test.cjs` for browser logic and `uv run --all-extras pytest` for Python behavior. The generated showcase integration tests also check the embedded reports with both MkDocs URL modes. After building one wheel into `dist/`, run `bash scripts/smoke_wheel.sh` to check the installed four-package layout, public imports, and operations with base, CLI-only, UI-only, and combined installations; optional dependencies must be absent in the corresponding environments. Before shipping a UI change, inspect desktop and phone widths, both themes, all six pages, empty survey selections, deep links, the canvas controls, and print output.
 
 ## Theme and plugin decisions
 

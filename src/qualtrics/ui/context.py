@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from ..analytics import ReportAnalytics, analyze_entities
-from ..models.entities import EntitySet
+from .._common.analytics import ReportAnalytics, analyze_entities
+from .._common.models.entities import EntitySet
 
 
 @dataclass(frozen=True)

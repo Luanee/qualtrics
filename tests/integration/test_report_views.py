@@ -1,5 +1,5 @@
-from qualtrics.models.entities import EntitySet
-from qualtrics.reporting.report import render_report
+from qualtrics._common.models.entities import EntitySet
+from qualtrics.ui.report import render_report
 
 
 def test_views_written_answer_types_and_escaped_deep_links(tmp_path):

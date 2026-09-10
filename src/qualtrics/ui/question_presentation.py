@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from statistics import mean, median, stdev
 from typing import Any
 
-from ..models.question_types import resolve_question_type
+from .._common.models.question_types import resolve_question_type
 from .templating import render_template, trusted_html
 
 Row = dict[str, Any]

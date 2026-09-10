@@ -5,8 +5,8 @@ import pytest
 from typer.testing import CliRunner
 
 from qualtrics import parse_survey, write_entities
+from qualtrics._common.models.semantic import SEMANTIC_TABLE_NAMES
 from qualtrics.cli.app import app
-from qualtrics.models.semantic import SEMANTIC_TABLE_NAMES
 
 
 def test_semantic_model_cli_writes_five_json_tables(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:

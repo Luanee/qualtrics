@@ -3,9 +3,9 @@ from typing import Annotated
 
 import typer
 
-from ..models import merge_entity_sets
-from ..models.entities import ENTITY_NAMES
-from ..serialization import load_entities, write_entities
+from .._common.models import merge_entity_sets
+from .._common.models.entities import ENTITY_NAMES
+from .._common.serialization import load_entities, write_entities
 from .entity_folders import ENTITY_EXTENSIONS, resolve_entity_folders, validate_entity_collection
 
 app = typer.Typer(help="Work with canonical entity collections.")

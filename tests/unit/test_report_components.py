@@ -1,4 +1,4 @@
-from qualtrics.reporting.components.primitives import empty_state, metric, page_heading, pagination, search_control
+from qualtrics.ui.components.primitives import empty_state, metric, page_heading, pagination, search_control
 
 
 def test_heading_and_controls_escape_labels_and_attributes():
@@ -32,7 +32,7 @@ def test_disclosure_heading_preserves_summary_and_escapes_count():
 
 
 def test_navigation_registers_every_page_with_one_current_view():
-    from qualtrics.reporting.components.navigation import render_navigation
+    from qualtrics.ui.components.navigation import render_navigation
 
     markup = render_navigation()
     for view in ("overview", "survey-flow", "question-analytics", "written-answers", "by-responses", "codebook"):
@@ -43,9 +43,9 @@ def test_navigation_registers_every_page_with_one_current_view():
 
 
 def test_scope_controls_keep_survey_specific_tokens_and_escape_hostile_names():
-    from qualtrics.models.entities import EntitySet
-    from qualtrics.reporting.components.controls import render_question_choices, render_survey_choices
-    from qualtrics.reporting.context import ReportContext
+    from qualtrics._common.models.entities import EntitySet
+    from qualtrics.ui.components.controls import render_question_choices, render_survey_choices
+    from qualtrics.ui.context import ReportContext
 
     entities = EntitySet(
         surveys=[{"survey_id": "s'", "survey_name": "<Survey>"}],

@@ -40,7 +40,7 @@ def test_page_templates_are_packaged_and_compiled(page):
 def test_canonical_report_preserves_whitespace_links_and_escapes_hostile_values(tmp_path):
     from html import escape
 
-    from qualtrics.models.entities import EntitySet
+    from qualtrics._common.models.entities import EntitySet
     from qualtrics.ui import render_report
 
     value = "  first\n<script>'\"&</script>\n last  "
@@ -74,7 +74,7 @@ def test_canonical_report_preserves_whitespace_links_and_escapes_hostile_values(
 
 
 def test_canonical_empty_report_retains_empty_dom_contract(tmp_path):
-    from qualtrics.models.entities import EntitySet
+    from qualtrics._common.models.entities import EntitySet
     from qualtrics.ui import render_report
 
     output = tmp_path / "empty.html"

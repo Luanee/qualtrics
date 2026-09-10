@@ -1,8 +1,8 @@
 import json
 from html.parser import HTMLParser
 
-from qualtrics.models import EntitySet
-from qualtrics.reporting.flow import render_flow
+from qualtrics._common.models import EntitySet
+from qualtrics.ui.flow import render_flow
 
 
 class Markup(HTMLParser):

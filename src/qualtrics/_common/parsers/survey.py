@@ -12,8 +12,8 @@ from zipfile import BadZipFile, ZipFile
 from ..models.entities import EntitySet
 from ..models.entity_set import merge_entity_sets
 from ..models.identity import canonicalize, entity_id, semantic_id
-from ..models.question_types import resolve_question_type
-from .identity import _clean, _field_text, _hash, _qid, _question_role
+from ..models.question_types import classify_question_role, resolve_question_type
+from .identity import _clean, _field_text, _hash, _qid
 from .paths import _expand_paths
 from .qsf import _matching_definition, _qsf
 
@@ -561,7 +561,7 @@ def _parse_survey_file(
                 for item in field_specs
                 if (_qid(item[3] or item[1]) or _qid(str(item[4].get("questionId") or ""))) == question_id
             ]
-            role = _question_role(definition, question_import_ids)
+            role = classify_question_role(definition, question_import_ids)
             entities.questions.append({
                 "survey_id": sid,
                 "question_id": question_id,

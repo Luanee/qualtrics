@@ -132,3 +132,5 @@ Choose extras for the interfaces you use:
 | `qualtrics[cli,ui,parquet]` | Complete command-line/report workflow with Parquet. |
 
 For example, install Python report support with `python -m pip install 'qualtrics[ui]'` and import `render_report` from `qualtrics.ui`. The existing `from qualtrics import render_report` import remains supported. Parquet is independent of both interfaces; add it only when reading or writing Parquet tables.
+
+The `_common` package layout keeps these dependency choices unchanged. The base installation still includes the remote API SDK dependencies. For shared data functions, use the public root imports in the [Python reference](../reference/python.md#public-imports); update earlier deep imports with the [migration table](../reference/python.md#migrate-earlier-deep-imports).

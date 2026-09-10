@@ -2,7 +2,7 @@ from pathlib import Path
 
 import typer
 
-from ..models.entities import ENTITY_NAMES
+from .._common.models.entities import ENTITY_NAMES
 
 ENTITY_EXTENSIONS = ("json", "csv", "parquet")
 

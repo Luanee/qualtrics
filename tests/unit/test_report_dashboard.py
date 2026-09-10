@@ -2,9 +2,9 @@
 
 import json
 
-from qualtrics.analytics import analyze_entities
-from qualtrics.models import EntitySet
-from qualtrics.reporting.dashboard import build_dashboard
+from qualtrics._common.analytics import analyze_entities
+from qualtrics._common.models import EntitySet
+from qualtrics.ui.dashboard import build_dashboard
 
 
 def question(survey="s", key="q", kind="MC", **values):

@@ -7,7 +7,7 @@ from io import StringIO
 from pathlib import Path
 
 from qualtrics import parse_survey, render_report
-from qualtrics.models import EntitySet
+from qualtrics._common.models import EntitySet
 
 
 def _entities() -> EntitySet:
@@ -71,7 +71,7 @@ def _entities() -> EntitySet:
 
 
 def test_codebook_maps_columns_and_orders_field_scoped_options() -> None:
-    from qualtrics.reporting.codebook import build_codebook
+    from qualtrics.ui.codebook import build_codebook
 
     rows = build_codebook(_entities())
     assert len(rows) == 2
@@ -87,7 +87,7 @@ def test_codebook_maps_columns_and_orders_field_scoped_options() -> None:
 
 
 def test_codebook_with_no_definition_does_not_invent_choices(survey_files: tuple[Path, Path]) -> None:
-    from qualtrics.reporting.codebook import build_codebook
+    from qualtrics.ui.codebook import build_codebook
 
     entities = parse_survey(survey_files[0])
     rows = build_codebook(entities)
@@ -108,7 +108,7 @@ class _CodebookParser(HTMLParser):
 
 
 def test_codebook_escapes_html_and_embeds_valid_csv_rows() -> None:
-    from qualtrics.reporting.codebook import render_codebook
+    from qualtrics.ui.codebook import render_codebook
 
     entities = _entities()
     entities.questions[0]["question_text"] = '=HYPERLINK("example")\n<script>alert(1)</script>'
@@ -126,7 +126,7 @@ def test_codebook_escapes_html_and_embeds_valid_csv_rows() -> None:
 
 
 def test_empty_codebook_is_explicit() -> None:
-    from qualtrics.reporting.codebook import render_codebook
+    from qualtrics.ui.codebook import render_codebook
 
     rendered = render_codebook(EntitySet())
     assert "No question fields are available" in rendered

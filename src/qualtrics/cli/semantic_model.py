@@ -4,9 +4,9 @@ from typing import Annotated
 
 import typer
 
-from ..models.semantic import SEMANTIC_TABLE_NAMES, build_semantic_model
-from ..serialization import load_entities
-from ..serialization.semantic import SEMANTIC_SQLITE_FILENAME, write_semantic_model
+from .._common.models.semantic import SEMANTIC_TABLE_NAMES, build_semantic_model
+from .._common.serialization import load_entities
+from .._common.serialization.semantic import SEMANTIC_SQLITE_FILENAME, write_semantic_model
 from .entity_folders import validate_entity_collection
 
 app = typer.Typer(help="Build analysis-ready semantic tables from normalized entities.")

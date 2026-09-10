@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 
 from qualtrics import load_entities, parse_survey, write_entities
-from qualtrics.models import EntitySet
-from qualtrics.reporting import render_report
+from qualtrics._common.models import EntitySet
+from qualtrics.ui import render_report
 
 
 def _entities(question_type: str, selector: str = "") -> EntitySet:

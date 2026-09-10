@@ -38,7 +38,7 @@ def test_base_sdk_and_data_roundtrip_without_interface_dependencies(survey_files
         from pathlib import Path
         import httpx
         from qualtrics import QualtricsClient, parse_survey, write_entities, load_entities, render_report
-        from qualtrics.analytics import analyze_entities
+        from qualtrics._common.analytics import analyze_entities
         page = {'result': {'elements': [], 'nextPage': None}}
         transport = httpx.MockTransport(lambda request: httpx.Response(200, json=page))
         with QualtricsClient(api_token='test', base_url='https://example.test/API/v3', transport=transport) as client:
@@ -47,12 +47,42 @@ def test_base_sdk_and_data_roundtrip_without_interface_dependencies(survey_files
         write_entities(entities, Path(sys.argv[3]), 'json')
         assert load_entities(Path(sys.argv[3])).responses == entities.responses
         assert analyze_entities(entities).response_count > 0
-        assert render_report.__module__ == 'qualtrics.reporting.report'
+        assert render_report.__module__ == 'qualtrics.ui.report'
         assert not {'typer', 'rich', 'jinja2', 'markupsafe', 'pyarrow'}.intersection(sys.modules)
     """,
         ("typer", "rich", "jinja2", "markupsafe", "pyarrow"),
         *survey_files,
         tmp_path / "entities",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_root_semantic_and_analytics_workflow_without_optional_dependencies(survey_files, tmp_path):
+    result = isolated(
+        """
+        import json
+        from pathlib import Path
+        from qualtrics import (
+            ReportAnalytics, SemanticModel, analyze_entities, build_semantic_model,
+            parse_survey, write_semantic_model,
+        )
+        entities = parse_survey(Path(sys.argv[1]), Path(sys.argv[2]))
+        analytics = analyze_entities(entities)
+        assert isinstance(analytics, ReportAnalytics)
+        assert analytics.response_count == 2
+        assert analytics.survey_name == 'Sample'
+        model = build_semantic_model(entities)
+        assert isinstance(model, SemanticModel)
+        assert [row['response_external_id'] for row in model.fact_responses] == ['R_1', 'R_2']
+        output = Path(sys.argv[3])
+        write_semantic_model(model, output, 'json')
+        responses = json.loads((output / 'fact_responses.json').read_text())
+        assert [row['response_external_id'] for row in responses] == ['R_1', 'R_2']
+        assert not {'typer', 'rich', 'jinja2', 'markupsafe', 'pyarrow'}.intersection(sys.modules)
+    """,
+        ("typer", "rich", "jinja2", "markupsafe", "pyarrow"),
+        *survey_files,
+        tmp_path / "semantic",
     )
     assert result.returncode == 0, result.stdout + result.stderr
 

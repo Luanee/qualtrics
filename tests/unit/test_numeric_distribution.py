@@ -1,4 +1,4 @@
-from qualtrics.reporting.question_presentation import render_question_analysis
+from qualtrics.ui.question_presentation import render_question_analysis
 
 
 def numeric_chart(values: list[object]) -> str:
@@ -25,7 +25,7 @@ def test_numeric_chart_shows_ordered_values_with_observed_frequencies() -> None:
 
 
 def test_numeric_chart_groups_many_values_and_includes_maximum() -> None:
-    from qualtrics.reporting.question_presentation import numeric_distribution
+    from qualtrics.ui.question_presentation import numeric_distribution
 
     rows = numeric_distribution([float(value) for value in range(101)])
     assert len(rows) == 8
@@ -43,7 +43,7 @@ def test_numeric_chart_excludes_invalid_values_and_handles_one_value() -> None:
 
 
 def test_numeric_bins_do_not_overflow_for_large_ranges() -> None:
-    from qualtrics.reporting.question_presentation import numeric_distribution
+    from qualtrics.ui.question_presentation import numeric_distribution
 
     rows = numeric_distribution([-1e308, 1e308, *map(float, range(20))])
     assert sum(count for _, count in rows) == 22

@@ -1,4 +1,4 @@
-from qualtrics.models.identity import entity_id, semantic_id
+from qualtrics._common.models.identity import entity_id, semantic_id
 
 
 def test_entity_id_is_domain_scoped_and_length_delimited() -> None:
