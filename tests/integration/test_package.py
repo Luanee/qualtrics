@@ -1,6 +1,7 @@
 import csv
 import json
 from copy import deepcopy
+from html.parser import HTMLParser
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
@@ -12,6 +13,30 @@ from qualtrics import (
     render_report,
     write_entities,
 )
+
+
+class NavigationLinks(HTMLParser):
+    """Read navigation labels without depending on decorative child markup."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.links: dict[str, str] = {}
+        self.current: str | None = None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attributes = dict(attrs)
+        if tag == "a" and attributes.get("data-view"):
+            self.current = attributes["href"]
+            if self.current:
+                self.links[self.current] = ""
+
+    def handle_data(self, data: str) -> None:
+        if self.current:
+            self.links[self.current] += data
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "a":
+            self.current = None
 
 
 def test_sample_preserves_multifield_identity(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
@@ -96,10 +121,12 @@ def test_sample_preserves_multifield_identity(tmp_path: Path, survey_files: tupl
     assert "Search responses, questions, or answers" in report
     assert "class='respondent'" in report
     assert "Expand all" in report
-    assert ">Summary</a>" in report
-    assert ">Responses</a>" in report
+    navigation = NavigationLinks()
+    navigation.feed(report)
+    assert navigation.links["#overview"] == "Summary"
+    assert navigation.links["#by-responses"] == "Responses"
     assert "Data quality" in report
-    assert ">Questions</a>" in report
+    assert navigation.links["#question-analytics"] == "Questions"
     assert "class='question-analysis catalog-group'" in report
     assert "class='distribution-row" in report
     assert "Multiple choice" in report

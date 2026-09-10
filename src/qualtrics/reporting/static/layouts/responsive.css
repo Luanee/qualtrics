@@ -1,0 +1,144 @@
+@media (max-width: 900px) {
+  .question-browser {
+    grid-template-columns: minmax(140px, 28%) minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .analysis-summary {
+    justify-content: flex-start;
+  }
+
+  .survey-analysis > summary {
+    flex-wrap: wrap;
+  }
+
+  .distribution-row {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 760px) {
+  .question-browser {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .question-sidebar {
+    position: static;
+    padding: 0 0 12px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  #question-navigator {
+    max-height: 220px;
+  }
+
+  .field-answer {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
+@media (max-width: 620px) {
+  .header-inner {
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .global-search {
+    flex: 1 1 100%;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  #search-clear {
+    padding-inline: 8px;
+    font-size: 12px;
+  }
+
+  #theme-choice {
+    padding-inline: 6px;
+  }
+
+  .report-layout {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .report-layout > aside {
+    padding: 8px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .survey-switcher {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 4px;
+  }
+
+  .report-nav {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .report-nav a {
+    padding: 8px;
+  }
+
+  .report-main {
+    padding: 16px 14px;
+  }
+
+  .stats {
+    gap: 12px 23px;
+  }
+
+  .stat strong {
+    font-size: 22px;
+  }
+
+  .analytics {
+    gap: 12px 20px;
+  }
+
+  .analytic {
+    flex-basis: 130px;
+  }
+
+  .distribution-row {
+    grid-template-columns: minmax(76px, 1.1fr) minmax(24px, 1fr) 32px 42px;
+    gap: 8px;
+  }
+
+  .section-summary, .quality-head {
+    flex-wrap: wrap;
+  }
+
+  .section-count, .quality-summary {
+    flex-basis: 100%;
+  }
+}
+
+@media (pointer: coarse) {
+  button, .report-nav a, #question-navigator a, summary {
+    min-height: 44px;
+  }
+
+  input, select {
+    font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  summary::before {
+    transition: none;
+  }
+}

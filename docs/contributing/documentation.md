@@ -51,6 +51,30 @@ Check the generated report and downloads at desktop and phone widths. Verify tha
 
 The [flow example](../examples/survey-flow.md) has a separate generator, `scripts/survey_flow_showcase.py`, and hook, `scripts/docs_flow_showcase.py`. It produces a QSF, standalone flow JSON, 24 fictional responses, and an embedded report under `assets/examples/survey-flow/`. Rebuild locally with `uv run python -m scripts.survey_flow_showcase --output data/survey-flow-showcase`. Keep fake responses consistent with the defined branches, and verify the early ending, randomizer, Back/Reset controls, unknown-rule assumptions, and cross-view question links after changing flow behavior.
 
+## Maintain the report components
+
+The generated report has six views inside one offline HTML document. The renderer lives in `src/qualtrics/reporting/`:
+
+| Module | Responsibility |
+| --- | --- |
+| `report.py` | Public entry point: build the context, render pages, and write the document. |
+| `context.py` | Analyze the entity set once and prepare shared lookups for page renderers. |
+| `layouts/document.py` | Assemble the document, global search, survey scope, navigation, and bundled assets. |
+| `components/` | Reusable headings, search controls, metrics, empty states, navigation, and field labels. |
+| `pages/` | Render Summary, Flow, Questions, Written answers, Responses, and Codebook from the shared context. |
+| `assets.py` | Ordered stylesheet and script manifest. Dependencies must precede consumers. |
+| `static/components/` | Shared browser controls, pagination, and common styles. |
+| `static/pages/` | Page filtering, search, presentation, and page-specific styles. |
+| `static/layouts/` | View navigation, shell styling, responsive layout, and print rules. |
+
+`static/report.js` composes the browser controllers and connects shared survey selection. Responses, written answers, search results, and the codebook use the same pagination controls. Keep filtering separate from screen visibility so printing and codebook downloads retain the full filtered collection.
+
+Survey Flow separates configured structure (`flow-graph.js`), canvas interaction (`flow-canvas.js`), scenario evaluation (`flow-engine.js`), and the walkthrough controller (`flow.js`). Keep graph edges faithful to branch continuation and terminal endings. A randomizer's alternatives must not imply that every child runs in a fixed sequence. Use occurrence IDs, since a block or question can appear more than once.
+
+Add new assets to the manifest; the renderer embeds their contents rather than linking to a server or CDN. Use escaped Python markup and DOM `textContent` for survey data. Preserve stable anchors when moving components: search, chart links, walkthroughs, and browser history depend on them.
+
+Run `node --test tests/js/*.test.cjs` for browser logic and `uv run pytest` for Python behavior. The generated showcase integration tests also check the embedded reports with both MkDocs URL modes. Before shipping a UI change, inspect desktop and phone widths, both themes, all six pages, empty survey selections, deep links, the canvas controls, and print output.
+
 ## Theme and plugin decisions
 
 **Maintenance check: 8 September 2026.** The [catalog's charts, images, tables, and graphs section](https://github.com/mkdocs/catalog#-charts-images-tables--graphs) is a useful starting point. Its inactivity badges can lag behind upstream releases. The decisions below use upstream repositories, release metadata, and Material's integration documentation.

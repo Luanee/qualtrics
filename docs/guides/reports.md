@@ -23,7 +23,7 @@ Use the side navigation to move between six views. On a narrow screen, navigatio
 | View | Use it to |
 | --- | --- |
 | **Summary** | Explore response timing, compare surveys, and choose question charts before opening their details. |
-| **Flow** | Read the survey structure and explore hypothetical routes through its blocks and conditions. |
+| **Flow** | Explore a connected map of the survey, inspect a step, and try hypothetical routes through its conditions. |
 | **Questions** | Find a question by text, section, or identifier and inspect one question at a time. |
 | **Written answers** | Search comments, select a question, and open the response behind a comment. |
 | **Responses** | Review individual response records and choose which questions to display. |
@@ -34,6 +34,8 @@ The **Surveys** selector applies across all views. Moving between views keeps yo
 The **Theme** selector in the header offers **System**, **Light**, and **Dark**. System follows your browser's preferred appearance. A manual choice applies until you reload the file.
 
 The [survey flow guide](survey-flow.md) explains how to supply a definition and use the map and walkthrough. Try the [fictional flow example](../examples/survey-flow.md) to compare Sales and Engineering routes, an early ending, and a randomizer. Walkthrough answers are hypothetical and do not affect response statistics.
+
+In Flow, select a card to read its settings and questions. Pan across the canvas, use the zoom controls to change scale, or select **Fit** for the full route. The **Show outline** control gives you the same structure as an expandable list. Printing uses that readable outline.
 
 ### Understand the totals
 

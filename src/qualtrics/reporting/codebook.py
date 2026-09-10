@@ -6,6 +6,7 @@ from io import StringIO
 from typing import Any
 
 from ..models import EntitySet
+from .components.primitives import page_heading, search_control
 
 CODEBOOK_COLUMNS = (
     "survey_id",
@@ -128,15 +129,19 @@ def render_codebook(entities: EntitySet) -> str:
         "No question fields are available." if not entries else "No fields match the selected surveys and search."
     )
     csv_header = html.escape(_csv_line(list(CODEBOOK_COLUMNS)), quote=True)
+    heading = page_heading(
+        "Codebook",
+        "Understand exported columns, question types, and answer codes.",
+        disclosure=True,
+        count=f"{len(entries)} fields",
+    )
+    search = search_control("codebook-search", "Find a field", placeholder="Question, column, code, or label…")
     return (
-        "<details id='codebook' class='report-section'><summary class='section-summary'>"
-        "<span><strong>Codebook</strong>"
-        "<small>Understand exported columns, question types, and answer codes.</small></span>"
-        f"<span class='section-count'>{len(entries)} fields</span></summary><div class='section-body'>"
+        "<details id='codebook' class='report-section'>"
+        f"{heading}<div class='section-body'>"
         "<p class='meta'>One row per exported question field. Choices come from the survey definition when available. "
         "Response metadata columns are not included.</p>"
-        "<div class='codebook-controls'><label for='codebook-search'>Find a field</label>"
-        "<input id='codebook-search' type='search' placeholder='Question, column, code, or label…'>"
+        f"<div class='codebook-controls'>{search}"
         "<span id='codebook-count' aria-live='polite'></span>"
         f"<button id='codebook-download' type='button' data-header='{csv_header}'>"
         "Download CSV</button></div>"

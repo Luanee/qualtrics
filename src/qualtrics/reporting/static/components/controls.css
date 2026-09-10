@@ -1,0 +1,67 @@
+:where(a, button, input, select, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+button, input, select {
+  font: inherit;
+}
+
+button {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--wash);
+}
+
+button:disabled {
+  opacity: .5;
+  cursor: default;
+}
+
+input, select {
+  min-width: 0;
+  max-width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+input[type="checkbox"] {
+  accent-color: var(--brand);
+}
+
+.toolbar, .codebook-controls, .written-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.toolbar {
+  position: relative;
+}
+
+.toolbar label, .written-controls label, .question-sidebar > label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.toolbar input, .toolbar select {
+  flex: 1 1 180px;
+}

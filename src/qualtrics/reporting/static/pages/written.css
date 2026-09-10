@@ -1,0 +1,41 @@
+.written-answer {
+  display: grid;
+  gap: 6px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.written-question {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.written-answer > small, .written-answer > a, .written-answer footer {
+  font-size: 12px;
+}
+
+.written-answer > small, .written-answer footer {
+  color: var(--muted);
+}
+
+.written-value {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+#search-results {
+  margin: 0;
+}
+
+#search-result-count {
+  margin-top: 2px;
+}
+
+#search-result-list {
+  display: grid;
+  margin-top: 8px;
+  padding: 0;
+  list-style: none;
+}

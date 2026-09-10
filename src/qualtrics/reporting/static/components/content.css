@@ -1,0 +1,240 @@
+.report-view, [data-report-view] {
+  min-width: 0;
+}
+
+.section-intro, .view-intro {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.view-heading {
+  margin-bottom: 16px;
+}
+
+.view-heading h2 {
+  font-size: 23px;
+  font-weight: 650;
+  letter-spacing: -.025em;
+}
+
+.meta, #count, #written-count, #search-result-count, #codebook-count {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+h3 + .meta {
+  margin-top: 4px;
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 30px;
+  margin-bottom: 18px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.stat strong {
+  display: block;
+  font-size: 24px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat > span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.findings {
+  margin-top: 4px;
+}
+
+.finding {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 7px 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.finding p {
+  order: -1;
+  flex-basis: 100%;
+}
+
+.finding a {
+  flex: 1 1 200px;
+  font-weight: 400;
+}
+
+.finding small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+#findings-more {
+  margin-top: 12px;
+}
+
+#findings-empty, #written-empty, #question-empty, #empty {
+  padding: 24px 0;
+  color: var(--muted);
+}
+
+/* Native disclosures remain usable without the report controller. */
+details {
+  min-width: 0;
+  margin: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  cursor: pointer;
+  list-style: none;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+summary::before {
+  content: "";
+  flex: none;
+  width: 0;
+  height: 0;
+  border-block: 4px solid transparent;
+  border-left: 6px solid var(--muted);
+  transition: transform .12s;
+}
+
+details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.identity, .analysis-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+}
+
+.badge, .type {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--selected);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.section-summary > span:first-of-type {
+  flex: 1;
+}
+
+.section-summary strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.section-summary small, .analysis-title small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.section-count {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.section-body, .catalog-body, .analysis-body, .quality-body, .answers {
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+#summary-details {
+  margin-top: 20px;
+}
+
+.analytics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 30px;
+  padding: 4px 0 16px;
+}
+
+.analytic {
+  flex: 0 1 180px;
+}
+
+.analytic strong {
+  display: block;
+  font-size: 20px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.analytic span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.panel, .report-section, .quality {
+  min-width: 0;
+}
+
+.empty {
+  padding: 24px 0;
+  color: var(--muted);
+}
+
+.catalog-group, .survey-analysis {
+  margin: 0;
+}
+
+.question-analysis > summary, .survey-analysis > summary {
+  align-items: flex-start;
+}
+
+.question-analysis > summary::before, .survey-analysis > summary::before {
+  margin-top: 6px;
+}
+
+.analysis-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.analysis-summary b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.field-analysis + .field-analysis {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.field-analysis h4, .numeric-distribution h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 500;
+}

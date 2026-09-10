@@ -1,0 +1,111 @@
+.question-browser {
+  display: grid;
+  grid-template-columns: minmax(160px, 24%) minmax(0, 1fr);
+  align-items: start;
+  gap: 20px;
+  margin-top: 12px;
+}
+
+.question-sidebar {
+  position: sticky;
+  top: 16px;
+  min-width: 0;
+  padding-right: 16px;
+  border-right: 1px solid var(--line);
+}
+
+.question-detail {
+  min-width: 0;
+}
+
+#question-filter, #written-search {
+  width: 100%;
+}
+
+#question-filter {
+  margin: 4px 0 8px;
+}
+
+#question-navigator {
+  display: grid;
+  gap: 4px;
+  max-height: min(60vh, 540px);
+  overflow: auto;
+  padding: 3px;
+  margin: -3px;
+  overscroll-behavior: contain;
+}
+
+#question-navigator a {
+  display: block;
+  padding: 9px 10px;
+  border-radius: 4px;
+  color: var(--ink);
+  font-size: 12px;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+#question-navigator a:hover {
+  background: var(--wash);
+}
+
+#question-navigator a[aria-current="true"], #question-navigator a.is-active {
+  background: var(--selected);
+  font-weight: 500;
+}
+
+/* The controller keeps these page and question headings expanded. */
+.report-ready #question-analytics, .report-ready #codebook {
+  border: 0;
+}
+
+.report-ready #question-analytics > .section-summary,
+.report-ready #codebook > .section-summary {
+  padding: 0;
+  cursor: default;
+}
+
+.report-ready #question-analytics > .section-summary strong,
+.report-ready #codebook > .section-summary strong {
+  font-size: 23px;
+  font-weight: 650;
+  letter-spacing: -.025em;
+}
+
+.report-ready #question-analytics > .section-summary::before,
+.report-ready #codebook > .section-summary::before,
+.report-ready #question-analytics .catalog-group:not([hidden]) > summary::before,
+.report-ready #question-analytics .survey-occurrence:not([hidden]) > summary::before {
+  display: none;
+}
+
+.report-ready #question-analytics > .section-body,
+.report-ready #codebook > .section-body {
+  padding: 0;
+  border: 0;
+}
+
+.report-ready #question-analytics .catalog-group:not([hidden]),
+.report-ready #question-analytics .survey-occurrence:not([hidden]) {
+  border: 0;
+}
+
+.report-ready #question-analytics .catalog-group:not([hidden]) > .catalog-body {
+  padding: 0;
+  border: 0;
+}
+
+.report-ready #question-analytics .catalog-group:not([hidden]) > summary,
+.report-ready #question-analytics .survey-occurrence:not([hidden]) > summary {
+  padding: 0 0 12px;
+  cursor: default;
+}
+
+.report-ready #question-analytics .catalog-group > summary .analysis-title {
+  font-size: 17px;
+}
+
+.report-ready #question-analytics .survey-occurrence:not([hidden]) > .analysis-body {
+  padding: 12px 0 0;
+}

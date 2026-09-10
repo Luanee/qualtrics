@@ -1,0 +1,27 @@
+.search-result {
+  display: grid;
+  gap: 5px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.search-result a {
+  font-weight: 400;
+}
+
+.search-result-scope, .search-scope, .search-result-context,
+.search-result-snippet, .search-snippet {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.search-result-snippet, .search-snippet {
+  overflow-wrap: anywhere;
+}
+
+mark {
+  padding: 0 .08em;
+  border-radius: 2px;
+  background: var(--mark);
+  color: var(--ink);
+}
