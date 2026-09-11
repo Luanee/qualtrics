@@ -2,7 +2,13 @@
 
 This reference defines the tables, IDs, and relationships used by the toolkit. For a plain-language introduction, start with [understand your data](understand/your-data.md). Follow the [Power BI guide](guides/power-bi.md) to export and connect the analysis tables.
 
-[Download the DBML schema](entity-model.dbml) to inspect the full column and relationship contract in a compatible schema tool.
+Explore the nine parsed entities and their relationships in the diagram below. The viewer needs an internet connection; no account or API key is required. The table descriptions on this page and the downloadable DBML remain available if the viewer cannot load.
+
+<iframe class="dbml-model" title="Nine-entity Qualtrics data model" src="{{ dbml_entity_url }}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>
+
+<p><a href="{{ dbml_entity_url }}" target="_blank" rel="noopener">Open the entity diagram at full size</a></p>
+
+[Download the nine-entity DBML schema](entity-model.dbml) to inspect the full column and relationship contract in a compatible schema tool.
 
 Parsing always produces nine normalized entities. Occurrence IDs are survey-safe hashes; `*_external_id` columns preserve Qualtrics lineage. Catalog IDs identify normalized semantics across surveys.
 
@@ -88,6 +94,14 @@ Reparse the original export to recover fields omitted by older versions. An olde
 - `dim_questions`
 - `dim_answer_options`
 
+The semantic model has five exported tables. Its diagram shows the four relationships to configure in Power BI; DBML relationship symbols describe cardinality, while Power BI's cross-filter direction is a separate setting.
+
+<iframe class="dbml-model" title="Five-table Power BI semantic model" src="{{ dbml_power_bi_url }}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>
+
+<p><a href="{{ dbml_power_bi_url }}" target="_blank" rel="noopener">Open the Power BI diagram at full size</a></p>
+
+[Download the five-table Power BI DBML schema](power-bi-model.dbml). The interactive viewer requires an internet connection; the relationship instructions below also describe the model.
+
 `dim_questions` has one row per analyzable exported question field and flattens section, question, field, and catalog attributes. Create these active single-direction relationships in Power BI:
 
 ```text
@@ -97,9 +111,11 @@ dim_questions[question_field_id] 1 -> * fact_response_answers[question_field_id]
 dim_answer_options[answer_option_id] 1 -> * fact_response_answers[answer_option_id]
 ```
 
+Set cross-filter direction to **Single**, from each one side to its many side. Survey filters reach responses and then answers; question and option filters reach answers.
+
 `dim_answer_options` has one row per field-specific option. Use `question_field_id` to associate it with `dim_questions`; keep the fact relationship on `answer_option_id`.
 
-Create a model-local Date table and relate it to `fact_responses[recorded_at]`. Do not add parallel active paths from surveys, questions, or catalogs to the answer fact.
+Create a model-local Date table and relate it to `fact_responses[recorded_at]`. This optional table is created in Power BI and is not one of the five exported tables. Do not add parallel active paths from surveys, questions, or catalogs to the answer fact.
 
 ## Baseline DAX
 

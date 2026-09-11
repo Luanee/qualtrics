@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import csv
 import json
 from html.parser import HTMLParser
@@ -92,3 +93,28 @@ def test_built_showcase_embeds_current_report_and_downloads_under_project_url(
     assert "Sales follow-up" in flow_report
     assert "QualtricsFlowEngine" in flow_report
     assert not (REPO / "docs/assets/examples/survey-flow/report.html").exists()
+
+    for source_page, model_sources in (
+        ("entity-model", ["entity-model.dbml", "power-bi-model.dbml"]),
+        ("guides/power-bi", ["power-bi-model.dbml"]),
+    ):
+        model_page_path = source_page + ("/index.html" if directory_urls else ".html")
+        model_page_url = urljoin(SITE_URL, source_page + ("/" if directory_urls else ".html"))
+        model_html = (site / model_page_path).read_text(encoding="utf-8")
+        assert "{{ dbml_" not in model_html
+        model_links = _Links()
+        model_links.feed(model_html)
+        assert len(model_links.frames) == len(model_sources)
+        resolved_links = {urljoin(model_page_url, link) for link in model_links.links}
+        for frame, schema_name in zip(model_links.frames, model_sources, strict=True):
+            assert frame.get("title")
+            embed = str(frame["src"])
+            parts = urlsplit(embed)
+            assert (parts.scheme, parts.netloc, parts.path) == ("https", "dbdiagram.io", "/embed")
+            assert not parts.query
+            assert parts.fragment.startswith("c=")
+            decoded = base64.b64decode(unquote(parts.fragment[2:]), validate=True).decode("utf-8")
+            assert decoded == (REPO / "docs" / schema_name).read_text(encoding="utf-8")
+            assert (site / schema_name).read_text(encoding="utf-8") == decoded
+            assert SITE_URL + schema_name in resolved_links
+            assert embed in resolved_links
