@@ -119,7 +119,9 @@ Numeric summaries use the declared question or field type. A text field containi
 
 Numeric charts show up to 12 distinct values individually. Larger domains use up to eight equal-width intervals, with counts and percentages of usable numeric values. Interval labels show which boundaries they include; the final interval includes the maximum value.
 
-Option codes are translated only when the mapping is unambiguous for that field. Unknown or ambiguous values remain as recorded in the export.
+Explicit recode values take priority over internal choice IDs when parsing answers. For example, if choice `1` (Yes) has recode `2`, an exported `2` links to Yes. Display labels and other identifiers still match when there is no explicit recode match. Duplicate recodes remain unresolved, and unknown values retain their original text. Rebuild the entities with the matching QSF to apply this rule to an older export; generating HTML alone does not repair stored option links.
+
+Charts and unused-option diagnostics follow the resolved option link. A raw value that happens to equal another choice's internal ID does not also mark that other choice as used. Older records without a valid link retain the existing raw-value fallback.
 
 ## Review individual responses
 
