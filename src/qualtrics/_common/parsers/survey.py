@@ -234,6 +234,7 @@ def _build_answer_option_domains(entities: EntitySet, definitions: dict[str, dic
                     "field_id": field["field_id"],
                     "answer_id": answer_id,
                     "answer_code": str(recode) if recode is not None else answer_id,
+                    "_explicit_recode": recode is not None,
                     "answer_text": _clean(value.get("Display") if isinstance(value, dict) else value),
                     "answer_order": answer_order,
                     "source_import_id": field.get("source_import_id"),
@@ -364,6 +365,7 @@ def _apply_identity_contract(entities: EntitySet) -> None:
     entities.question_field_catalog = list(field_catalog_rows.values())
 
     option_lookup: dict[str, dict[str, list[dict[str, object]]]] = {}
+    recode_lookup: dict[str, dict[str, list[dict[str, object]]]] = {}
     for option in entities.answer_options:
         external_question_id = str(option["question_id"])
         external_field_id = str(option["field_id"])
@@ -375,6 +377,10 @@ def _apply_identity_contract(entities: EntitySet) -> None:
         option["field_id"] = question_field_id
         option["answer_external_id"] = external_id
         option["answer_option_id"] = entity_id("answer-option", question_field_id, external_id)
+        if option.pop("_explicit_recode", False):
+            code = str(option["answer_code"]).casefold()
+            if code:
+                recode_lookup.setdefault(question_field_id, {}).setdefault(code, []).append(option)
         aliases = (
             external_id,
             str(option.get("answer_text") or ""),
@@ -388,6 +394,11 @@ def _apply_identity_contract(entities: EntitySet) -> None:
             candidates = lookup.setdefault(alias.casefold(), [])
             if all(candidate["answer_option_id"] != option["answer_option_id"] for candidate in candidates):
                 candidates.append(option)
+
+    # Explicit recodes describe exported values; native choice IDs are only a fallback.
+    # Keep every recode candidate so duplicate recodes remain unresolved.
+    for question_field_id, recodes in recode_lookup.items():
+        option_lookup[question_field_id].update(recodes)
 
     response_ids: dict[str, str] = {}
     for response in entities.responses:
