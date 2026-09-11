@@ -1,93 +1,176 @@
-Table surveys {
+Project qualtrics_entities {
+  Note: '''Nine entity tables: all fixed export columns and known optional metadata.
+    Keys, references and not-null settings describe the validated logical model; exported files do not themselves enforce these constraints.
+    Text includes IDs, timestamps, recodes and response metadata that may look numeric.
+    Writers also preserve additional record columns, so a survey can extend this schema.
+    These structural references are not the recommended Power BI filter relationships.'''
+}
+
+Table surveys [headercolor: #386CB0] {
   survey_id varchar [pk]
-  survey_name varchar
-  source_columns_json text [note: 'JSON list of source-column classification and storage mappings']
+  survey_name varchar [not null]
+  survey_status varchar
+  default_language varchar
+  source_columns_json text [note: 'Optional JSON list of source-column classifications and storage mappings, including survey-specific response properties']
+  flow_definition_json text [note: 'Optional serialized survey flow definition when available from the source']
+  Note: 'One survey. source_columns_json and flow_definition_json are optional metadata and can be absent from older exports.'
 }
 
-Table sections {
+Table sections [headercolor: #386CB0] {
   section_id varchar [pk]
-  section_external_id varchar
+  section_external_id varchar [not null]
   survey_id varchar [not null, ref: > surveys.survey_id]
+  section_name varchar
+  section_order integer
+  section_type varchar [note: 'Optional source block metadata']
+  Note: 'One survey section or block. section_type is optional QSF metadata.'
 }
 
-Table question_catalog {
+Table question_catalog [headercolor: #008577] {
   question_catalog_id varchar [pk]
-  normalized_question_content varchar [not null]
+  question_text text [not null]
+  normalized_question_content text
+  canonical_question_type varchar [not null]
+  Note: 'One canonical question definition, shared across surveys when its identity matches.'
 }
 
-Table question_field_catalog {
+Table question_field_catalog [headercolor: #008577] {
   question_field_catalog_id varchar [pk]
   question_catalog_id varchar [not null, ref: > question_catalog.question_catalog_id]
-  normalized_field_content varchar [not null]
+  field_text text [not null]
+  normalized_field_content text
+  Note: 'One canonical question-field definition.'
 }
 
-Table questions {
+Table questions [headercolor: #386CB0] {
   question_id varchar [pk]
   question_external_id varchar [not null]
   survey_id varchar [not null, ref: > surveys.survey_id]
   section_id varchar [ref: > sections.section_id]
+  section_external_id varchar
   question_catalog_id varchar [not null, ref: > question_catalog.question_catalog_id]
+  question_text text
+  question_description text
   question_type varchar
   selector varchar
   sub_selector varchar
-  canonical_question_type varchar [not null]
-  answer_value_type varchar [not null]
+  question_role varchar
+  canonical_question_type varchar
+  answer_value_type varchar
+  block_order integer
+  question_order_in_block integer
+  block_id varchar [note: 'Optional source block metadata']
+  block_name varchar [note: 'Optional source block metadata']
+  block_type varchar [note: 'Optional source block metadata']
+  Note: 'One question occurrence in a survey. block_id, block_name and block_type are optional QSF metadata.'
 }
 
-Table answer_options {
+Table answer_options [headercolor: #386CB0] {
   answer_option_id varchar [pk]
-  answer_external_id varchar [not null]
   answer_id varchar [not null]
-  answer_code varchar [not null]
+  answer_external_id varchar [not null]
+  answer_code varchar [not null, note: 'Compatibility code: explicit recode when provided, otherwise the native option ID']
+  answer_text text [not null]
   source_choice_id varchar [note: 'Native option ID; matrix scale answer ID, not statement row ID']
-  choice_value text [note: 'Cleaned respondent-visible Display text']
-  recode_value varchar [note: 'Explicit RecodeValues entry as text; null when not provided']
-  variable_name text [note: 'Configured multiple-choice VariableNaming export label; null when unavailable']
+  choice_value text [note: 'Cleaned respondent-visible Display text; can be empty']
+  recode_value varchar [note: 'Explicit RecodeValues entry as text; null when not provided; zero and leading zeros are preserved']
   value text [note: 'Explicit recode when not null, otherwise choice_value; not a raw-value join key']
+  variable_name text [note: 'Configured multiple-choice VariableNaming export label; null when unavailable; no matrix mapping is inferred']
   answer_order integer [not null]
-  answer_export_tag varchar
+  answer_export_tag varchar [note: 'Compatibility export tag, separate from variable_name']
   source_import_id varchar
   question_id varchar [not null, ref: > questions.question_id]
+  question_external_id varchar
   question_field_id varchar [not null, ref: > question_fields.question_field_id]
-  field_id varchar [not null, ref: > question_fields.question_field_id]
+  field_id varchar [not null, ref: > question_fields.question_field_id, note: 'Compatibility alias; equals question_field_id']
   survey_id varchar [not null, ref: > surveys.survey_id]
-  answer_text varchar
+  Note: 'One option belonging to a specific question field. Provenance columns are nullable for legacy exports; reparse source files to recover them.'
 }
 
-Table question_fields {
+Table question_fields [headercolor: #386CB0] {
   question_field_id varchar [pk]
-  field_external_id varchar [not null]
-  choice_external_id varchar
-  statement_text varchar
-  import_external_id varchar
-  survey_id varchar [not null, ref: > surveys.survey_id]
+  field_id varchar [note: 'Compatibility alias of question_field_id']
+  field_external_id varchar
   question_id varchar [not null, ref: > questions.question_id]
-  question_catalog_id varchar [not null, ref: > question_catalog.question_catalog_id]
+  question_external_id varchar
+  survey_id varchar [ref: > surveys.survey_id]
+  question_catalog_id varchar [ref: > question_catalog.question_catalog_id]
   question_field_catalog_id varchar [not null, ref: > question_field_catalog.question_field_catalog_id]
+  field_text text
+  field_role varchar
+  statement_text text
   answer_value_type varchar [not null]
+  is_text_field boolean
+  choice_external_id varchar
+  import_external_id varchar
+  source_field_suffix varchar
+  source_column_index integer
+  Note: 'One exported field of a question. A matrix question can contain several fields.'
 }
 
-Table responses {
-  Note: 'Additional response-property columns vary by survey. See surveys.source_columns_json for source names and storage mappings.'
+Table responses [headercolor: #C57622] {
   response_id varchar [pk]
   response_external_id varchar [not null]
   survey_id varchar [not null, ref: > surveys.survey_id]
+  started_at varchar
+  ended_at varchar
   recorded_at varchar
+  is_finished varchar
+  user_language varchar
+  status varchar
+  ip_address varchar
+  progress varchar
+  duration_seconds varchar
+  recipient_last_name varchar
+  recipient_first_name varchar
+  recipient_email varchar
+  external_reference varchar
+  distribution_channel varchar
+  browser varchar
+  browser_version varchar
+  operating_system varchar
+  screen_resolution varchar
+  user_agent varchar
+  Note: 'One survey response. Additional response-property columns vary by survey and hold text or null. Read surveys.source_columns_json for original source names and storage mappings. Timestamps, is_finished, progress and duration_seconds are exported as text.'
 }
 
-Table response_answers {
+Table response_answers [headercolor: #C57622] {
   response_answer_id varchar [pk]
-  survey_id varchar [not null, ref: > surveys.survey_id]
   response_id varchar [not null, ref: > responses.response_id]
+  response_external_id varchar
+  survey_id varchar [not null, ref: > surveys.survey_id]
   question_id varchar [not null, ref: > questions.question_id]
-  question_catalog_id varchar [not null, ref: > question_catalog.question_catalog_id]
+  question_external_id varchar
   question_field_id varchar [not null, ref: > question_fields.question_field_id]
+  field_id varchar [not null, note: 'Compatibility alias; equals question_field_id']
+  field_external_id varchar
+  question_catalog_id varchar [not null, ref: > question_catalog.question_catalog_id]
   question_field_catalog_id varchar [not null, ref: > question_field_catalog.question_field_catalog_id]
   answer_option_id varchar [ref: > answer_options.answer_option_id]
-  answer_text varchar [not null]
+  answer_value_type varchar [not null]
+  answer_text text [not null]
   raw_value text [note: 'Exact original nonempty CSV cell; unavailable in older entity folders']
   answer_numeric double
   answer_boolean boolean
   is_selected boolean
-  answer_value_type varchar [not null]
+  user_language varchar
+  Note: 'One retained answer cell for a response and question field. answer_option_id is nullable for free text or unresolved and ambiguous option matches.'
+}
+
+TableGroup canonical_catalogs {
+  question_catalog
+  question_field_catalog
+}
+
+TableGroup survey_definition {
+  surveys
+  sections
+  questions
+  question_fields
+  answer_options
+}
+
+TableGroup collected_responses {
+  responses
+  response_answers
 }
