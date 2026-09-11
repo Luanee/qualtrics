@@ -20,13 +20,37 @@ Parsing always produces nine normalized entities. Occurrence IDs are survey-safe
 
 Questions retain `question_type`, `selector`, and `sub_selector` exactly and add `canonical_question_type`. Fields and answers add `answer_value_type`. Unknown combinations remain available with `unsupported` classification.
 
-`answer_options` is built exclusively from the QSF definition, never from observed response values. Its identity is the hash of `question_field_id` and the native Qualtrics `answer_id`. `answer_code` contains the configured recode or falls back to `answer_id`; `answer_order` is the 1-based definition order. Single-choice questions publish every choice, multiple-choice questions publish one choice per concrete selection field, and matrix questions publish every answer for each matrix-row field. Text, form, slider, and `*_TEXT` fields publish no options. This field-scoped identity is a breaking entity-contract change, so existing entity folders must be rebuilt from CSV/ZIP and QSF.
+`answer_options` is built exclusively from the QSF definition, never from observed response values. Its identity is the hash of `question_field_id` and the native Qualtrics `answer_id`. `answer_code` contains the configured recode or falls back to `answer_id`; `answer_order` is the 1-based definition order. Single-choice questions publish every choice, multiple-choice questions publish one choice per concrete selection field, and matrix questions publish every answer for each matrix-row field. Text, form, slider, and `*_TEXT` fields publish no options. The additive provenance fields below leave these identities and table grains unchanged.
 
 `question_fields.choice_external_id` preserves the Choice or matrix-row lineage determined from export metadata and the full `ImportId`. Its optional `statement_text` preserves a matrix statement's label from the survey definition; `field_text` still describes the concrete exported field, which can include an individual option. `response_answers` preserves `answer_text` and provides nullable `answer_numeric`, `answer_boolean`, `is_selected`, and `answer_option_id` for analysis. Unknown or ambiguous response values remain raw with a null option ID. There is no cross-survey answer-option catalog.
 
 Choice matching gives explicit `RecodeValues` priority within the answer's question field. If native choice `1` has recode `2`, an exported `2` links to that choice even when native choice `2` also exists. This also applies to categorical matrix answer domains. Without an explicit recode match, the parser uses an unambiguous match against the native ID, cleaned `Display` label, or export tag. Two choices sharing the same recode remain unresolved; a lower-priority alias does not break the tie. Raw answer text and option identities are preserved.
 
 For example, choice `1` with `Display: "Yes"` and recode `2` receives answers exported as either `2` or `Yes`, provided the selected matching level identifies one choice. A numeric display label can itself collide with another choice's recode; the explicit recode takes priority under this rule. Rebuild existing entities from the original CSV and matching QSF to apply the corrected links, then regenerate the report or semantic model.
+
+## Answer value provenance
+
+Newly parsed options distinguish the definition's different representations:
+
+| Column on `answer_options` | Meaning |
+| --- | --- |
+| `source_choice_id` | Native option ID as text. For a matrix, this is the scale answer ID, not the statement row ID. |
+| `choice_value` | Cleaned respondent-visible `Display` text; an empty string when no text is provided. |
+| `recode_value` | Explicit `RecodeValues` entry as text, or null when not provided in the source definition. Zero and codes such as `02` are preserved. |
+| `variable_name` | Exact configured `VariableNaming` export label for a multiple-choice option, or null when not provided. Matrix variable-name mapping is not currently inferred. |
+| `value` | `recode_value` when it is not null; otherwise `choice_value`. This is the toolkit's normalized value. |
+
+Existing columns remain available: `answer_id` and `answer_external_id` retain the native ID, `answer_code` retains its recode-or-native-ID fallback, and `answer_text` retains the cleaned choice label. `answer_export_tag` remains separate from `variable_name`.
+
+CSV entity files preserve empty required choice text and normalized values on rows carrying `source_choice_id`. Blank optional metadata cells, including `recode_value` and `variable_name`, follow the existing CSV convention and load as null.
+
+Qualtrics assigns numeric recodes and export variable names by default. A null `recode_value` or `variable_name` here describes the explicit metadata available in the supplied definition; it does not mean Qualtrics has no default numeric code or label. Default export labels generally use the choice text. See [Qualtrics recode values and variable names](https://www.qualtrics.com/support/survey-platform/survey-module/question-options/recode-values/).
+
+`response_answers.raw_value` preserves the exact original nonempty CSV cell, including whitespace, punctuation, and leading zeros. The existing `response_answers.answer_text` is unchanged and contains that same raw text. Neither field is replaced by an option's normalized value. Without a definition, raw values still survive and unresolved option links remain null.
+
+For native choice `1`, choice text `Yes`, explicit recode `2`, and configured export label `Affirmative`, the option's `value` is `2`. Raw `2`, `Yes`, or `Affirmative` can resolve to that option when their matching level is unambiguous. Explicit recodes take priority; the parser does not infer a universal numeric-versus-label export mode. Duplicate recodes remain unresolved. Use `answer_option_id` for the relationship, never a join from `raw_value` to `value`: representations can differ, and values can repeat within or across fields.
+
+These columns also travel to `dim_answer_options` and `fact_response_answers`. Older entity folders remain readable and renderable, but missing provenance stays unavailable. In particular, a legacy `answer_code` does not prove an explicit recode. Reparse the original CSV/ZIP with its matching QSF to recover the source metadata, then rebuild the semantic model and report.
 
 ## Response properties and source columns
 

@@ -166,6 +166,10 @@ Open **Codebook** to connect a column in your CSV to its question, specific fiel
 
 For newly parsed exports, the codebook includes question fields and response properties such as `ResponseId`, `RecordedDate`, and embedded `Region`. It shows the original export column, ImportId, classification, evidence, and storage table/column. Derived question outputs, such as an NPS group, are distinguished from direct answers. Unknown source fields are labeled **Unclassified**, so they remain inspectable without being counted as confirmed question answers. Older entity folders without the source dictionary still show their available question fields.
 
+Each newly parsed choice lists its respondent-visible label, native choice ID, explicit recode, and normalized value. A configured multiple-choice export label (`variable_name`) is shown separately from a compatibility export tag (`answer_export_tag`). For matrix options, the native choice ID refers to the scale answer, not the statement row. Search and the downloaded codebook CSV include this same choice text.
+
+**Explicit recode: unavailable** means the source did not provide that metadata; it does not rule out Qualtrics default numeric codes. The normalized value is the explicit recode when available, otherwise the choice text. Legacy options retain their existing code-and-label display, without claiming their old `answer_code` was an explicit recode. Reparse the original export with its matching definition to recover provenance; rebuilding HTML from an older folder cannot recreate it.
+
 - Use **Find a field** to search question text, column names, sections, codes, and labels.
 - Use the report's **Surveys** selector to limit the codebook to particular surveys.
 - Click **Download CSV** to save all rows matching the codebook search and selected surveys as `codebook.csv`, including matches on other pages.
