@@ -224,18 +224,32 @@ def _build_answer_option_domains(entities: EntitySet, definitions: dict[str, dic
             if resolved.canonical_question_type == "matrix"
             else definition.get("ChoiceDataExportTags")
         ) or {}
+        # VariableNaming describes MC choices. Matrix Choices are statements,
+        # while their option domain is Answers, so the same keys cannot be reused.
+        variable_names = (
+            definition.get("VariableNaming")
+            if resolved.canonical_question_type in {"multiple_choice_single", "multiple_choice_multiple"}
+            else {}
+        ) or {}
         for field, domain in domains:
             for answer_id, value, answer_order in domain:
                 recode = recodes.get(answer_id) if isinstance(recodes, dict) else None
                 export_tag = export_tags.get(answer_id) if isinstance(export_tags, dict) else None
+                variable_name = variable_names.get(answer_id) if isinstance(variable_names, dict) else None
+                choice_value = _clean(value.get("Display") if isinstance(value, dict) else value)
+                recode_value = str(recode) if recode is not None else None
                 entities.answer_options.append({
                     "survey_id": question["survey_id"],
                     "question_id": question_id,
                     "field_id": field["field_id"],
                     "answer_id": answer_id,
-                    "answer_code": str(recode) if recode is not None else answer_id,
-                    "_explicit_recode": recode is not None,
-                    "answer_text": _clean(value.get("Display") if isinstance(value, dict) else value),
+                    "answer_code": recode_value if recode_value is not None else answer_id,
+                    "answer_text": choice_value,
+                    "source_choice_id": answer_id,
+                    "choice_value": choice_value,
+                    "recode_value": recode_value,
+                    "value": recode_value if recode_value is not None else choice_value,
+                    "variable_name": str(variable_name) if variable_name is not None else None,
                     "answer_order": answer_order,
                     "source_import_id": field.get("source_import_id"),
                     "answer_export_tag": str(export_tag) if export_tag is not None else None,
@@ -377,8 +391,8 @@ def _apply_identity_contract(entities: EntitySet) -> None:
         option["field_id"] = question_field_id
         option["answer_external_id"] = external_id
         option["answer_option_id"] = entity_id("answer-option", question_field_id, external_id)
-        if option.pop("_explicit_recode", False):
-            code = str(option["answer_code"]).casefold()
+        if option.get("recode_value") is not None:
+            code = str(option["recode_value"]).casefold()
             if code:
                 recode_lookup.setdefault(question_field_id, {}).setdefault(code, []).append(option)
         aliases = (
@@ -386,6 +400,7 @@ def _apply_identity_contract(entities: EntitySet) -> None:
             str(option.get("answer_text") or ""),
             str(option.get("answer_code") or ""),
             str(option.get("answer_export_tag") or ""),
+            str(option.get("variable_name") or ""),
         )
         lookup = option_lookup.setdefault(question_field_id, {})
         for alias in aliases:
@@ -618,6 +633,7 @@ def _parse_survey_file(
                     "field_id": specification.field_key,
                     "user_language": response["user_language"],
                     "answer_text": value,
+                    "raw_value": value,
                 })
     _apply_identity_contract(entities)
     return entities
