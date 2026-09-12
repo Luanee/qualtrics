@@ -85,6 +85,14 @@ In Power Query, keep IDs as text; use a decimal type for `answer_numeric` and a 
 
 ## 4. Create the relationships
 
+Explore the five exported tables below. The diagram's relationship symbols describe one-to-many cardinality; configure Power BI's cross-filter direction separately as explained below. The viewer needs an internet connection and requires no account or API key.
+
+<iframe class="dbml-model" title="Five-table Power BI semantic model" src="{{ dbml_power_bi_url }}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>
+
+<p><a href="{{ dbml_power_bi_url }}" target="_blank" rel="noopener">Open the Power BI diagram at full size</a></p>
+
+[Download the Power BI DBML schema](../power-bi-model.dbml) for a compatible schema tool. If the viewer cannot load, use the relationship table and instructions below.
+
 Create these four **active**, **one-to-many** relationships. Set cross-filter direction to **Single**, from the table on the left to the table on the right. Inspect any relationships Power BI detected before adding yours.
 
 | One side | Many side |
@@ -104,7 +112,7 @@ New exports keep `source_choice_id`, `choice_value`, `recode_value`, `variable_n
 
 Older entity folders can lack these provenance columns. Do not treat `answer_code` as evidence of an explicit recode; it may be a native-ID fallback. Reparse the original CSV/ZIP with the matching QSF and rebuild the semantic model when you need the additional metadata. See [answer value provenance](../entity-model.md#answer-value-provenance) for defaults and matrix scope.
 
-For a date slicer, create a date table in your Power BI model. Convert `recorded_at` to a date for a daily relationship, or derive a separate date-only column from it; relate that column to the date table. Use the original timestamp when you need time-of-day analysis.
+For a date slicer, create a date table in your Power BI model; it is not one of the five exported tables. Convert `recorded_at` to a date for a daily relationship, or derive a separate date-only column from it; relate that column to the date table. Use the original timestamp when you need time-of-day analysis.
 
 ## 5. Add measures with the right denominator
 

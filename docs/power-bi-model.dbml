@@ -1,0 +1,149 @@
+Project qualtrics_power_bi {
+  Note: '''Five exported semantic tables: all fixed export columns and known optional metadata.
+    Configure only the four drawn relationships as active, one-to-many, with Single cross-filter direction from the one side to the many side.
+    DBML symbols encode cardinality, not Power BI filter direction. Configure relationships in Power BI; SQLite exports do not create PK or FK constraints.
+    Survey filters flow through fact_responses to fact_response_answers. Question and option filters reach fact_response_answers only.
+    Other lineage columns do not define additional active relationships. Do not join raw_value to value or use question_id as the dim_questions key.
+    A Date table is an optional model-local extension and is not one of these exported tables.
+    Types describe export values before Power Query conversion; SQLite stores boolean columns as INTEGER. All IDs, timestamps, recodes and response properties are text.
+    Not-null settings describe validated logical requirements; physical exports do not enforce them. Writers can preserve additional record columns beyond this schema.'''
+}
+
+Table dim_surveys [headercolor: #386CB0] {
+  survey_id varchar [pk]
+  survey_name varchar [not null]
+  survey_status varchar
+  default_language varchar
+  source_columns_json text [note: 'Optional JSON list of source-column classifications and storage mappings, including survey-specific response properties']
+  flow_definition_json text [note: 'Optional serialized survey flow definition when available from the source']
+  Note: 'One survey. source_columns_json and flow_definition_json are optional metadata and can be absent from older exports.'
+}
+
+Table dim_questions [headercolor: #386CB0] {
+  question_field_id varchar [pk]
+  field_id varchar [note: 'Compatibility alias of question_field_id']
+  field_external_id varchar
+  question_field_catalog_id varchar [not null]
+  question_id varchar [not null]
+  question_external_id varchar
+  question_catalog_id varchar
+  survey_id varchar
+  section_id varchar
+  section_external_id varchar
+  section_name varchar
+  section_order integer
+  question_text text
+  question_description text
+  question_type varchar
+  selector varchar
+  sub_selector varchar
+  canonical_question_type varchar
+  question_role varchar
+  field_text text
+  field_role varchar
+  answer_value_type varchar [not null]
+  is_text_field boolean
+  import_external_id varchar
+  source_field_suffix varchar
+  source_column_index integer
+  normalized_question_content text
+  normalized_field_content text
+  section_type varchar [note: 'Optional flattened column; exported as text when present']
+  block_id varchar [note: 'Optional flattened column; exported as text when present']
+  block_name varchar [note: 'Optional flattened column; exported as text when present']
+  block_type varchar [note: 'Optional flattened column; exported as text when present']
+  block_order varchar [note: 'Optional flattened column; exported as text when present']
+  question_order_in_block varchar [note: 'Optional flattened column; exported as text when present']
+  statement_text text [note: 'Optional flattened column; exported as text when present']
+  choice_external_id varchar [note: 'Optional flattened column; exported as text when present']
+  Note: 'One exported question field with flattened question, section and catalog metadata. question_field_id is unique; question_id can repeat. survey_id and other lineage IDs do not define additional active relationships. The optional flattened columns are exported when present; all serialize as text.'
+}
+
+Table dim_answer_options [headercolor: #386CB0] {
+  answer_option_id varchar [pk]
+  answer_external_id varchar [not null]
+  answer_id varchar [not null]
+  answer_code varchar [not null, note: 'Compatibility code: explicit recode when provided, otherwise the native option ID']
+  answer_text text [not null]
+  source_choice_id varchar [note: 'Native option ID; matrix scale answer ID, not statement row ID']
+  choice_value text [note: 'Cleaned respondent-visible Display text; can be empty']
+  recode_value varchar [note: 'Explicit RecodeValues entry as text; null when not provided; zero and leading zeros are preserved']
+  value text [note: 'Explicit recode when not null, otherwise choice_value; not a raw-value join key']
+  variable_name text [note: 'Configured multiple-choice VariableNaming export label; null when unavailable; no matrix mapping is inferred']
+  answer_order integer [not null]
+  answer_export_tag varchar [note: 'Compatibility export tag, separate from variable_name']
+  source_import_id varchar
+  question_id varchar [not null]
+  question_external_id varchar
+  question_field_id varchar [not null]
+  field_id varchar [not null, note: 'Compatibility alias; equals question_field_id']
+  survey_id varchar [not null]
+  Note: 'One option belonging to a specific question field. Use answer_option_id to relate the answer fact. question_field_id identifies the owning field and can restrict its full choice list, including unused choices; it is not another active relationship. Provenance columns are nullable for legacy exports.'
+}
+
+Table fact_responses [headercolor: #C57622] {
+  response_id varchar [pk]
+  response_external_id varchar [not null]
+  survey_id varchar [not null]
+  started_at varchar
+  ended_at varchar
+  recorded_at varchar
+  is_finished varchar
+  user_language varchar
+  status varchar
+  ip_address varchar
+  progress varchar
+  duration_seconds varchar
+  recipient_last_name varchar
+  recipient_first_name varchar
+  recipient_email varchar
+  external_reference varchar
+  distribution_channel varchar
+  browser varchar
+  browser_version varchar
+  operating_system varchar
+  screen_resolution varchar
+  user_agent varchar
+  Note: 'One survey response. Additional response-property columns vary by survey and hold text or null. Read dim_surveys.source_columns_json for original source names and storage mappings. Timestamps, is_finished, progress and duration_seconds are exported as text.'
+}
+
+Table fact_response_answers [headercolor: #C57622] {
+  response_answer_id varchar [pk]
+  response_id varchar [not null]
+  response_external_id varchar
+  survey_id varchar [not null]
+  question_id varchar [not null]
+  question_external_id varchar
+  question_field_id varchar [not null]
+  field_id varchar [not null, note: 'Compatibility alias; equals question_field_id']
+  field_external_id varchar
+  question_catalog_id varchar [not null]
+  question_field_catalog_id varchar [not null]
+  answer_option_id varchar
+  answer_value_type varchar [not null]
+  answer_text text [not null]
+  raw_value text [note: 'Exact original nonempty CSV cell; unavailable in older entity folders']
+  answer_numeric double
+  answer_boolean boolean
+  is_selected boolean
+  user_language varchar
+  Note: 'One retained answer cell for a response and question field. answer_option_id is nullable for free text or unresolved and ambiguous option matches. Link options by answer_option_id; raw_value need not equal value. Other lineage IDs are retained without additional active relationships.'
+}
+
+// Each reference is one-to-many. In Power BI, make it active and set
+// cross-filter direction to Single from the left table to the right table.
+Ref survey_responses: dim_surveys.survey_id < fact_responses.survey_id
+Ref response_answers: fact_responses.response_id < fact_response_answers.response_id
+Ref question_answers: dim_questions.question_field_id < fact_response_answers.question_field_id
+Ref option_answers: dim_answer_options.answer_option_id < fact_response_answers.answer_option_id
+
+TableGroup dimensions {
+  dim_surveys
+  dim_questions
+  dim_answer_options
+}
+
+TableGroup facts {
+  fact_responses
+  fact_response_answers
+}

@@ -78,8 +78,24 @@
   margin-bottom: 0.7rem;
 }
 
+.md-typeset .dbml-model {
+  background: var(--md-default-bg-color);
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.6rem;
+  display: block;
+  height: 40rem;
+  max-height: 80vh;
+  min-height: 26rem;
+  width: 100%;
+}
+
 @media (max-width: 600px) {
   .md-typeset .showcase-report {
     min-height: 26rem;
+  }
+
+  .md-typeset .dbml-model {
+    height: 30rem;
+    min-height: 22rem;
   }
 }

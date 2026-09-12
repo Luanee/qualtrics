@@ -9,6 +9,7 @@ site_dir: site
 strict: true
 
 hooks:
+  - scripts/docs_dbml.py
   - scripts/docs_showcase.py
   - scripts/docs_flow_showcase.py
 
