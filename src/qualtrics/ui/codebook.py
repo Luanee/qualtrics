@@ -44,10 +44,23 @@ def _choice(option: dict[str, Any]) -> str:
     identifier = _text(option.get("answer_external_id", option.get("answer_id")))
     code = _text(option.get("answer_code"))
     label = _text(option.get("answer_text"))
-    text = f"{code or identifier} = {label}"
-    details = []
-    if code and code != identifier and identifier:
-        details.append(f"choice ID: {identifier}")
+    if any(option.get(key) is not None for key in ("source_choice_id", "choice_value", "recode_value", "value")):
+        if option.get("source_choice_id") is not None:
+            identifier = _text(option["source_choice_id"])
+        if option.get("choice_value") is not None:
+            label = _text(option["choice_value"])
+        recode = _text(option["recode_value"]) or '""' if option.get("recode_value") is not None else "unavailable"
+        value = _text(option["value"]) or '""' if option.get("value") is not None else "unavailable"
+        text = "label: " + (label or '""')
+        details = [f"native choice ID: {identifier}", f"explicit recode: {recode}", f"normalized value: {value}"]
+    else:
+        # Legacy answer_code can be a native-ID fallback, not an explicit recode.
+        text = f"{code or identifier} = {label}"
+        details = []
+        if code and code != identifier and identifier:
+            details.append(f"choice ID: {identifier}")
+    if option.get("variable_name") is not None:
+        details.append("export label: " + (_text(option["variable_name"]) or '""'))
     if option.get("answer_export_tag"):
         details.append(f"export tag: {option['answer_export_tag']}")
     return text + (f" ({'; '.join(details)})" if details else "")

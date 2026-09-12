@@ -98,6 +98,12 @@ A survey filter reaches responses, then their answers. Question and option filte
 
 `dim_answer_options.question_field_id` tells you which field owns an option. Keep the relationship to the answer fact on `answer_option_id`. When presenting a field's full choice list, use `question_field_id` to restrict the option list to that field, including choices with zero answers.
 
+New exports keep `source_choice_id`, `choice_value`, `recode_value`, `variable_name`, and `value` on `dim_answer_options`. Use `choice_value` for the respondent-visible label; `variable_name` records a configured multiple-choice export label when available. `recode_value` contains only explicit definition metadata, while `value` uses that recode or falls back to the choice text. These remain text columns, so `0` and `02` keep their source representation. Convert types deliberately for a particular analysis.
+
+`fact_response_answers.raw_value` is the exact original CSV cell. For an option with native ID `1`, label `Yes`, and recode `2`, numeric `2` and label `Yes` can both link to the same `answer_option_id`. A configured export label can differ from both. Do not create a `raw_value` → `value` relationship: raw labels need not equal the normalized value, and duplicate recodes or values from different fields are not unique keys. The parser gives explicit recodes priority and leaves ambiguous links null.
+
+Older entity folders can lack these provenance columns. Do not treat `answer_code` as evidence of an explicit recode; it may be a native-ID fallback. Reparse the original CSV/ZIP with the matching QSF and rebuild the semantic model when you need the additional metadata. See [answer value provenance](../entity-model.md#answer-value-provenance) for defaults and matrix scope.
+
 For a date slicer, create a date table in your Power BI model. Convert `recorded_at` to a date for a daily relationship, or derive a separate date-only column from it; relate that column to the date table. Use the original timestamp when you need time-of-day analysis.
 
 ## 5. Add measures with the right denominator

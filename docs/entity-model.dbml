@@ -39,6 +39,11 @@ Table answer_options {
   answer_external_id varchar [not null]
   answer_id varchar [not null]
   answer_code varchar [not null]
+  source_choice_id varchar [note: 'Native option ID; matrix scale answer ID, not statement row ID']
+  choice_value text [note: 'Cleaned respondent-visible Display text']
+  recode_value varchar [note: 'Explicit RecodeValues entry as text; null when not provided']
+  variable_name text [note: 'Configured multiple-choice VariableNaming export label; null when unavailable']
+  value text [note: 'Explicit recode when not null, otherwise choice_value; not a raw-value join key']
   answer_order integer [not null]
   answer_export_tag varchar
   source_import_id varchar
@@ -80,6 +85,7 @@ Table response_answers {
   question_field_catalog_id varchar [not null, ref: > question_field_catalog.question_field_catalog_id]
   answer_option_id varchar [ref: > answer_options.answer_option_id]
   answer_text varchar [not null]
+  raw_value text [note: 'Exact original nonempty CSV cell; unavailable in older entity folders']
   answer_numeric double
   answer_boolean boolean
   is_selected boolean

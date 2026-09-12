@@ -64,6 +64,11 @@ ENTITY_COLUMNS: dict[str, tuple[str, ...]] = {
         "answer_external_id",
         "answer_code",
         "answer_text",
+        "source_choice_id",
+        "choice_value",
+        "recode_value",
+        "value",
+        "variable_name",
         "answer_order",
         "answer_export_tag",
         "source_import_id",
@@ -131,6 +136,7 @@ ENTITY_COLUMNS: dict[str, tuple[str, ...]] = {
         "answer_option_id",
         "answer_value_type",
         "answer_text",
+        "raw_value",
         "answer_numeric",
         "answer_boolean",
         "is_selected",
@@ -144,6 +150,13 @@ def _coerce_csv_records(name: str, records: list[dict[str, str]]) -> list[dict[s
     coerced_records: list[dict[str, object]] = []
     for raw_record in records:
         record: dict[str, object] = dict(raw_record)
+        # New option rows can deliberately have an empty Display and normalized
+        # value. Legacy rows lack this provenance, so their blank cells stay null.
+        empty_text_columns = (
+            {"answer_text", "choice_value", "value"}
+            if name == "answer_options" and raw_record.get("source_choice_id")
+            else set()
+        )
         for key, target_type in field_types.items():
             value = raw_record.get(key)
             if value is None or value == "":
@@ -151,7 +164,7 @@ def _coerce_csv_records(name: str, records: list[dict[str, str]]) -> list[dict[s
                 continue
             record[key] = value.casefold() == "true" if target_type is bool else target_type(value)
         for key, value in tuple(record.items()):
-            if value == "":
+            if value == "" and key not in empty_text_columns:
                 record[key] = None
         coerced_records.append(record)
     return coerced_records

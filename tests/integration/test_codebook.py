@@ -6,6 +6,8 @@ from html.parser import HTMLParser
 from io import StringIO
 from pathlib import Path
 
+import pytest
+
 from qualtrics import parse_survey, render_report
 from qualtrics._common.models import EntitySet
 
@@ -98,6 +100,61 @@ def test_codebook_with_no_definition_does_not_invent_choices(survey_files: tuple
     assert {row["export_column"] for row in represented_fields} == field_columns
 
 
+@pytest.mark.parametrize(
+    ("recode", "label", "value", "expected_recode", "expected_value"),
+    [
+        ("0", "Sales", "0", "0", "0"),
+        ("02", "Sales", "02", "02", "02"),
+        (None, "Sales", "Sales", "unavailable", "Sales"),
+        (None, "", "", "unavailable", '""'),
+    ],
+)
+def test_codebook_distinguishes_choice_recode_and_normalized_values(
+    recode: str | None, label: str, value: str, expected_recode: str, expected_value: str
+) -> None:
+    from qualtrics.ui.codebook import build_codebook
+
+    entities = _entities()
+    option = entities.answer_options[1]
+    option.update({
+        "source_choice_id": "1",
+        "choice_value": label,
+        "recode_value": recode,
+        "value": value,
+        "answer_text": label,
+        "answer_code": recode if recode is not None else "1",
+        "variable_name": "Sales export label",
+        "answer_export_tag": "department-sales",
+    })
+    entities.answer_options = [option]
+
+    choices = build_codebook(entities)[0]["choices"]
+
+    assert ("label: Sales" if label else 'label: ""') in choices
+    assert "native choice ID: 1" in choices
+    assert f"explicit recode: {expected_recode}" in choices
+    assert f"normalized value: {expected_value}" in choices
+    assert "export label: Sales export label" in choices
+    assert "export tag: department-sales" in choices
+
+
+@pytest.mark.parametrize("empty_provenance_columns", [False, True])
+def test_legacy_codebook_does_not_invent_explicit_recode_provenance(empty_provenance_columns: bool) -> None:
+    from qualtrics.ui.codebook import build_codebook
+
+    entities = _entities()
+    if empty_provenance_columns:
+        for option in entities.answer_options:
+            option.update(dict.fromkeys(("source_choice_id", "choice_value", "recode_value", "value", "variable_name")))
+
+    choices = build_codebook(entities)[0]["choices"]
+
+    assert choices.startswith("0 = Sales")
+    assert "choice ID: 1" in choices
+    assert "explicit recode: 0" not in choices
+    assert "normalized value: 0" not in choices
+
+
 class _CodebookParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
@@ -125,6 +182,46 @@ def test_codebook_escapes_html_and_embeds_valid_csv_rows() -> None:
     assert any('Research, "Development" & design' in cell for cell in cells)
     assert any(cell.startswith("'=HYPERLINK") for cell in cells)
     assert html.unescape(str(parser.rows[0]["data-survey"])) == "SV_A"
+
+
+def test_choice_provenance_is_escaped_and_shared_by_search_and_download() -> None:
+    from qualtrics.ui.codebook import CODEBOOK_COLUMNS, build_codebook, render_codebook
+
+    entities = _entities()
+    label = 'Research, "Growth" & <script>alert(1)</script>'
+    variable_name = '<b>Export "label"</b>'
+    tag = '<svg onload="bad()">'
+    option = entities.answer_options[1]
+    option.update({
+        "source_choice_id": "1",
+        "choice_value": label,
+        "recode_value": "02",
+        "value": "02",
+        "answer_text": label,
+        "answer_code": "02",
+        "variable_name": variable_name,
+        "answer_export_tag": tag,
+    })
+    entities.answer_options = [option]
+
+    rendered = render_codebook(entities)
+
+    assert "<script>alert(1)</script>" not in rendered
+    assert '<svg onload="bad()">' not in rendered
+    assert variable_name not in rendered
+    assert html.escape(label, quote=True) in rendered
+    parser = _CodebookParser()
+    parser.feed(rendered)
+    choices = build_codebook(entities)[0]["choices"]
+    assert "explicit recode: 02" in choices
+    assert "normalized value: 02" in choices
+    assert "export label: " + variable_name in choices
+    assert choices.lower() in str(parser.rows[0]["data-search"])
+    downloaded = next(csv.reader(StringIO(str(parser.rows[0]["data-csv"]))))
+    assert downloaded[CODEBOOK_COLUMNS.index("choices")] == choices
+    assert label in downloaded[CODEBOOK_COLUMNS.index("choices")]
+    assert tag in downloaded[CODEBOOK_COLUMNS.index("choices")]
+    assert variable_name in downloaded[CODEBOOK_COLUMNS.index("choices")]
 
 
 def test_empty_codebook_is_explicit() -> None:
