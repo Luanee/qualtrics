@@ -1,6 +1,6 @@
 # Parse existing exports
 
-Convert a Qualtrics response CSV or response-export ZIP into nine related tables. You can then generate a report, combine different surveys, or prepare a Power BI model.
+Convert a Qualtrics response CSV or response-export ZIP into ten related tables. You can then generate a report, combine different surveys, or prepare a Power BI model.
 
 You need the [installed project](../getting-started/installation.md), a response export, and, if available, its matching survey definition (`.qsf`). Run the commands from the `qualtrics` project folder. If you installed only the CLI, replace `uv run --extra cli --extra ui qualtrics` with `qualtrics`.
 
@@ -54,7 +54,7 @@ The parser still looks for a definition with the same filename stem in the same 
 
 ## 4. Check the output
 
-Look for a success message naming the survey count, format, and destination. Open the output folder and confirm it contains the [nine entity files](../understand/your-data.md). Some tables can contain no records, but the parser still writes their files.
+Look for a success message naming the survey count, format, and destination. Open the output folder and confirm it contains the [ten entity files](../understand/your-data.md). Some tables can contain no records, but the parser still writes their files.
 
 Generate a report to check the response count, question labels, and defined choices:
 

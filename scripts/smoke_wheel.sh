@@ -9,11 +9,17 @@ if [[ ${#wheel_files[@]} -ne 1 ]]; then
   exit 1
 fi
 
+wheel_smoke_output=$(mktemp -d .wheel-smoke-XXXXXX)
+export QUALTRICS_WHEEL_SMOKE_OUTPUT="$wheel_smoke_output"
+trap 'rm -rf -- "$wheel_smoke_output"' EXIT
+
 uv venv --clear .wheel-venv
 uv pip install --python .wheel-venv/bin/python "${wheel_files[0]}"
 .wheel-venv/bin/python - <<'PYTHON'
 import importlib.util
+import os
 import pkgutil
+import sqlite3
 from pathlib import Path
 
 import qualtrics
@@ -47,6 +53,17 @@ semantic = build_semantic_model(entities)
 assert isinstance(semantic, SemanticModel)
 assert len(semantic.fact_responses) == len(entities.responses) > 0
 assert len(semantic.dim_questions) == len(entities.question_fields) > 0
+assert len(entities.comments) == 2
+assert semantic.fact_comments == entities.comments
+responses = {row["response_id"]: row for row in entities.responses}
+for comment in entities.comments:
+    assert comment["user_language"] == responses[comment["response_id"]].get("user_language")
+smoke_output = Path(os.environ["QUALTRICS_WHEEL_SMOKE_OUTPUT"])
+write_entities(entities, smoke_output / "base-entities", "json")
+assert load_entities(smoke_output / "base-entities").comments == entities.comments
+write_semantic_model(semantic, smoke_output / "base-model", "sqlite")
+with sqlite3.connect(smoke_output / "base-model/semantic_model.sqlite") as connection:
+    assert connection.execute("SELECT count(*) FROM fact_comments").fetchone() == (2,)
 for dependency in ("typer", "rich", "jinja2", "markupsafe", "pyarrow"):
     assert importlib.util.find_spec(dependency) is None, dependency
 PYTHON
@@ -56,6 +73,7 @@ uv pip install --python .wheel-cli-venv/bin/python "${wheel_files[0]}[cli]"
 .wheel-cli-venv/bin/qualtrics --help
 .wheel-cli-venv/bin/qualtrics report --help
 .wheel-cli-venv/bin/qualtrics build docs/assets/examples/feedback.csv --qsf docs/assets/examples/feedback.qsf --output .wheel-entities --format json
+.wheel-cli-venv/bin/qualtrics semantic-model build .wheel-entities --output "$wheel_smoke_output/cli-model" --format sqlite
 .wheel-cli-venv/bin/python - <<'PYTHON'
 import subprocess
 import sys

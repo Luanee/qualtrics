@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ..._common.models.comments import is_comment_answer
 from ..components.field_labels import display_field_label
 from ..context import ReportContext
-from ..insights import field_value_type
 from ..templating import render_template
 
 
@@ -41,7 +41,7 @@ def render_written_answers(context: ReportContext) -> str:
                 continue
             question = analysis.questions.get(key, {})
             field = analysis.fields.get((*key, answer["field_id"]), {})
-            if field_value_type(question, field) != "text":
+            if not is_comment_answer(question, field, answer):
                 continue
             survey_id = str(response["survey_id"])
             label = str(question.get("question_text") or answer["question_id"])

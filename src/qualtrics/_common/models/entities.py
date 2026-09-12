@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-ENTITY_NAMES = (
+CORE_ENTITY_NAMES = (
     "surveys",
     "sections",
     "question_catalog",
@@ -14,6 +14,7 @@ ENTITY_NAMES = (
     "responses",
     "response_answers",
 )
+ENTITY_NAMES = (*CORE_ENTITY_NAMES, "comments")
 
 
 @dataclass
@@ -29,3 +30,4 @@ class EntitySet:
     question_fields: list[dict[str, Any]] = field(default_factory=list)
     responses: list[dict[str, Any]] = field(default_factory=list)
     response_answers: list[dict[str, Any]] = field(default_factory=list)
+    comments: list[dict[str, Any]] = field(default_factory=list)

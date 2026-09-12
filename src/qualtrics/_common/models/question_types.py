@@ -97,3 +97,13 @@ def classify_question_role(definition: dict[str, Any], import_ids: list[str]) ->
     if any(code in technical for code in timing_suffixes):
         return "timing"
     return "response"
+
+
+def field_value_type(question: dict[str, Any], field: dict[str, Any]) -> str:
+    """Use the same explicit field/question precedence as question analysis."""
+    if field.get("is_text_field"):
+        return "text"
+    resolved = resolve_question_type(
+        question.get("question_type"), question.get("selector"), question.get("sub_selector")
+    )
+    return str(field.get("answer_value_type") or question.get("answer_value_type") or resolved.answer_value_type)

@@ -2,7 +2,7 @@
 
 Combine parsed tables from different surveys into one collection. Use that collection for a shared report or a Power BI model.
 
-You need at least two entity folders created with the current parser. Each must contain the [nine entity files](../understand/your-data.md), with one file format per table. Run the examples from the installed project folder; for an isolated CLI installation, replace `uv run --extra cli --extra ui qualtrics` with `qualtrics`.
+You need at least two complete entity folders, with one file format per table. Current exports contain [ten entity files](../understand/your-data.md); older folders with the nine authoritative tables and no `comments` file are also accepted. Run the examples from the installed project folder; for an isolated CLI installation, replace `uv run --extra cli --extra ui qualtrics` with `qualtrics`.
 
 ## 1. Check which surveys you are combining
 
@@ -11,9 +11,9 @@ Use separate inputs for separate surveys, for example:
 ```text
 data/
 ├── survey-a/entities/
-│   └── ... nine entity files ...
+│   └── ... ten entity files ...
 └── survey-b/entities/
-    └── ... nine entity files ...
+    └── ... ten entity files ...
 ```
 
 The command rejects repeated `survey_id` values. It cannot append two response exports from the same survey or decide which response version to keep. To refresh one survey, rebuild its entity folder from the export you want to use.
@@ -53,6 +53,8 @@ uv run --extra cli --extra ui --extra parquet qualtrics report --folder data/com
 Open the HTML file and use **Surveys** to inspect each source survey. Check its response count against its individual report, then select all surveys to review the combined total.
 
 The combined tables retain each survey's own questions, fields, and options. The two catalog tables group questions and fields that have matching normalized definitions across surveys. Similar-looking wording alone does not guarantee that two questions share a catalog entry, and shared entries do not establish that the survey populations are comparable. See [understand your data](../understand/your-data.md).
+
+The combined `comments` table is regenerated from the original answer and response rows. Identical text from different responses remains separate, and each comment keeps its response's language or null. Comments still belong to `response_answers`; the derived table does not add responses or answers to your totals.
 
 The `responses` table contains the union of response-property columns. If survey A exports `Region` and survey B exports `Country`, the combined table has both; a property absent from a survey is null for its responses. Original collections are unchanged. The codebook records any renamed columns needed to distinguish duplicate names, names that differ only by case, or names that collide with built-in response fields. Check this mapping before combining similarly named fields in an analysis.
 

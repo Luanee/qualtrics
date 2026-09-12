@@ -163,7 +163,7 @@ data/api-export/SV_123/
 ├── responses.csv
 ├── report.html
 └── entities/
-    └── ... nine Parquet files ...
+    └── ... ten Parquet files ...
 ```
 
 This script uses Parquet by default, so keep the `parquet` extra installed. Add `--format csv` or `--format json` for another entity format. Its `--labels` default, optional `--codes`, and `--start-date` / `--end-date` export filters appear in:

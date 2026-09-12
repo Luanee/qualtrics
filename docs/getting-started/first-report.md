@@ -1,6 +1,6 @@
 # Your first report
 
-Turn a small example survey into an HTML report you can open in a browser. You will create nine data tables along the way. The example uses invented responses and needs no Qualtrics account or API token.
+Turn a small example survey into an HTML report you can open in a browser. You will create ten data tables along the way. The example uses invented responses and needs no Qualtrics account or API token.
 
 Before you start, complete [installation](installation.md) and open a terminal in the `qualtrics` project folder.
 
@@ -45,7 +45,8 @@ data/first-report/entities/
 ├── question_field_catalog.csv
 ├── answer_options.csv
 ├── responses.csv
-└── response_answers.csv
+├── response_answers.csv
+└── comments.csv
 ```
 
 You can leave these files together and proceed to the report. [Understand your data](../understand/your-data.md) explains each table.
@@ -91,7 +92,7 @@ Check these results:
 3. Return to **Summary** and expand **Coverage and data quality**, then **Data quality**. Neutral appears under **Defined options not observed**. This is expected: the QSF lists Neutral as a possible answer even though nobody chose it.
 4. Open **Written answers** to read the two comments. Follow a comment's response link, or open **Responses** to inspect a complete record. One response has no comment.
 
-The blank comment contributes no row to `response_answers.csv`. That gives you five answer rows: three satisfaction answers plus two comments. In a survey with matrix or multiple-selection questions, one question can produce several answer rows; the report's **Respondent answers** count groups those by response and question.
+The blank comment contributes no row to `response_answers.csv`. That gives you five answer rows: three satisfaction answers plus two comments. `comments.csv` contains those same two comments, with their original answer IDs and the language recorded on each response. It is a subset, so there are still five total answers, not seven. In a survey with matrix or multiple-selection questions, one question can produce several answer rows; the report's **Respondent answers** count groups those by response and question.
 
 Below the dashboard, expand **Observed highlights** for a brief account of the answers, or **Coverage and data quality** to see **2 Response questions** and **5 Respondent answers**. The dashboard and its controls work offline. In a combined report, the **Surveys** selector updates all dashboard charts; each question keeps its own survey's denominator.
 

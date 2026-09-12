@@ -88,12 +88,12 @@ write_semantic_model(
 | `parse_survey` | Accepts a CSV, a ZIP containing one CSV, or a wildcard pattern matching several inputs. Discovers a same-stem `.qsf` then `.json` definition if you omit `qsf_path`. A `survey_id` override applies to one input only. |
 | `parse_surveys` | Expands wildcard patterns in each supplied path, sorting each pattern's matches. Explicit definitions pair with inputs by position; supply one per input or omit them for adjacent discovery. |
 | `merge_entity_sets` | Combines distinct survey IDs and deduplicates identical records in the two catalogs. Raises `ValueError` for repeated survey IDs or conflicting records with the same catalog ID. |
-| `write_entities` | Writes all nine entities as `json`, `csv`, or `parquet`. Creates the folder and overwrites matching files. |
+| `write_entities` | Writes all ten entities as `json`, `csv`, or `parquet`. Creates the folder and overwrites matching files. |
 | `load_entities` | Loads entity files named for their tables. Explicit keyword paths use table names, such as `responses="responses.json"`. Validates the full contract when you supply a folder; without a folder, validates the supplied subset's keys and relationships. Rejects multiple formats for the same entity in a folder. |
 | `render_report` | Writes a self-contained HTML report with the built-in design. The output's parent directory must exist. Overwrites the target file. |
 | `analyze_entities` | Calculates response counts, question roles, answer groupings, and unused or unanswered content for reports. Returns a `ReportAnalytics` without requiring the `ui` extra. |
-| `build_semantic_model` | Requires a complete, valid entity collection. Returns five tables in a `SemanticModel`. |
-| `write_semantic_model` | Writes all five tables as `json`, `csv`, or `parquet`. Creates the folder and overwrites matching files. |
+| `build_semantic_model` | Requires a complete, valid entity collection. Returns six tables in a `SemanticModel`. |
+| `write_semantic_model` | Writes all six tables as `json`, `csv`, or `parquet`. Creates the folder and overwrites matching files. |
 
 The Python writers do not apply the CLI combine and semantic commands' occupied-output checks. Choose a fresh output directory for each run or format. Both reading and writing Parquet require the `parquet` extra.
 
@@ -136,9 +136,11 @@ Use the downloadable inputs in [your first report](../getting-started/first-repo
 
 ### Collections and table names
 
-`EntitySet` is a dataclass with lists of dictionaries named `surveys`, `sections`, `question_catalog`, `question_field_catalog`, `questions`, `answer_options`, `question_fields`, `responses`, and `response_answers`. Prefer `parse_survey` or `load_entities` to construct a collection with the metadata needed for strict validation.
+`EntitySet` is a dataclass with lists of dictionaries named `surveys`, `sections`, `question_catalog`, `question_field_catalog`, `questions`, `answer_options`, `question_fields`, `responses`, `response_answers`, and `comments`. Prefer `parse_survey` or `load_entities` to construct a collection with the metadata needed for strict validation.
 
-`SemanticModel` is a dataclass with `fact_responses`, `fact_response_answers`, `dim_surveys`, `dim_questions`, and `dim_answer_options`, also lists of dictionaries. `dim_questions` has one row per exported question field.
+`SemanticModel` is a dataclass with `fact_responses`, `fact_response_answers`, `dim_surveys`, `dim_questions`, `dim_answer_options`, and `fact_comments`, also lists of dictionaries. `dim_questions` has one row per exported question field.
+
+`entities.comments` and `semantic.fact_comments` are derived text-answer subsets. They reuse `response_answer_id`, preserve the answer text, and copy nullable `user_language` only from the linked response. The original nine entity lists remain authoritative; a legacy folder without `comments` reconstructs it from available types. New fields carry nullable boolean `is_comment_field` on `question_fields` and `dim_questions` so source classification survives serialization. See the [comments contract](../entity-model.md#comments) for membership and validation rules. Do not count comments again when using the complete answer table.
 
 Use `analyze_entities(entities)` to calculate report metrics in Python. Its `ReportAnalytics` result includes `response_count`, `finished_count`, `question_roles`, and the question, field, and answer lookups used by HTML reports.
 
