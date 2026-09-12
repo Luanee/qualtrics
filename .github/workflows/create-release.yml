@@ -53,7 +53,7 @@ jobs:
           version="$(uv version --short)"
           tag="v${version}"
           notes_path="${RUNNER_TEMP}/release-${version}.md"
-          uv run python scripts/prepare_release.py extract \
+          uv run --locked --extra cli python scripts/prepare_release.py extract \
             --version "$version" \
             --output "$notes_path"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"

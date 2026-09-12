@@ -71,7 +71,7 @@ jobs:
           if [[ -n "$latest_tag" ]]; then
             args+=(--from-ref "$latest_tag")
           fi
-          uv run python scripts/prepare_release.py "${args[@]}"
+          uv run --locked --extra cli python scripts/prepare_release.py "${args[@]}"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "date=$release_date" >> "$GITHUB_OUTPUT"
 
@@ -79,8 +79,8 @@ jobs:
         run: |
           uv sync --locked --all-groups --all-extras
           mkdir -p reports
-          uv run --all-extras poe check
-          uv run --all-extras poe build
+          uv run --locked --all-groups --all-extras poe check
+          uv run --locked --all-groups --all-extras poe build
 
       - name: Create release pull request
         env:
