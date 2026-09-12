@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from .entities import ENTITY_NAMES, EntitySet
+from .comments import COMMENT_COLUMNS, build_comments
+from .entities import CORE_ENTITY_NAMES, EntitySet
 from .response_merge import merge_response_columns
 
 PRIMARY_KEYS = {
@@ -13,6 +14,7 @@ PRIMARY_KEYS = {
     "question_fields": "question_field_id",
     "responses": "response_id",
     "response_answers": "response_answer_id",
+    "comments": "response_answer_id",
 }
 
 REQUIRED_COLUMNS = {
@@ -50,10 +52,12 @@ REQUIRED_COLUMNS = {
         "answer_boolean",
         "is_selected",
     },
+    "comments": set(COMMENT_COLUMNS),
 }
 
 NULLABLE_REQUIRED_COLUMNS = {
     "response_answers": {"answer_option_id", "answer_numeric", "answer_boolean", "is_selected"},
+    "comments": {"raw_value", "user_language"},
 }
 
 RELATIONSHIPS = (
@@ -77,12 +81,17 @@ RELATIONSHIPS = (
     ("response_answers", "question_catalog_id", "question_catalog", "question_catalog_id"),
     ("response_answers", "question_field_catalog_id", "question_field_catalog", "question_field_catalog_id"),
     ("response_answers", "answer_option_id", "answer_options", "answer_option_id"),
+    ("comments", "response_answer_id", "response_answers", "response_answer_id"),
+    ("comments", "response_id", "responses", "response_id"),
+    ("comments", "survey_id", "surveys", "survey_id"),
+    ("comments", "question_id", "questions", "question_id"),
+    ("comments", "question_field_id", "question_fields", "question_field_id"),
 )
 
 
 def validate_entity_set(entities: EntitySet, *, strict: bool = False) -> None:
     if strict:
-        missing = [name for name in ENTITY_NAMES if name not in entities._present_entities]
+        missing = [name for name in CORE_ENTITY_NAMES if name not in entities._present_entities]
         if missing:
             raise ValueError(f"Incomplete strict entity contract: {', '.join(missing)}")
         if not entities.surveys:
@@ -172,6 +181,14 @@ def validate_entity_set(entities: EntitySet, *, strict: bool = False) -> None:
             option = options[str(option_id)]
             if str(option["question_field_id"]) != str(answer["question_field_id"]):
                 raise ValueError("response_answers option must belong to the referenced question field")
+    if entities.comments or "comments" in entities._present_entities:
+        columns = entities._present_columns.get("comments")
+        if columns is not None and columns != set(COMMENT_COLUMNS):
+            raise ValueError("comments schema must contain exactly the fixed comment columns")
+        expected = {row["response_answer_id"]: row for row in build_comments(entities)}
+        supplied = {row["response_answer_id"]: row for row in entities.comments}
+        if supplied != expected:
+            raise ValueError("comments must match the projection of response_answers and responses")
 
 
 def merge_entity_sets(entity_sets: list[EntitySet]) -> EntitySet:
@@ -183,14 +200,14 @@ def merge_entity_sets(entity_sets: list[EntitySet]) -> EntitySet:
             name: set.intersection(
                 *(item._present_columns[name] for item in entity_sets if name in item._present_columns)
             )
-            for name in ENTITY_NAMES
+            for name in CORE_ENTITY_NAMES
             if all(name in item._present_columns for item in entity_sets)
         }
     survey_ids = [str(survey["survey_id"]) for item in entity_sets for survey in item.surveys]
     duplicates = {survey_id for survey_id in survey_ids if survey_ids.count(survey_id) > 1}
     if duplicates:
         raise ValueError(f"Duplicate survey_id values: {', '.join(sorted(duplicates))}")
-    for name in ENTITY_NAMES:
+    for name in CORE_ENTITY_NAMES:
         rows = [row for item in entity_sets for row in getattr(item, name)]
         if name in {"question_catalog", "question_field_catalog"}:
             id_key = f"{name}_id"
@@ -205,4 +222,6 @@ def merge_entity_sets(entity_sets: list[EntitySet]) -> EntitySet:
     result.surveys, result.responses, response_columns = merge_response_columns(entity_sets)
     if response_columns:
         result._present_columns["responses"] = response_columns
+    result.comments = build_comments(result)
+    result._present_columns["comments"] = set(COMMENT_COLUMNS)
     return result

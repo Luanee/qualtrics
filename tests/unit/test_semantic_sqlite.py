@@ -17,6 +17,7 @@ def test_sqlite_empty_model_has_all_tables_with_useful_types(tmp_path: Path) -> 
             "dim_surveys",
             "dim_questions",
             "dim_answer_options",
+            "fact_comments",
         }
         schema = {row[1]: row[2] for row in connection.execute("PRAGMA table_info(fact_response_answers)")}
         assert schema["response_id"] == "TEXT"

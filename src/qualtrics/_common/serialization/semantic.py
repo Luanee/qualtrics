@@ -5,10 +5,13 @@ import json
 import os
 import sqlite3
 from contextlib import closing
+from dataclasses import replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
+from ..models.comments import COMMENT_COLUMNS, build_comments
+from ..models.entities import EntitySet
 from ..models.response_columns import read_source_columns
 from ..models.semantic import SEMANTIC_TABLE_NAMES, SemanticModel
 
@@ -83,6 +86,7 @@ SEMANTIC_COLUMNS = {
         "field_role",
         "answer_value_type",
         "is_text_field",
+        "is_comment_field",
         "import_external_id",
         "source_field_suffix",
         "source_column_index",
@@ -109,10 +113,11 @@ SEMANTIC_COLUMNS = {
         "field_id",
         "survey_id",
     ),
+    "fact_comments": COMMENT_COLUMNS,
 }
 
 _FLOAT_COLUMNS = {"answer_numeric"}
-_BOOL_COLUMNS = {"answer_boolean", "is_selected", "is_text_field"}
+_BOOL_COLUMNS = {"answer_boolean", "is_selected", "is_text_field", "is_comment_field"}
 _INT_COLUMNS = {"source_column_index", "section_order", "answer_order"}
 SEMANTIC_SQLITE_FILENAME = "semantic_model.sqlite"
 
@@ -182,6 +187,22 @@ def _write_sqlite(model: SemanticModel, destination: Path) -> None:
 
 
 def write_semantic_model(model: SemanticModel, folder: str | Path, format: str = "parquet") -> None:
+    model = replace(
+        model,
+        fact_comments=build_comments(
+            EntitySet(
+                # Flattened answer_value_type belongs to each field. A sibling's
+                # type must not become the fallback for a field with missing data.
+                questions=[
+                    {key: value for key, value in row.items() if key != "answer_value_type"}
+                    for row in model.dim_questions
+                ],
+                question_fields=model.dim_questions,
+                responses=model.fact_responses,
+                response_answers=model.fact_response_answers,
+            )
+        ),
+    )
     destination = Path(folder)
     destination.mkdir(parents=True, exist_ok=True)
     if format == "sqlite":

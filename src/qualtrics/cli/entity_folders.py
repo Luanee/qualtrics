@@ -2,7 +2,7 @@ from pathlib import Path
 
 import typer
 
-from .._common.models.entities import ENTITY_NAMES
+from .._common.models.entities import CORE_ENTITY_NAMES, ENTITY_NAMES
 
 ENTITY_EXTENSIONS = ("json", "csv", "parquet")
 
@@ -18,7 +18,7 @@ def entity_files(folder: Path, name: str) -> list[Path]:
 
 
 def validate_entity_collection(folder: Path) -> None:
-    missing = [name for name in ENTITY_NAMES if not entity_files(folder, name)]
+    missing = [name for name in CORE_ENTITY_NAMES if not entity_files(folder, name)]
     ambiguous = [name for name in ENTITY_NAMES if len(entity_files(folder, name)) > 1]
     if missing:
         raise typer.BadParameter(f"{folder} is missing entity files: {', '.join(missing)}")

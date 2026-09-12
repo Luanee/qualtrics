@@ -1,8 +1,9 @@
 Project qualtrics_power_bi {
-  Note: '''Five exported semantic tables: all fixed export columns and known optional metadata.
-    Configure only the four drawn relationships as active, one-to-many, with Single cross-filter direction from the one side to the many side.
+  Note: '''Six exported semantic tables: all fixed export columns and known optional metadata.
+    Configure only the six drawn relationships as active, one-to-many, with Single cross-filter direction from the one side to the many side.
     DBML symbols encode cardinality, not Power BI filter direction. Configure relationships in Power BI; SQLite exports do not create PK or FK constraints.
-    Survey filters flow through fact_responses to fact_response_answers. Question and option filters reach fact_response_answers only.
+    Survey filters flow through fact_responses to both answer facts. Question filters reach both answer facts; option filters reach fact_response_answers only.
+    fact_comments is a derived subset of fact_response_answers; never sum both row counts or join the facts to each other. Do not add a direct active survey-to-comments relationship.
     Other lineage columns do not define additional active relationships. Do not join raw_value to value or use question_id as the dim_questions key.
     A Date table is an optional model-local extension and is not one of these exported tables.
     Types describe export values before Power Query conversion; SQLite stores boolean columns as INTEGER. All IDs, timestamps, recodes and response properties are text.
@@ -43,6 +44,7 @@ Table dim_questions [headercolor: #386CB0] {
   field_role varchar
   answer_value_type varchar [not null]
   is_text_field boolean
+  is_comment_field boolean [note: 'Nullable source-backed eligibility for comments; older exports fall back to available question and field types']
   import_external_id varchar
   source_field_suffix varchar
   source_column_index integer
@@ -127,7 +129,19 @@ Table fact_response_answers [headercolor: #C57622] {
   answer_boolean boolean
   is_selected boolean
   user_language varchar
-  Note: 'One retained answer cell for a response and question field. answer_option_id is nullable for free text or unresolved and ambiguous option matches. Link options by answer_option_id; raw_value need not equal value. Other lineage IDs are retained without additional active relationships.'
+  Note: 'One retained answer cell for a response and question field, including every comment. answer_option_id is nullable for free text or unresolved and ambiguous option matches. Link options by answer_option_id; raw_value need not equal value. Other lineage IDs are retained without additional active relationships. Do not add fact_comments counts to this all-answer count.'
+}
+
+Table fact_comments [headercolor: #C57622] {
+  response_answer_id varchar [pk]
+  response_id varchar [not null]
+  survey_id varchar [not null]
+  question_id varchar [not null]
+  question_field_id varchar [not null]
+  answer_text text [not null]
+  raw_value text [note: 'Exact original CSV cell when available; null for legacy answers without raw_value']
+  user_language varchar [note: 'Copied only from the linked response; null when absent; no survey default or language detection']
+  Note: 'One nonblank text answer field per response, derived from the original answer rows and keyed by their response_answer_id. Same-text answers remain separate; text is unchanged. Relate only responses and question fields to this table. Do not join fact_response_answers, raw text, or dim_surveys directly to it; comments already contribute to the all-answer fact.'
 }
 
 // Each reference is one-to-many. In Power BI, make it active and set
@@ -136,6 +150,8 @@ Ref survey_responses: dim_surveys.survey_id < fact_responses.survey_id
 Ref response_answers: fact_responses.response_id < fact_response_answers.response_id
 Ref question_answers: dim_questions.question_field_id < fact_response_answers.question_field_id
 Ref option_answers: dim_answer_options.answer_option_id < fact_response_answers.answer_option_id
+Ref response_comments: fact_responses.response_id < fact_comments.response_id
+Ref question_comments: dim_questions.question_field_id < fact_comments.question_field_id
 
 TableGroup dimensions {
   dim_surveys
@@ -146,4 +162,5 @@ TableGroup dimensions {
 TableGroup facts {
   fact_responses
   fact_response_answers
+  fact_comments
 }

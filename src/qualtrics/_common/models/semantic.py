@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
+from .comments import COMMENT_COLUMNS, build_comments
 from .entities import EntitySet
 from .entity_set import validate_entity_set
 
@@ -12,6 +13,7 @@ SEMANTIC_TABLE_NAMES = (
     "dim_surveys",
     "dim_questions",
     "dim_answer_options",
+    "fact_comments",
 )
 
 
@@ -22,9 +24,15 @@ class SemanticModel:
     dim_surveys: list[dict[str, Any]] = field(default_factory=list)
     dim_questions: list[dict[str, Any]] = field(default_factory=list)
     dim_answer_options: list[dict[str, Any]] = field(default_factory=list)
+    fact_comments: list[dict[str, Any]] = field(default_factory=list)
 
 
 def build_semantic_model(entities: EntitySet) -> SemanticModel:
+    entities = replace(
+        entities,
+        comments=build_comments(entities),
+        _present_columns={**entities._present_columns, "comments": set(COMMENT_COLUMNS)},
+    )
     validate_entity_set(entities, strict=True)
     questions = {str(row["question_id"]): row for row in entities.questions}
     sections = {str(row["section_id"]): row for row in entities.sections}
@@ -43,4 +51,5 @@ def build_semantic_model(entities: EntitySet) -> SemanticModel:
         dim_surveys=[dict(row) for row in entities.surveys],
         dim_questions=dimensions,
         dim_answer_options=[dict(row) for row in entities.answer_options],
+        fact_comments=entities.comments,
     )

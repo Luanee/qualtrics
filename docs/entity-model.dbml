@@ -1,5 +1,5 @@
 Project qualtrics_entities {
-  Note: '''Nine entity tables: all fixed export columns and known optional metadata.
+  Note: '''Ten exported entity tables: nine authoritative entities and the derived comments projection, with all fixed export columns and known optional metadata.
     Keys, references and not-null settings describe the validated logical model; exported files do not themselves enforce these constraints.
     Text includes IDs, timestamps, recodes and response metadata that may look numeric.
     Writers also preserve additional record columns, so a survey can extend this schema.
@@ -101,6 +101,7 @@ Table question_fields [headercolor: #386CB0] {
   statement_text text
   answer_value_type varchar [not null]
   is_text_field boolean
+  is_comment_field boolean [note: 'Nullable source-backed eligibility for comments; older exports fall back to available question and field types']
   choice_external_id varchar
   import_external_id varchar
   source_field_suffix varchar
@@ -154,7 +155,19 @@ Table response_answers [headercolor: #C57622] {
   answer_boolean boolean
   is_selected boolean
   user_language varchar
-  Note: 'One retained answer cell for a response and question field. answer_option_id is nullable for free text or unresolved and ambiguous option matches.'
+  Note: 'One retained answer cell for a response and question field, including every comment. answer_option_id is nullable for free text or unresolved and ambiguous option matches. Do not add comments counts to this all-answer count.'
+}
+
+Table comments [headercolor: #C57622] {
+  response_answer_id varchar [pk, ref: - response_answers.response_answer_id]
+  response_id varchar [not null, ref: > responses.response_id]
+  survey_id varchar [not null, ref: > surveys.survey_id]
+  question_id varchar [not null, ref: > questions.question_id]
+  question_field_id varchar [not null, ref: > question_fields.question_field_id]
+  answer_text text [not null]
+  raw_value text [note: 'Exact original CSV cell when available; null for legacy answers without raw_value']
+  user_language varchar [note: 'Copied only from the linked response; null when absent; no survey default or language detection']
+  Note: 'Derived subset of response_answers: one nonblank text answer field per response, retaining the original key and unchanged text. Identical text in different answers remains separate. Eligibility follows response-question role and effective field type; whitespace-only cells and numeric, categorical, technical, structured, file and unsupported fields are excluded. Rebuilt from the nine authoritative entities, including when a legacy folder has no comments file.'
 }
 
 TableGroup canonical_catalogs {
@@ -173,4 +186,5 @@ TableGroup survey_definition {
 TableGroup collected_responses {
   responses
   response_answers
+  comments
 }

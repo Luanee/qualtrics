@@ -9,10 +9,11 @@ from io import TextIOWrapper
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 
+from ..models.comments import COMMENT_COLUMNS, build_comments
 from ..models.entities import EntitySet
 from ..models.entity_set import merge_entity_sets
 from ..models.identity import canonicalize, entity_id, semantic_id
-from ..models.question_types import classify_question_role, resolve_question_type
+from ..models.question_types import classify_question_role, field_value_type, resolve_question_type
 from ..models.response_columns import RESPONSE_SYSTEM_COLUMNS
 from .columns import classify_columns, field_source_parts, parse_column_metadata
 from .identity import _clean, _field_text, _hash
@@ -87,6 +88,89 @@ def _field_contract(field: dict[str, object], question_type: str, default_type: 
     if question_type == "matrix":
         return "statement", default_type
     return "answer", default_type
+
+
+def _has_nontext_validation(definition: dict[str, object], choice_id: str | None) -> bool:
+    """Read explicit numeric/date validation, scoped to the exported form/choice field."""
+    validation = definition.get("Validation")
+    settings = validation.get("Settings", {}) if isinstance(validation, dict) else {}
+    settings = settings if isinstance(settings, dict) else {}
+    candidates = [settings]
+    subvalidation = settings.get("SubValidation")
+    if choice_id and isinstance(subvalidation, dict):
+        scoped = subvalidation.get(choice_id)
+        if isinstance(scoped, dict):
+            candidates.append(scoped.get("Settings", scoped))
+    choices = definition.get("Choices")
+    choice = choices.get(choice_id) if choice_id and isinstance(choices, dict) else None
+    if isinstance(choice, dict):
+        for key in ("Validation", "TextEntryValidation"):
+            scoped = choice.get(key)
+            if isinstance(scoped, dict):
+                candidates.append(scoped.get("Settings", scoped))
+    return any(
+        isinstance(candidate, dict)
+        and str(candidate.get("ContentType") or "").casefold() in {"validnumber", "validinteger", "validdate"}
+        for candidate in candidates
+    )
+
+
+def _comment_field_evidence(
+    definition: dict[str, object], field: dict[str, object], metadata: dict[str, object]
+) -> bool:
+    """Classify comment eligibility without changing answer types or identity inputs."""
+    resolved = resolve_question_type(
+        definition.get("QuestionType"), definition.get("Selector"), definition.get("SubSelector")
+    )
+    choice_id = str(field.get("choice_external_id") or "") or None
+    source = str(field.get("import_external_id") or field.get("field_external_id") or "")
+    question_id = str(field.get("question_external_id") or "")
+    if resolved.canonical_question_type != "side_by_side":
+        # When a native choice suffix follows QID, preceding iteration tokens
+        # must not scope validation. Prefix-only choice imports (2_QID1_TEXT)
+        # retain their original mapping. Existing choice IDs and hashes stay put.
+        native = re.match(rf"^(?:\d+_)+({re.escape(question_id)}_\d+(?:_.*)?)$", source)
+        if native:
+            choice_id = _field_choice_id(metadata, native.group(1), "", question_id, definition)
+    if resolved.canonical_question_type == "side_by_side":
+        # Native #column_row syntax maps directly to AdditionalQuestions. A
+        # display label or an unscoped numeric suffix cannot prove a column type.
+        match = re.match(rf"^(?:\d+_)*{re.escape(question_id)}#([^_#]+)(?:_([^_#]+))?(?:_|$)", source)
+        columns = definition.get("AdditionalQuestions")
+        column = columns.get(match.group(1)) if match and isinstance(columns, dict) else None
+        if not isinstance(column, dict):
+            return False
+        resolved_column = resolve_question_type(
+            column.get("QuestionType"), column.get("Selector"), column.get("SubSelector")
+        )
+        choice_id = match.group(2) if match else None
+        is_text_companion = bool(field.get("is_text_field")) and resolved_column.answer_value_type == "categorical"
+        if is_text_companion:
+            # The SBS row token is not a nested option ID. If text-entry options
+            # have different validation and no option mapping, exclude ambiguous
+            # numeric/date companions instead of assuming an option from its row.
+            choices = column.get("Choices")
+            if isinstance(choices, dict) and any(
+                isinstance(choice, dict)
+                and str(choice.get("TextEntry") or "").casefold() in {"true", "1"}
+                and _has_nontext_validation(column, str(native_id))
+                for native_id, choice in choices.items()
+            ):
+                return False
+            choice_id = None
+        return (resolved_column.answer_value_type == "text" or is_text_companion) and not _has_nontext_validation(
+            column, choice_id
+        )
+    if definition.get("QuestionType") and resolved.answer_value_type not in {"text", "categorical"}:
+        return False
+    if _has_nontext_validation(definition, choice_id):
+        return False
+    question = {
+        "question_type": definition.get("QuestionType"),
+        "selector": definition.get("Selector"),
+        "sub_selector": definition.get("SubSelector"),
+    }
+    return field_value_type(question, field) == "text"
 
 
 def _field_choice_id(
@@ -636,6 +720,12 @@ def _parse_survey_file(
                     "raw_value": value,
                 })
     _apply_identity_contract(entities)
+    for field in entities.question_fields:
+        definition = qsf_questions.get(str(field["question_external_id"]), {})
+        metadata = source_columns[int(field["source_column_index"])].metadata
+        field["is_comment_field"] = _comment_field_evidence(definition, field, metadata)
+    entities.comments = build_comments(entities)
+    entities._present_columns["comments"] = set(COMMENT_COLUMNS)
     return entities
 
 

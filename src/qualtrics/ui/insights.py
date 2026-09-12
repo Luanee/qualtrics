@@ -6,20 +6,11 @@ import math
 from statistics import median
 from typing import Any
 
+from .._common.models.question_types import field_value_type as field_value_type
 from .._common.models.question_types import resolve_question_type
 from .question_presentation import option_counts
 
 Row = dict[str, Any]
-
-
-def field_value_type(question: Row, field: Row) -> str:
-    """Use the same explicit field/question precedence as question analysis."""
-    if field.get("is_text_field"):
-        return "text"
-    resolved = resolve_question_type(
-        question.get("question_type"), question.get("selector"), question.get("sub_selector")
-    )
-    return str(field.get("answer_value_type") or question.get("answer_value_type") or resolved.answer_value_type)
 
 
 def question_highlight(

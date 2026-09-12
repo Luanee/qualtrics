@@ -4,6 +4,7 @@ import csv
 import json
 from pathlib import Path
 
+from ..models.comments import COMMENT_COLUMNS, build_comments
 from ..models.entities import ENTITY_NAMES, EntitySet
 from ..models.response_columns import read_source_columns
 
@@ -17,6 +18,7 @@ CSV_FIELD_TYPES: dict[str, dict[str, type[int] | type[float] | type[bool]]] = {
     "question_fields": {
         "source_column_index": int,
         "is_text_field": bool,
+        "is_comment_field": bool,
     },
     "response_answers": {
         "answer_numeric": float,
@@ -92,6 +94,7 @@ ENTITY_COLUMNS: dict[str, tuple[str, ...]] = {
         "statement_text",
         "answer_value_type",
         "is_text_field",
+        "is_comment_field",
         "choice_external_id",
         "import_external_id",
         "source_field_suffix",
@@ -142,6 +145,7 @@ ENTITY_COLUMNS: dict[str, tuple[str, ...]] = {
         "is_selected",
         "user_language",
     ),
+    "comments": COMMENT_COLUMNS,
 }
 
 
@@ -204,6 +208,8 @@ def _normalize_parquet_records(records: list[dict[str, object]]) -> list[dict[st
 
 
 def _column_names(entities: EntitySet, name: str) -> list[str]:
+    if name == "comments":
+        return list(COMMENT_COLUMNS)
     keys = dict.fromkeys(ENTITY_COLUMNS[name])
     keys.update(dict.fromkeys(key for row in getattr(entities, name) for key in row))
     keys.update(dict.fromkeys(sorted(entities._present_columns.get(name, set()))))
@@ -223,7 +229,7 @@ def write_entities(entities: EntitySet, folder: str | Path, format: str = "json"
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
     for name in ENTITY_NAMES:
-        records = getattr(entities, name)
+        records = build_comments(entities) if name == "comments" else getattr(entities, name)
         path = folder / f"{name}.{format}"
         if format == "json":
             path.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -285,6 +291,10 @@ def load_entities(folder: str | Path | None = None, **paths: str | Path) -> Enti
             continue
         if path.suffix == ".json":
             records = json.loads(path.read_text(encoding="utf-8"))
+            if name == "comments" and (
+                not isinstance(records, list) or any(not isinstance(record, dict) for record in records)
+            ):
+                raise ValueError("comments must contain a JSON list of records")
             result._present_columns[name] = (
                 {key for record in records for key in record} if records else set(ENTITY_COLUMNS[name])
             )
@@ -304,4 +314,6 @@ def load_entities(folder: str | Path | None = None, **paths: str | Path) -> Enti
         setattr(result, name, records)
         result._present_entities.add(name)
     validate_entity_set(result, strict=folder is not None)
+    result.comments = build_comments(result)
+    result._present_columns["comments"] = set(COMMENT_COLUMNS)
     return result
