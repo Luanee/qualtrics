@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .columns import embedded_field_names
 from .flow import _unwrap, extract_flow_definition
 
 
@@ -34,6 +35,7 @@ def _qsf(
     # SurveyDefinition.model_dump_json() uses snake_case wrapper fields.
     entry.setdefault("SurveyID", document.get("survey_id"))
     entry.setdefault("SurveyName", document.get("survey_name"))
+    entry["_source_embedded_fields"] = sorted(embedded_field_names(data))
     if flow_path:
         try:
             flow_document = json.loads(flow_path.read_text(encoding="utf-8"))

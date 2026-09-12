@@ -69,3 +69,47 @@
   color: var(--ink);
   font-weight: 500;
 }
+
+.response-properties {
+  margin: 4px 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.response-properties > summary {
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.property-count {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.response-properties dl {
+  margin: 0;
+  padding: 0 12px 8px;
+}
+
+.response-property {
+  display: grid;
+  grid-template-columns: minmax(100px, 35%) minmax(0, 1fr);
+  gap: 12px;
+  padding: 5px 0;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.property-label {
+  color: var(--muted);
+}
+
+.property-label small {
+  display: block;
+}
+
+.property-value {
+  margin: 0;
+  white-space: pre-wrap;
+}

@@ -206,6 +206,8 @@ def extract_flow_definition(data: dict[str, Any]) -> dict[str, Any] | None:
         raw_flow = source
     elif "Flow" in source:
         raw_flow = source["Flow"]
+    elif "SurveyFlow" in source:
+        raw_flow = source["SurveyFlow"]
     elif qsf_flow is not None:
         raw_flow = qsf_flow
     else:

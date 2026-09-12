@@ -5,15 +5,31 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from ..._common.models.response_columns import read_source_columns
 from ..components.controls import render_question_choices
 from ..components.field_labels import display_field_label
 from ..context import ReportContext
 from ..templating import render_template, trusted_html
 
+_BROWSER_LABELS = {
+    "browser": "Browser",
+    "browser_version": "Version",
+    "operating_system": "Operating System",
+    "screen_resolution": "Resolution",
+    "user_agent": "User Agent",
+}
+
 
 @dataclass(frozen=True)
 class MetadataValue:
     label: str
+    value: str
+
+
+@dataclass(frozen=True)
+class ResponseProperty:
+    label: str
+    source: str
     value: str
 
 
@@ -40,27 +56,46 @@ class ResponseCard:
     label: str
     searchable: str
     metadata: tuple[MetadataValue, ...]
+    properties: tuple[ResponseProperty, ...]
     questions: tuple[ResponseQuestion, ...]
     open: bool
 
 
 def render_responses(context: ReportContext) -> str:
     analysis = context.analysis
+    source_columns = {str(row["survey_id"]): read_source_columns(row) for row in context.entities.surveys}
     cards = []
     for index, response in enumerate(context.entities.responses):
         key = (response["survey_id"], response["response_id"])
         sid = str(response["survey_id"])
-        survey_name = str(analysis.survey_lookup.get(sid, {}).get("survey_name") or sid)
+        survey = analysis.survey_lookup.get(sid, {})
+        survey_name = str(survey.get("survey_name") or sid)
+        properties = []
+        property_columns = set()
+        for column in source_columns.get(sid, []):
+            if column.get("storage_table") != "responses":
+                continue
+            storage = str(column.get("storage_column") or "")
+            if not storage or storage in property_columns:
+                continue
+            property_columns.add(storage)
+            value = response.get(storage)
+            if value is None or value == "":
+                continue
+            source = str(column.get("source_column") or storage)
+            properties.append(
+                ResponseProperty(_BROWSER_LABELS.get(storage, str(column.get("label") or source)), source, str(value))
+            )
         stable_metadata = [
-            ("Browser", response.get("browser")),
-            ("Version", response.get("browser_version")),
-            ("Operating System", response.get("operating_system")),
-            ("Resolution", response.get("screen_resolution")),
-            ("User Agent", response.get("user_agent")),
+            (label, response.get(storage))
+            for storage, label in _BROWSER_LABELS.items()
+            if storage not in property_columns
         ]
         label = str(response.get("response_external_id") or response["response_id"])
-        search_terms = [label, *(str(value) for _, value in stable_metadata if value)]
-        metadata = [MetadataValue(label, str(value)) for label, value in stable_metadata if value]
+        search_terms = [label, *(f"{label} {value}" for label, value in stable_metadata if value is not None)]
+        metadata = [
+            MetadataValue(label, str(value)) for label, value in stable_metadata if value is not None and value != ""
+        ]
         grouped: dict[str, list[tuple[dict[str, Any], dict[str, Any]]]] = {}
         for answer in analysis.answers.get(key, []):
             qkey = (answer["survey_id"], answer["question_id"])
@@ -118,6 +153,7 @@ def render_responses(context: ReportContext) -> str:
                 label=label,
                 searchable=" ".join(search_terms).casefold(),
                 metadata=tuple(metadata),
+                properties=tuple(properties),
                 questions=tuple(rows),
                 open=index == 0,
             )

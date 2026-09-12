@@ -130,6 +130,8 @@ Under **Responses**:
 - Click a response to expand it, or use **Expand all** for the current page and **Collapse**.
 - Use **Surveys** to choose which surveys appear in a combined report.
 
+Expand **Response properties** inside a response to see available system metadata, embedded fields, and unclassified source columns. Both local and global search include property labels and values. Blank properties stay blank; the report does not infer a department or country from other answers. The codebook explains how each column was classified.
+
 The survey selector updates the summary totals. Local search and the question selector do not recalculate summary totals or question analytics. A global search result points to the matching answer and reveals that question when you open it.
 
 ## Include several surveys
@@ -150,7 +152,7 @@ The command discovers immediate `<survey-id>/entities/` folders. It also accepts
 
 ## Share or print a report
 
-Share the HTML file through your usual approved channel. Anyone with the file can read its included answers and response identifiers. Hiding questions or filtering responses in the browser does not remove them from the file, so choose the source data before generating a report for a particular audience.
+Share the HTML file through your usual approved channel. Anyone with the file can read its included answers, response identifiers, and response properties, including any exported contact or location fields. Hiding questions, collapsing properties, or filtering responses in the browser does not remove them from the file, so choose the source data before generating a report for a particular audience.
 
 For a paper or PDF copy, open the view you need, choose surveys and local filters, and use your browser's **Print** command. The report prints the active view, including matching rows beyond the current page, and opens its detail sections for printing. Browser navigation and controls stay out of the printout. Check the print preview before saving or printing.
 
@@ -160,7 +162,7 @@ The report is a snapshot. To include new responses, rebuild the entity folder an
 
 Open **Codebook** to connect a column in your CSV to its question, specific field or matrix row, section, question type, and answer codes. For example, a field called `QID8_2` might represent the working-hours row of a satisfaction matrix.
 
-The codebook contains one row for each exported question field. It includes the original export column and ImportId when available. Response metadata columns such as `ResponseId` and `RecordedDate` are outside this view.
+For newly parsed exports, the codebook includes question fields and response properties such as `ResponseId`, `RecordedDate`, and embedded `Region`. It shows the original export column, ImportId, classification, evidence, and storage table/column. Derived question outputs, such as an NPS group, are distinguished from direct answers. Unknown source fields are labeled **Unclassified**, so they remain inspectable without being counted as confirmed question answers. Older entity folders without the source dictionary still show their available question fields.
 
 - Use **Find a field** to search question text, column names, sections, codes, and labels.
 - Use the report's **Surveys** selector to limit the codebook to particular surveys.

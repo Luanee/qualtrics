@@ -57,6 +57,30 @@ With a matching QSF definition, you can keep the survey's name, question types, 
 
 Without a definition, you can still parse the export, but some metadata and type information will be missing. You will not get a reliable list of allowed answer options by looking only at the responses. See [parsing with a definition](../guides/parse-exports.md).
 
+## Answers and response properties
+
+Response properties belong to the whole submission. They are additional columns on `responses`; there is no separate property-value table. Question answers stay in `response_answers`.
+
+For example, these fictional submissions carry an embedded department and country:
+
+| response_external_id | recorded_at | Department | Country | Email_permission |
+| --- | --- | --- | --- | --- |
+| R_1 | 2026-09-01 09:00:00 | Sales | DE | Yes |
+| R_2 | 2026-09-01 09:05:00 | Engineering | GB | No |
+
+Their answers to “How satisfied are you?” remain separate:
+
+| response_external_id | question_external_id | answer_text |
+| --- | --- | --- |
+| R_1 | QID1 | Satisfied |
+| R_2 | QID1 | Neutral |
+
+The parser uses CSV identifiers and the matching definition to decide where a field belongs. A question asking “Which country do you work in?” remains a question answer, even when its export column is named `Country`. A `Country` field declared as embedded data in the survey flow is a response property. Permission questions and embedded permission flags are distinguished the same way.
+
+Standard fields use established names such as `StartDate` → `started_at`, `RecordedDate` → `recorded_at`, and `IPAddress` → `ip_address`. Custom fields normally keep their source names, including `Region`, `Country`, or `distr_ch`. Unknown columns are retained as **Unclassified** properties so you can inspect them without treating them as confirmed question answers. The [codebook](../guides/reports.md#look-up-exported-columns-in-the-codebook) shows the evidence and storage column for each source field.
+
+Custom values remain text or null: a code such as `001` keeps its leading zeros. The parser copies observed CSV values; it does not fill response properties from defaults or hypothetical assignments in the survey flow.
+
 ## Read missing values carefully
 
 - A blank source answer creates no `response_answers` row. It may reflect a skipped question, survey routing, or an optional answer. The absence alone does not explain why.

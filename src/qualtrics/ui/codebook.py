@@ -5,6 +5,7 @@ from io import StringIO
 from typing import Any
 
 from .._common.models import EntitySet
+from .._common.models.response_columns import read_source_columns
 from .components.primitives import page_heading, search_control
 from .templating import render_template, trusted_html
 
@@ -20,6 +21,11 @@ CODEBOOK_COLUMNS = (
     "question_type",
     "value_type",
     "choices",
+    "source_column_index",
+    "kind",
+    "reason",
+    "storage_table",
+    "storage_column",
 )
 
 
@@ -48,9 +54,22 @@ def _choice(option: dict[str, Any]) -> str:
 
 
 def build_codebook(entities: EntitySet) -> list[dict[str, str]]:
-    """Describe exported question fields without inspecting respondent values."""
+    """Describe question fields and response properties without reading their values."""
     surveys = {str(row["survey_id"]): row for row in entities.surveys}
     survey_order = {survey_id: index for index, survey_id in enumerate(surveys)}
+    source_columns = {survey_id: read_source_columns(row) for survey_id, row in surveys.items()}
+    source_by_index = {
+        (survey_id, _order(column.get("source_column_index"))): column
+        for survey_id, columns in source_columns.items()
+        for column in columns
+        if column.get("source_column_index") is not None
+    }
+    source_by_field = {
+        (survey_id, _text(column.get("storage_column"))): column
+        for survey_id, columns in source_columns.items()
+        for column in columns
+        if column.get("storage_table") == "response_answers"
+    }
     questions = {(str(row["survey_id"]), str(row["question_id"])): row for row in entities.questions}
     sections = {(str(row["survey_id"]), str(row["section_id"])): row for row in entities.sections}
     domains: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
@@ -73,6 +92,14 @@ def build_codebook(entities: EntitySet) -> list[dict[str, str]]:
     entries = []
     for field in fields:
         survey_id = str(field["survey_id"])
+        external_field = _text(field.get("field_external_id") or field.get("field_id"))
+        source = source_by_index.get(
+            (survey_id, _order(field.get("source_column_index"))), source_by_field.get((survey_id, external_field), {})
+        )
+        if source.get("storage_table") == "responses":
+            # A technical field may still exist in an older question catalog.
+            # Its source dictionary is authoritative and supplies one property row below.
+            continue
         question_id = str(field["question_id"])
         question = questions.get((survey_id, question_id), {})
         section = sections.get((survey_id, str(question.get("section_id"))), {})
@@ -83,8 +110,10 @@ def build_codebook(entities: EntitySet) -> list[dict[str, str]]:
         entries.append({
             "survey_id": survey_id,
             "survey": _text(surveys.get(survey_id, {}).get("survey_name") or survey_id),
-            "export_column": _text(field.get("field_external_id") or field.get("field_id")),
-            "import_id": _text(field.get("import_external_id") or field.get("source_import_id")),
+            "export_column": _text(source.get("source_column") or external_field),
+            "import_id": _text(
+                source.get("source_import_id") or field.get("import_external_id") or field.get("source_import_id")
+            ),
             "question_id": _text(question.get("question_external_id") or question_id),
             "question": _text(question.get("question_text")),
             "field": _text(field.get("field_text")),
@@ -94,8 +123,42 @@ def build_codebook(entities: EntitySet) -> list[dict[str, str]]:
             ),
             "value_type": _text(field.get("answer_value_type") or question.get("answer_value_type") or "Unknown"),
             "choices": "\n".join(_choice(option) for option in options),
+            "source_column_index": _text(source.get("source_column_index", field.get("source_column_index"))),
+            "kind": _text(source.get("kind") or "question"),
+            "reason": _text(source.get("reason") or "Exported question field; source classification unavailable"),
+            "storage_table": "response_answers",
+            "storage_column": _text(source.get("storage_column") or external_field),
         })
-    return entries
+    for survey_id, columns in source_columns.items():
+        for source in columns:
+            if source.get("storage_table") != "responses":
+                continue
+            entry = dict.fromkeys(CODEBOOK_COLUMNS, "")
+            entry.update({
+                "survey_id": survey_id,
+                "survey": _text(surveys[survey_id].get("survey_name") or survey_id),
+                "export_column": _text(source.get("source_column")),
+                "import_id": _text(source.get("source_import_id")),
+                "question_id": _text(source.get("question_external_id")),
+                "field": _text(source.get("label") or source.get("source_column")),
+                "question_type": "response_property",
+                "value_type": "normalized system value" if source.get("kind") == "system" else "text / nullable",
+                "source_column_index": _text(source.get("source_column_index")),
+                "kind": _text(source.get("kind") or "unclassified"),
+                "reason": _text(source.get("reason")),
+                "storage_table": "responses",
+                "storage_column": _text(source.get("storage_column")),
+            })
+            entries.append(entry)
+    return sorted(
+        entries,
+        key=lambda entry: (
+            survey_order.get(entry["survey_id"], len(surveys)),
+            entry["survey_id"],
+            _order(entry["source_column_index"]),
+            entry["export_column"],
+        ),
+    )
 
 
 def _csv_line(values: list[str]) -> str:
@@ -123,7 +186,7 @@ def render_codebook(entities: EntitySet) -> str:
         heading=trusted_html(
             page_heading(
                 "Codebook",
-                "Understand exported columns, question types, and answer codes.",
+                "Understand exported columns, response properties, and answer codes.",
                 disclosure=True,
                 count=f"{len(entries)} fields",
             )
@@ -136,6 +199,6 @@ def render_codebook(entities: EntitySet) -> str:
             )
         ),
         empty_message=(
-            "No question fields are available." if not entries else "No fields match the selected surveys and search."
+            "No fields are available." if not entries else "No fields match the selected surveys and search."
         ),
     )

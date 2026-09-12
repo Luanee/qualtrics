@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .entities import ENTITY_NAMES, EntitySet
+from .response_merge import merge_response_columns
 
 PRIMARY_KEYS = {
     "surveys": "survey_id",
@@ -201,4 +202,7 @@ def merge_entity_sets(entity_sets: list[EntitySet]) -> EntitySet:
                 unique[identifier] = row
             rows = list(unique.values())
         setattr(result, name, rows)
+    result.surveys, result.responses, response_columns = merge_response_columns(entity_sets)
+    if response_columns:
+        result._present_columns["responses"] = response_columns
     return result

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from ..models.entities import ENTITY_NAMES, EntitySet
+from ..models.response_columns import read_source_columns
 
 CSV_FIELD_TYPES: dict[str, dict[str, type[int] | type[float] | type[bool]]] = {
     "sections": {"section_order": int},
@@ -189,6 +190,22 @@ def _normalize_parquet_records(records: list[dict[str, object]]) -> list[dict[st
     ]
 
 
+def _column_names(entities: EntitySet, name: str) -> list[str]:
+    keys = dict.fromkeys(ENTITY_COLUMNS[name])
+    keys.update(dict.fromkeys(key for row in getattr(entities, name) for key in row))
+    keys.update(dict.fromkeys(sorted(entities._present_columns.get(name, set()))))
+    if name == "responses":
+        keys.update(
+            dict.fromkeys(
+                str(column["storage_column"])
+                for survey in entities.surveys
+                for column in read_source_columns(survey)
+                if column.get("storage_table") == "responses" and column.get("storage_column")
+            )
+        )
+    return list(keys)
+
+
 def write_entities(entities: EntitySet, folder: str | Path, format: str = "json") -> None:
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
@@ -198,8 +215,7 @@ def write_entities(entities: EntitySet, folder: str | Path, format: str = "json"
         if format == "json":
             path.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
         elif format == "csv":
-            keys = list(ENTITY_COLUMNS[name])
-            keys.extend(key for row in records for key in row if key not in keys)
+            keys = _column_names(entities, name)
             with path.open("w", encoding="utf-8", newline="") as handle:
                 writer = csv.DictWriter(handle, fieldnames=keys)
                 writer.writeheader()
@@ -210,8 +226,7 @@ def write_entities(entities: EntitySet, folder: str | Path, format: str = "json"
                 import pyarrow.parquet as pq
             except ImportError as exc:
                 raise RuntimeError("Install qualtrics[parquet]") from exc
-            keys = list(ENTITY_COLUMNS[name])
-            keys.extend(key for row in records for key in row if key not in keys)
+            keys = _column_names(entities, name)
             normalized_records = _normalize_parquet_records(records)
             fields = []
             for key in keys:
@@ -257,7 +272,9 @@ def load_entities(folder: str | Path | None = None, **paths: str | Path) -> Enti
             continue
         if path.suffix == ".json":
             records = json.loads(path.read_text(encoding="utf-8"))
-            result._present_columns[name] = set(records[0]) if records else set(ENTITY_COLUMNS[name])
+            result._present_columns[name] = (
+                {key for record in records for key in record} if records else set(ENTITY_COLUMNS[name])
+            )
         elif path.suffix == ".csv":
             with path.open(encoding="utf-8", newline="") as handle:
                 reader = csv.DictReader(handle)

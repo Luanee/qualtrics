@@ -16,7 +16,7 @@ function node(dataset = {}, selectors = {}) {
     addEventListener(event, callback) { this.handlers[event] = callback; },
     setAttribute() {}, closest() { return null; }, contains() { return false; }, focus() {}, scrollIntoView() {}};
 }
-function fixture({paginated = false} = {}) {
+function fixture({paginated = false, properties = false} = {}) {
   const surveyA = node(), surveyB = node();
   surveyA.value = 'a'; surveyB.value = 'b';
   surveyA.closest = () => ({textContent: 'Survey A'});
@@ -24,7 +24,19 @@ function fixture({paginated = false} = {}) {
   const field1 = node({fieldId: 'first'}, {'.value': [{textContent: 'Lee'}]});
   const field2 = node({fieldId: 'last'}, {'.value': [{textContent: 'Lee'}]});
   const row = node({question: 'a::q'}, {'.field-answer': [field1, field2]});
-  const card = node({survey: 'a'}, {'.answer': [row]}); card.id = 'response-1';
+  const propertyRows = properties ? [['Region', 'North'], ['Email permission', 'False'], ['Count', '0']].map(([label, value]) => {
+    const property = node({}, {'.property-label': [{textContent: label}], '.property-value': [{textContent: value}]});
+    property.textContent = `${label} ${value}`;
+    return property;
+  }) : [];
+  const propertyDetails = node(); propertyDetails.tagName = 'DETAILS'; propertyDetails.open = false;
+  propertyDetails.textContent = propertyRows.map(item => item.textContent).join(' ');
+  const card = node({survey: 'a'}, {'.answer': [row], '.response-property': propertyRows, '.response-properties': [propertyDetails]}); card.id = 'response-1';
+  propertyDetails.parentElement = card;
+  propertyRows.forEach(property => {
+    property.parentElement = propertyDetails;
+    property.closest = selector => ['[data-survey]', '.respondent'].includes(selector) ? card : null;
+  });
   const link = {href: '#response-1', getAttribute() { return this.href; }};
   const a = node({survey: 'a', questionToken: 'a::q', fieldId: 'last', responseTarget: card.id},
     {'.written-value': [{textContent: 'Lee'}], a: [link]});
@@ -41,15 +53,16 @@ function fixture({paginated = false} = {}) {
   }
   cards.forEach((item, index) => { item.tagName = 'DETAILS'; item.open = index % 2 === 0; });
   const responseView = node({}, {details: cards}); responseView.id = 'by-responses';
+  responseView.contains = item => cards.includes(item) || propertyRows.includes(item);
   const overview = node(); overview.id = 'overview';
   const flowView = node(); flowView.id = 'survey-flow';
   const flowCard = node({survey: 'a'}); flowCard.id = 'flow-sales';
   flowCard.closest = selector => selector === '[data-survey]' ? flowCard : null;
   flowView.contains = item => item === flowCard;
-  const reportSearch = node(), searchResults = node(), searchClear = node(), theme = node(), other = node();
+  const reportSearch = node(), responseSearch = node(), searchResults = node(), searchClear = node(), theme = node(), other = node();
   const selectors = {'.survey-choice': [surveyA, surveyB], '.respondent': cards, '.written-answer': written,
     details: cards, '#response-pagination': [responsePagination], '#written-pagination': [writtenPagination],
-    '#written-question': [select], '#written-empty': [empty], '#report-search': [reportSearch],
+    '#written-question': [select], '#written-empty': [empty], '#report-search': [reportSearch], '#search': [responseSearch],
     '#search-results': [searchResults], '#search-result-list': [node()], '#search-pagination': [node()],
     '#search-clear': [searchClear], '#theme-choice': [theme], '#overview-other': [other]};
   const document = node({}, selectors);
@@ -58,7 +71,7 @@ function fixture({paginated = false} = {}) {
     document.handlers[event] = previous ? value => { previous(value); callback(value); } : callback;
   };
   const content = node(); content.id = 'report-content'; content.focus = () => { content.focused = true; };
-  document.getElementById = id => [content, overview, responseView, flowView, flowCard, ...cards].find(item => item.id === id) || null;
+  document.getElementById = id => [content, overview, responseView, flowView, flowCard, ...cards, ...propertyRows].find(item => item.id === id) || null;
   document.createElement = () => node(); document.documentElement = node();
   const dashboardSelections = [];
   const dashboardResizes = [];
@@ -79,8 +92,34 @@ function fixture({paginated = false} = {}) {
   return {surveyA, surveyB, a, b, field2, link, select, optionA, optionB, empty,
     cards, written, responsePagination, writtenPagination, window, location, document,
     overview, responseView, reportSearch, searchResults, searchClear, theme, other, dashboardSelections, dashboardResizes,
-    flowView, flowCard, flowSelections, flowReveals, flowResizes, content};
+    flowView, flowCard, flowSelections, flowReveals, flowResizes, content, responseSearch, propertyRows, propertyDetails};
 }
+
+test('response properties participate in local search without requiring question selection', () => {
+  const f = fixture({properties: true});
+  f.responseSearch.value = 'Region North'; f.responseSearch.handlers.input();
+  assert.equal(f.cards[0].hidden, false);
+  f.responseSearch.value = 'Email permission False'; f.responseSearch.handlers.input();
+  assert.equal(f.cards[0].hidden, false);
+  f.responseSearch.value = 'Count 0'; f.responseSearch.handlers.input();
+  assert.equal(f.cards[0].hidden, false);
+  f.responseSearch.value = 'South'; f.responseSearch.handlers.input();
+  assert.equal(f.cards[0].hidden, true);
+});
+
+test('global search finds individual property labels and values and opens their disclosure', () => {
+  const f = fixture({properties: true});
+  f.reportSearch.value = 'Email permission false'; f.reportSearch.handlers.input();
+  const results = f.document.querySelector('#search-result-list');
+  assert.equal(results.children.length, 1);
+  assert.equal(results.children[0].children[1].href, '#' + f.propertyRows[1].id);
+  f.location.hash = '#' + f.propertyRows[1].id; f.window.handlers.hashchange();
+  assert.equal(f.propertyDetails.open, true);
+  assert.equal(f.cards[0].open, true);
+  assert.equal(f.responseView.hidden, false);
+  f.reportSearch.value = 'Region false'; f.reportSearch.handlers.input();
+  assert.equal(results.children.length, 0);
+});
 
 test('skip to content focuses the main landmark without changing the current page', () => {
   const f = fixture();

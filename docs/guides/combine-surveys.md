@@ -54,6 +54,8 @@ Open the HTML file and use **Surveys** to inspect each source survey. Check its 
 
 The combined tables retain each survey's own questions, fields, and options. The two catalog tables group questions and fields that have matching normalized definitions across surveys. Similar-looking wording alone does not guarantee that two questions share a catalog entry, and shared entries do not establish that the survey populations are comparable. See [understand your data](../understand/your-data.md).
 
+The `responses` table contains the union of response-property columns. If survey A exports `Region` and survey B exports `Country`, the combined table has both; a property absent from a survey is null for its responses. Original collections are unchanged. The codebook records any renamed columns needed to distinguish duplicate names, names that differ only by case, or names that collide with built-in response fields. Check this mapping before combining similarly named fields in an analysis.
+
 ## Use survey folders or a batch root
 
 You can pass survey folders containing `entities/`:

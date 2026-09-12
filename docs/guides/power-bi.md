@@ -53,6 +53,10 @@ A **fact table** holds the records you count or measure. A **dimension table** d
 
 A matrix question can have several fields, so it can have several rows in `dim_questions`. The same label, such as “Yes”, can appear in many option rows because each belongs to a particular field. Use the IDs to relate tables; do not join them by answer text.
 
+Response properties are additional columns in `fact_responses`. For example, if your export contains embedded `Department`, `Region`, or `Country` values, use those columns in slicers or chart axes. With the relationships below, selecting `Department = Sales` filters those responses and their question answers. There is no extra property table to join. Custom values remain text, including numeric-looking codes and permission flags; choose analytical types deliberately in Power Query.
+
+The report's codebook shows each original source name and its actual storage column. A name can be changed to prevent collisions with built-in columns or other source fields. A property missing from one survey is null in the combined table. A real question about department stays in the answer table; its name alone does not turn it into response metadata.
+
 If you parsed without a QSF, you will have no definition-based option records. Rebuild with the matching QSF if you need a complete choice list. See the [entity and semantic model contract](../entity-model.md) and [DBML file](../entity-model.dbml) for column and identity details.
 
 ## 3. Load each table into Power BI

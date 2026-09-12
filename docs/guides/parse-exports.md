@@ -64,6 +64,8 @@ uv run --extra cli --extra ui qualtrics report --folder data/my-survey/entities 
 
 Open `data/my-survey/report.html` in your browser. See [read and share reports](reports.md) for the controls and count definitions.
 
+In **Responses**, expand **Response properties** to check embedded fields such as region, country, and permissions alongside standard response metadata. **Codebook** explains which source columns became question answers or response properties, why they were classified that way, and where their values are stored. Unknown columns are preserved as unclassified properties.
+
 ## Parse several different surveys
 
 For a small set of surveys, list each response file and each matching QSF in the same order:
@@ -79,6 +81,8 @@ You can also pass a folder to `build`. The CLI reads the `.csv` files directly i
 ## Rebuild after changing the input
 
 Keep your raw CSV or ZIP and its QSF. Rerun `build` when the export or definition changes, then rerun `report`.
+
+To recover response properties omitted by an older parser, rebuild from the original export with the matching QSF using the commands above. Regenerating HTML from an old entity folder cannot recover discarded values. Existing entity folders remain readable, but their codebooks may lack the new source-column dictionary.
 
 `build` replaces the entity files of the selected format. If you change formats, choose a new output folder; old files in another format remain and can make later commands reject the collection as ambiguous.
 

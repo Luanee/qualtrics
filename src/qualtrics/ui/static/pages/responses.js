@@ -9,7 +9,8 @@
     const eligible = node => Boolean(node && selectedSurveys().has(node.dataset.survey));
     const responsePager = createPager(cards, $('#response-pagination'), 20, 'responses');
   const cardCache = new Map(cards.map(card => [card, {
-    metadata: [card.querySelector('.identity')?.textContent, card.querySelector('.response-meta')?.textContent].join(' '),
+    metadata: [card.querySelector('.identity')?.textContent, card.querySelector('.response-meta')?.textContent,
+      card.querySelector('.response-properties')?.textContent].join(' '),
     answers: [...card.querySelectorAll('.answer')].map(row => ({row, content: normalize(row.textContent)})),
   }]));
   function updateResponses(reset = true) {

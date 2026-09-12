@@ -102,8 +102,9 @@ def test_sample_preserves_multifield_identity(tmp_path: Path, survey_files: tupl
     assert loaded.responses[0]["browser"] == "Chrome"
     render_report(loaded, tmp_path / "report.html")
     report = (tmp_path / "report.html").read_text()
-    assert "<b>Browser</b>" in report
-    assert "<b>User Agent</b> ExampleAgent/1.0" in report
+    assert "class='property-label'>Browser" in report
+    assert "class='property-label'>User Agent" in report
+    assert "class='property-value'>ExampleAgent/1.0" in report
     assert "value='QID37'" not in report
     assert not any(item["question_external_id"] == "QID37" for item in entities.answer_options)
     assert "class='question-menu' hidden" in report
@@ -116,9 +117,9 @@ def test_sample_preserves_multifield_identity(tmp_path: Path, survey_files: tupl
     assert "position:sticky;top:.5rem" not in report
     assert "<span>PRACTICE QUESTION</span>" in report
     assert "<span class='field'>Item 1</span>" in report
-    first_response = report.split("class='respondent'", 2)[1].split("</details>", 1)[0]
+    first_response = report.split("class='respondent'", 2)[1]
     assert first_response.count("::QID30'") == 1
-    assert "Search responses, questions, or answers" in report
+    assert "Search responses, properties, questions, or answers" in report
     assert "class='respondent'" in report
     assert "Expand all" in report
     navigation = NavigationLinks()
