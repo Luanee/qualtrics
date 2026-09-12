@@ -71,6 +71,15 @@ def analyze_entities(entities: EntitySet) -> ReportAnalytics:
     used_fields: set[FieldKey] = set()
     used_values: dict[FieldKey, set[str]] = {}
     used_option_ids: set[str] = set()
+    option_fields = {
+        str(option["answer_option_id"]): (
+            str(option["survey_id"]),
+            str(option["question_id"]),
+            str(option.get("question_field_id") or option.get("field_id") or ""),
+        )
+        for option in entities.answer_options
+        if option.get("answer_option_id")
+    }
     for answer in entities.response_answers:
         question_key = (str(answer["survey_id"]), str(answer["question_id"]))
         if question_roles.get(question_key, "response") != "response":
@@ -79,9 +88,13 @@ def analyze_entities(entities: EntitySet) -> ReportAnalytics:
         question_answers.setdefault(question_key, []).append(answer)
         used_fields.add((*question_key, str(answer["field_id"])))
         field_key = (*question_key, str(answer["field_id"]))
-        used_values.setdefault(field_key, set()).add(str(answer["answer_text"]).casefold())
-        if answer.get("answer_option_id"):
-            used_option_ids.add(str(answer["answer_option_id"]))
+        linked_option = str(answer.get("answer_option_id") or "")
+        if option_fields.get(linked_option) == field_key:
+            used_option_ids.add(linked_option)
+        else:
+            # Older entity folders can lack option links. Only those unresolved
+            # answers need raw aliases; a recode must not also select a native ID.
+            used_values.setdefault(field_key, set()).add(str(answer["answer_text"]).casefold())
     unanswered_questions = [question for key, question in response_questions.items() if not question_responses.get(key)]
     unused_fields = [
         item

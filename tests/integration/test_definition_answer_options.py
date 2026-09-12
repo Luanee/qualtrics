@@ -229,6 +229,71 @@ def test_unknown_and_ambiguous_values_remain_raw(
     assert answer["answer_option_id"] is None
 
 
+@pytest.mark.parametrize("recodes", [{"1": "2", "2": "3"}, {"1": "2"}, {"1": 0, "2": 2}])
+def test_explicit_recode_wins_over_another_native_choice_id(
+    definition_answer_files: tuple[Path, Path], recodes: dict[str, str | int]
+) -> None:
+    csv_path, qsf_path = definition_answer_files
+    qsf = json.loads(qsf_path.read_text())
+    question = next(item["Payload"] for item in qsf["SurveyElements"] if item.get("PrimaryAttribute") == "QID1")
+    question["RecodeValues"] = recodes
+    question["Choices"]["0"] = {"Display": "Other"}
+    qsf_path.write_text(json.dumps(qsf))
+    with csv_path.open(newline="") as handle:
+        rows = list(csv.reader(handle))
+    rows[3][1] = str(recodes["1"])
+    with csv_path.open("w", newline="") as handle:
+        csv.writer(handle).writerows(rows)
+
+    entities = parse_survey(csv_path, qsf_path)
+
+    answer = next(row for row in entities.response_answers if row["field_external_id"] == "QID1")
+    option = next(row for row in entities.answer_options if row["answer_option_id"] == answer["answer_option_id"])
+    assert option["answer_external_id"] == "1"
+    assert option["answer_text"] == "Red"
+    assert answer["answer_text"] == str(recodes["1"])
+    assert not any(key.startswith("_") for option in entities.answer_options for key in option)
+
+
+def test_matrix_recode_wins_within_each_row_domain(definition_answer_files: tuple[Path, Path]) -> None:
+    csv_path, qsf_path = definition_answer_files
+    with csv_path.open(newline="") as handle:
+        rows = list(csv.reader(handle))
+    rows[3][5:7] = ["1", "1"]
+    with csv_path.open("w", newline="") as handle:
+        csv.writer(handle).writerows(rows)
+
+    entities = parse_survey(csv_path, qsf_path)
+    options = {row["answer_option_id"]: row for row in entities.answer_options}
+    answers = [row for row in entities.response_answers if row["question_external_id"] == "QID3"]
+    assert len(answers) == 2
+    assert len({row["answer_option_id"] for row in answers}) == 2
+    for answer in answers:
+        option = options[answer["answer_option_id"]]
+        assert option["answer_external_id"] == "3"
+        assert option["answer_text"] == "Good"
+        assert option["question_field_id"] == answer["question_field_id"]
+
+
+def test_duplicate_explicit_recodes_remain_unresolved(definition_answer_files: tuple[Path, Path]) -> None:
+    csv_path, qsf_path = definition_answer_files
+    qsf = json.loads(qsf_path.read_text())
+    question = next(item["Payload"] for item in qsf["SurveyElements"] if item.get("PrimaryAttribute") == "QID1")
+    question["RecodeValues"] = {"1": "2", "2": "2"}
+    qsf_path.write_text(json.dumps(qsf))
+    with csv_path.open(newline="") as handle:
+        rows = list(csv.reader(handle))
+    rows[3][1] = "2"
+    with csv_path.open("w", newline="") as handle:
+        csv.writer(handle).writerows(rows)
+
+    answer = next(
+        row for row in parse_survey(csv_path, qsf_path).response_answers if row["field_external_id"] == "QID1"
+    )
+    assert answer["answer_option_id"] is None
+    assert answer["answer_text"] == "2"
+
+
 def test_csv_and_zip_produce_identical_entities(definition_answer_files: tuple[Path, Path], tmp_path: Path) -> None:
     csv_path, qsf_path = definition_answer_files
     zip_path = tmp_path / "answers.zip"
