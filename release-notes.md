@@ -1,5 +1,26 @@
 # Release Notes
 
+## 0.4.0 (2026-09-12)
+
+### Other changes
+
+* 🔖 Upload test coverage to Codecov. PR [#29](https://github.com/Luanee/qualtrics/pull/29) by [@Luanee](https://github.com/Luanee).
+* 🔖 Refactor reports into compact views with unified search. PR [#30](https://github.com/Luanee/qualtrics/pull/30) by [@Luanee](https://github.com/Luanee).
+* 🔖 Add interactive charts to the report Summary dashboard. PR [#31](https://github.com/Luanee/qualtrics/pull/31) by [@Luanee](https://github.com/Luanee).
+* 🔖 Embed a synthetic question-type report showcase in MkDocs. PR [#32](https://github.com/Luanee/qualtrics/pull/32) by [@Luanee](https://github.com/Luanee).
+* 🔖 Add yearly grouping and cumulative response timelines. PR [#33](https://github.com/Luanee/qualtrics/pull/33) by [@Luanee](https://github.com/Luanee).
+* 🔖 Add survey flow maps and interactive what-if walkthroughs. PR [#34](https://github.com/Luanee/qualtrics/pull/34) by [@Luanee](https://github.com/Luanee).
+* 🔖 Split report components and add an interactive flow canvas. PR [#35](https://github.com/Luanee/qualtrics/pull/35) by [@Luanee](https://github.com/Luanee).
+* 🔖 Separate API, CLI, and Jinja report UI with optional dependencies. PR [#36](https://github.com/Luanee/qualtrics/pull/36) by [@Luanee](https://github.com/Luanee).
+* 🔖 Consolidate shared functionality under _common. PR [#37](https://github.com/Luanee/qualtrics/pull/37) by [@Luanee](https://github.com/Luanee).
+* 🔖 Fix Pylance type errors in CSV record coercion. PR [#38](https://github.com/Luanee/qualtrics/pull/38) by [@Luanee](https://github.com/Luanee).
+* 🔖 Fix response property classification and preserve exported metadata. PR [#39](https://github.com/Luanee/qualtrics/pull/39) by [@Luanee](https://github.com/Luanee).
+* 🔖 Fix answer-option matching when recodes conflict with choice IDs. PR [#40](https://github.com/Luanee/qualtrics/pull/40) by [@Luanee](https://github.com/Luanee).
+* 🔖 Preserve choice values and raw answer provenance. PR [#41](https://github.com/Luanee/qualtrics/pull/41) by [@Luanee](https://github.com/Luanee).
+* 🔖 Embed entity and Power BI model diagrams in MkDocs. PR [#42](https://github.com/Luanee/qualtrics/pull/42) by [@Luanee](https://github.com/Luanee).
+* 🔖 Add comments exports with response language. PR [#43](https://github.com/Luanee/qualtrics/pull/43) by [@Luanee](https://github.com/Luanee).
+* 🔖 Install required extras for release workflows. PR [#44](https://github.com/Luanee/qualtrics/pull/44) by [@Luanee](https://github.com/Luanee).
+
 ## 0.3.0 (2026-09-08)
 
 ### Other changes
