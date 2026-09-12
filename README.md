@@ -269,8 +269,8 @@ with QualtricsClient() as client:
 ```bash
 uv sync --all-groups --all-extras
 uv run pre-commit install --hook-type pre-commit --hook-type pre-push
-uv run --all-extras poe check
-uv run --all-extras poe build
+uv run --locked --all-groups --all-extras poe check
+uv run --locked --all-groups --all-extras poe build
 ```
 
 CI tests Python 3.11–3.14. Ruff checks formatting and linting, `ty` checks

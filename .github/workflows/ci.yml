@@ -41,16 +41,21 @@ jobs:
         run: uv sync --locked --all-groups --all-extras
 
       - name: Lint
-        run: uv run --all-extras poe lint
+        run: uv run --locked --all-groups --all-extras poe lint
 
       - name: Check formatting
-        run: uv run --all-extras poe format-check
+        run: uv run --locked --all-groups --all-extras poe format-check
 
       - name: Check types
-        run: uv run --all-extras poe type
+        run: uv run --locked --all-groups --all-extras poe type
 
       - name: Test report search utilities
         run: node --test tests/js/*.test.cjs
+
+      - name: Smoke-test release CLI dependencies
+        run: >-
+          uv run --locked --isolated --no-default-groups --extra cli
+          python scripts/prepare_release.py --help
 
       - name: Build documentation
         run: uv run --locked --all-extras --group docs mkdocs build --strict
@@ -58,10 +63,11 @@ jobs:
       - name: Test documentation showcase
         run: >-
           uv run --locked --all-extras --group docs --group test pytest -o addopts=''
-          tests/unit/test_docs_showcase.py tests/integration/test_showcase_site.py
+          tests/unit/test_docs_showcase.py tests/unit/test_docs_dbml.py
+          tests/integration/test_showcase_site.py
 
       - name: Build distributions
-        run: uv run --all-extras poe build
+        run: uv run --locked --all-groups --all-extras poe build
 
       - name: Smoke-test built wheel
         run: bash scripts/smoke_wheel.sh
@@ -106,7 +112,7 @@ jobs:
         run: mkdir -p reports
 
       - name: Run tests
-        run: uv run --all-extras --python ${{ matrix.python-version }} pytest
+        run: uv run --locked --group test --all-extras --python ${{ matrix.python-version }} pytest
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
