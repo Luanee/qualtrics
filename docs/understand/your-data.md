@@ -1,6 +1,6 @@
 # Understand your data
 
-A survey export puts many kinds of information in one wide file. After parsing, you get nine tables that separate survey structure, submitted responses, and answers. The toolkit calls these tables **entities**.
+A survey export puts many kinds of information in one wide file. After parsing, you get ten tables that separate survey structure, submitted responses, and answers. The toolkit calls these tables **entities**.
 
 You can open the CSV versions in a spreadsheet. The [report](../guides/reports.md) provides a browser view if you prefer to explore the results without opening individual files.
 
@@ -15,7 +15,7 @@ Three people respond. All three answer the first question, and two leave a comme
 
 Two people select Satisfied and one selects Dissatisfied. The answer-options table still includes Neutral because the survey definition lists it as an allowed choice.
 
-## The nine tables
+## The ten tables
 
 These are the row counts for the practice survey, not a limit on your own exports.
 
@@ -28,12 +28,23 @@ These are the row counts for the practice survey, not a limit on your own export
 | `answer_options` | An allowed choice for a question field | 3 |
 | `responses` | A submitted response | 3 |
 | `response_answers` | A non-empty answer in a response field | 5 |
+| `comments` | A nonblank text answer copied from the answer table | 2 |
 | `question_catalog` | A question meaning shared across surveys | 2 |
 | `question_field_catalog` | A field meaning shared across surveys | 2 |
 
 [Download this table guide as CSV](../assets/examples/table-guide.csv).
 
 The two catalog tables help you compare matching question and field meanings across surveys. Most readers can start with `surveys`, `questions`, `responses`, and `response_answers` and use the catalogs when they need comparisons.
+
+## Comments are an answer subset
+
+`comments` makes written answers easier to use in a spreadsheet or Power BI. In the practice survey, its two rows are the same two comments already counted among the five answer rows. There are still five answers in total. Keep `response_answers` for all-answer counts and use `comments` when you want to work only with text.
+
+Each comment keeps its original `response_answer_id`, response, question, field, and unchanged text. Matching words do not merge records: if two people both write “Good service”, you get two rows. If one person fills two text boxes, you also get two rows. Language comes from that response's `user_language`; a missing code stays blank. It is not the survey's default language or a detected language of the comment.
+
+The table includes supported text fields, including form and matrix text and an “Other” text box attached to a choice. It excludes choice labels, numeric fields, response properties, and whitespace-only text. Missing or unsupported source metadata can limit which fields are recognized. The report's **Written answers** view follows the same rule. See the [comments contract](../entity-model.md#comments) for classification details.
+
+The original nine tables remain authoritative. Older folders without a comments file still load; the toolkit reconstructs the subset from their available metadata.
 
 ## A question can have several fields
 

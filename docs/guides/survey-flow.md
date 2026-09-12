@@ -97,6 +97,6 @@ This is an explanation of the supplied definition with hypothetical inputs. It i
 
 ## Saved formats and sharing
 
-Flow metadata is stored as an optional JSON string in `surveys.flow_definition_json`. The existing nine entity tables remain unchanged. JSON, CSV, and Parquet retain the string, and the semantic model carries it into `dim_surveys`, including SQLite output. The report runs offline and does not require a hosted service.
+Flow metadata is stored as an optional JSON string in `surveys.flow_definition_json`. The flow stays on the survey row; it does not need its own entity table. JSON, CSV, and Parquet retain the string, and the semantic model carries it into `dim_surveys`, including SQLite output. The report runs offline and does not require a hosted service.
 
 The flow adds survey wording, condition descriptions, and embedded-data values to the report. Share the HTML with the same care as the rest of the exported survey content.

@@ -25,7 +25,7 @@ offline survey data. It can:
 - import and export survey responses;
 - parse CSV or response-export ZIP files, with or without survey definitions;
 - preserve questions, concrete fields, answer options, and survey blocks;
-- write normalized JSON, CSV, or Parquet entities; and
+- write normalized JSON, CSV, or Parquet entities, including a derived comments table with response language; and
 - generate an offline HTML report with summary highlights, question charts, searchable written answers, individual responses, and a codebook.
 
 ## Install
@@ -96,7 +96,8 @@ data/
         ├── question_field_catalog.parquet
         ├── answer_options.parquet
         ├── responses.parquet
-        └── response_answers.parquet
+        ├── response_answers.parquet
+        └── comments.parquet
 ```
 
 Parquet is the default. Select another entity format with `--format json` or
@@ -186,8 +187,19 @@ reliably reconstructed from response headers alone.
 | `answer_options` | Options defined for response questions |
 | `responses` | Respondent and response metadata |
 | `response_answers` | Values linked to responses, questions, and fields |
+| `comments` | Nonblank text answers derived from the original answer rows, with response language |
 | `question_catalog` | Canonical questions shared across surveys |
 | `question_field_catalog` | Canonical fields shared across surveys |
+
+Exports contain ten tables: the nine authoritative entities and `comments`.
+Comments reuse the original `response_answer_id` and preserve the text. Their
+nullable `user_language` comes only from the linked response. All comments remain
+in `response_answers`; use the subset for text analysis without adding its counts
+to all-answer totals. Older nine-table folders remain readable and reconstruct
+comments from their available metadata. See the [comments contract](docs/entity-model.md#comments).
+
+The [Power BI export](docs/guides/power-bi.md) provides six semantic tables,
+including `fact_comments`, as Parquet files or one SQLite database.
 
 The primary relationship is:
 

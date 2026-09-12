@@ -90,6 +90,12 @@ Results replace the current view while you search. **Clear** restores that view;
 
 Written answers, responses, search results, and codebook rows use page controls. The count shows the full matching total. Filtering resets the page so matches do not remain hidden on a previous page.
 
+### Work with written answers
+
+**Written answers** uses the same membership rule as the exported `comments` table and Power BI's `fact_comments`: one nonblank answer in a supported text field. It includes form and matrix text and attached “Other” text fields. Choice labels, numeric fields, technical data, and response properties are excluded. Whitespace-only cells remain in the original answer table but do not appear in this view.
+
+The view preserves separate responses and separate fields even when their text matches. Comments remain included in all-answer totals; exporting the subset does not add new answers. `comments.user_language` and `fact_comments.user_language` come only from the linked response, preserving missing language as null. For source-metadata limitations and older folders, see [the comments contract](../entity-model.md#comments).
+
 ## Inspect questions and data quality
 
 1. Open **Questions**, use the question finder, and select a question to inspect its distributions, numeric summaries, or text answers.

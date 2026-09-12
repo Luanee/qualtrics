@@ -6,5 +6,6 @@ question_fields,An exported question column,2
 answer_options,An allowed choice for a question field,3
 responses,A submitted response,3
 response_answers,A non-empty answer in a response field,5
+comments,A nonblank text answer copied from the answer table,2
 question_catalog,A question meaning shared across surveys,2
 question_field_catalog,A field meaning shared across surveys,2

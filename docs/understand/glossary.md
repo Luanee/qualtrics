@@ -7,9 +7,10 @@
 | Block / section | A group of questions within a survey. The output table calls it a section. |
 | Catalog | A set of question or field meanings that you can compare across surveys. |
 | CLI / command line | The commands you type or paste into a terminal. |
+| Comment | A nonblank answer in a supported text field. The comments table is a subset of all answers, with one row per response and field. |
 | CSV | A text file that stores rows and columns. A Qualtrics export also includes header rows that describe the fields. |
 | Definition / QSF | A file describing survey questions, choices, blocks, and settings. QSF means Qualtrics Survey Format. |
-| Entity | One of the toolkit's nine organized tables, such as responses or questions. |
+| Entity | One of the toolkit's ten exported tables, such as responses or questions. |
 | Export | A copy of survey responses downloaded from Qualtrics. |
 | Field | One concrete question column in the export. A question may have several fields. |
 | ID | A value used to identify and connect records. IDs ending in `_external_id` retain the original Qualtrics identity. |
@@ -19,7 +20,7 @@
 | Parquet | A file format for analytical tables that keeps column types. It is useful in data platforms and Power BI workflows. |
 | Response | One survey submission, including its dates and other metadata. |
 | Answer / answer row | A non-empty value for one exported question field in a response. |
-| Semantic model | Five related tables prepared for analysis: two fact tables with responses and answers, and three dimension tables that describe them. |
+| Semantic model | Six related tables prepared for analysis: three fact tables with responses, all answers, and a comments subset, and three dimension tables that describe them. |
 | Terminal | The application in which you run commands. Use Terminal on macOS/Linux or PowerShell on Windows. |
 | ZIP | A compressed archive. The toolkit accepts a response-export ZIP that contains one CSV. |
 

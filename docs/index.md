@@ -29,13 +29,13 @@ You can follow the guides by copying a few commands. You do not need to write Py
 
 -   **Understand the results**
 
-    Learn why you get nine tables and why one response can produce several answer rows.
+    Learn why you get ten tables and why one response can produce several answer rows.
 
     [Understand your data](understand/your-data.md)
 
 -   **Prepare a dashboard**
 
-    Export five tables for Power BI and connect them with the right relationships.
+    Export six tables for Power BI and connect them with the right relationships.
 
     [Build a Power BI model](guides/power-bi.md)
 
@@ -43,7 +43,7 @@ You can follow the guides by copying a few commands. You do not need to write Py
 
 ## From export to report
 
-![A response CSV and an optional survey definition become nine organized tables. Use those tables to create an HTML report or five Power BI tables.](assets/images/survey-workflow.svg)
+![A response CSV and an optional survey definition become ten organized tables. Use those tables to create an HTML report or six Power BI tables.](assets/images/survey-workflow.svg)
 
 Keep the response file and its matching survey definition together. The response file contains people's answers; the definition describes the questions and allowed choices. After parsing, you can create a report, combine surveys, or prepare a dashboard.
 

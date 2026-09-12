@@ -1,6 +1,6 @@
 # Prepare data for Power BI
 
-Export five analysis tables as Parquet files or one SQLite database, then connect them in Power BI. You can follow the export steps on any supported operating system; the import steps use Power BI Desktop.
+Export six analysis tables as Parquet files or one SQLite database, then connect them in Power BI. You can follow the export steps on any supported operating system; the import steps use Power BI Desktop.
 
 You need the [installed project](../getting-started/installation.md) and a complete entity folder. Install the Parquet extra if you choose Parquet output; SQLite output needs no extra Python dependency. The commands below use the folder from [your first report](../getting-started/first-report.md). Run them from the project folder; for an isolated CLI installation, replace `uv run --extra cli --extra ui qualtrics` with `qualtrics`.
 
@@ -20,14 +20,15 @@ data/first-report/power-bi/
 ├── fact_response_answers.parquet
 ├── dim_surveys.parquet
 ├── dim_questions.parquet
-└── dim_answer_options.parquet
+├── dim_answer_options.parquet
+└── fact_comments.parquet
 ```
 
-You should see `Wrote 5 parquet semantic tables to data/first-report/power-bi`.
+You should see `Wrote 6 parquet semantic tables to data/first-report/power-bi`.
 
 ### SQLite database
 
-To keep all five tables in one file, choose SQLite:
+To keep all six tables in one file, choose SQLite:
 
 ```text
 uv run --extra cli --extra ui qualtrics semantic-model build data/first-report/entities --output data/first-report/power-bi-sqlite --format sqlite
@@ -37,9 +38,9 @@ This creates `data/first-report/power-bi-sqlite/semantic_model.sqlite`. The `--o
 
 The command refuses an output folder that already contains recognized semantic table files or `semantic_model.sqlite`. Choose a fresh folder for a later export. SQLite writes complete before the final database appears; a failed build does not leave a partial database. CSV and JSON remain available with `--format csv` or `--format json`.
 
-The input must be the folder containing the nine entity files. To prepare several surveys, [combine their entities](combine-surveys.md) first and use the combined entity folder as input.
+The input must be a complete entity folder. Current exports contain ten files; older nine-table folders without `comments` are also accepted and reconstruct that subset from their available metadata. To prepare several surveys, [combine their entities](combine-surveys.md) first and use the combined entity folder as input.
 
-## 2. Understand the five tables
+## 2. Understand the six tables
 
 A **fact table** holds the records you count or measure. A **dimension table** describes those records and supplies labels and filters.
 
@@ -50,14 +51,21 @@ A **fact table** holds the records you count or measure. A **dimension table** d
 | `dim_surveys` | One survey. | Display survey names. |
 | `dim_questions` | One exported question field, with its question and block details. | Label and filter the exact field you want to analyze. |
 | `dim_answer_options` | One choice defined for one question field. | Show choice labels and definition order, including unused choices. |
+| `fact_comments` | One nonblank text answer field, derived from all answers. | Read comments or count submissions with a written answer. |
 
 A matrix question can have several fields, so it can have several rows in `dim_questions`. The same label, such as “Yes”, can appear in many option rows because each belongs to a particular field. Use the IDs to relate tables; do not join them by answer text.
+
+`fact_comments` contains the same text answers already present in `fact_response_answers`. It reuses each `response_answer_id` and keeps `answer_text` and available `raw_value` unchanged. Two matching comments remain two records; multiple text boxes in one response remain separate. Do not append the subset to all answers or add their row counts together.
+
+Comment membership follows the report's **Written answers** view. Supported text-entry, form, matrix-text, and attached “Other” text fields qualify; choice labels, numeric fields, response properties, and whitespace-only cells do not. `dim_questions.is_comment_field` records nullable classification evidence on new exports. Older folders fall back to their available types; incomplete side-by-side metadata is not guessed from labels. See [the comments contract](../entity-model.md#comments) for scope and compatibility.
+
+`fact_comments.user_language` copies the code on the linked response. It stays null if that response has no language, even when a survey default exists. It does not detect the language of the text. For a slicer that filters both answers and comments, use `fact_responses.user_language`; use the comment copy to display the code beside its text.
 
 Response properties are additional columns in `fact_responses`. For example, if your export contains embedded `Department`, `Region`, or `Country` values, use those columns in slicers or chart axes. With the relationships below, selecting `Department = Sales` filters those responses and their question answers. There is no extra property table to join. Custom values remain text, including numeric-looking codes and permission flags; choose analytical types deliberately in Power Query.
 
 The report's codebook shows each original source name and its actual storage column. A name can be changed to prevent collisions with built-in columns or other source fields. A property missing from one survey is null in the combined table. A real question about department stays in the answer table; its name alone does not turn it into response metadata.
 
-If you parsed without a QSF, you will have no definition-based option records. Rebuild with the matching QSF if you need a complete choice list. See the [entity and semantic model contract](../entity-model.md) and [DBML file](../entity-model.dbml) for column and identity details.
+If you parsed without a QSF, you will have no definition-based option records. Rebuild with the matching QSF if you need a complete choice list. See the [entity and semantic model contract](../entity-model.md) and [Power BI DBML file](../power-bi-model.dbml) for column and identity details.
 
 ## 3. Load each table into Power BI
 
@@ -65,7 +73,7 @@ If you parsed without a QSF, you will have no definition-based option records. R
 
 1. In Power BI Desktop, open **Get data** and choose **Parquet**.
 2. Enter the full local path to `fact_responses.parquet`, then load it or choose **Transform Data** to inspect it.
-3. Repeat for the other four files. Keep the table names shown above so the measure examples work.
+3. Repeat for the other five files. Keep the table names shown above so the measure examples work.
 
 Microsoft documents the file connection in its [Parquet connector guide](https://learn.microsoft.com/en-us/power-query/connectors/parquet).
 
@@ -75,7 +83,7 @@ Power BI uses an ODBC connection for this workflow. The toolkit creates the SQLi
 
 1. Install a SQLite ODBC driver compatible with your Power BI Desktop installation and configure a data source name (DSN) pointing to the full path of `semantic_model.sqlite`. Follow your driver's instructions in Windows ODBC Data Source Administrator.
 2. In Power BI Desktop, choose **Get data → ODBC** and select that DSN.
-3. In Navigator, select all five tables, then choose **Transform Data** or **Load**.
+3. In Navigator, select all six tables, then choose **Transform Data** or **Load**.
 
 See Microsoft's [ODBC connector guide](https://learn.microsoft.com/en-us/power-query/connectors/odbc) for the connection and authentication options. If you prefer to avoid installing a database driver, use the Parquet files.
 
@@ -85,15 +93,15 @@ In Power Query, keep IDs as text; use a decimal type for `answer_numeric` and a 
 
 ## 4. Create the relationships
 
-Explore the five exported tables below. The diagram's relationship symbols describe one-to-many cardinality; configure Power BI's cross-filter direction separately as explained below. The viewer needs an internet connection and requires no account or API key.
+Explore the six exported tables below. The diagram's relationship symbols describe one-to-many cardinality; configure Power BI's cross-filter direction separately as explained below. The viewer needs an internet connection and requires no account or API key.
 
-<iframe class="dbml-model" title="Five-table Power BI semantic model" src="{{ dbml_power_bi_url }}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>
+<iframe class="dbml-model" title="Six-table Power BI semantic model" src="{{ dbml_power_bi_url }}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>
 
 <p><a href="{{ dbml_power_bi_url }}" target="_blank" rel="noopener">Open the Power BI diagram at full size</a></p>
 
 [Download the Power BI DBML schema](../power-bi-model.dbml) for a compatible schema tool. If the viewer cannot load, use the relationship table and instructions below.
 
-Create these four **active**, **one-to-many** relationships. Set cross-filter direction to **Single**, from the table on the left to the table on the right. Inspect any relationships Power BI detected before adding yours.
+Create these six **active**, **one-to-many** relationships. Set cross-filter direction to **Single**, from the table on the left to the table on the right. Inspect any relationships Power BI detected before adding yours.
 
 | One side | Many side |
 | --- | --- |
@@ -101,8 +109,10 @@ Create these four **active**, **one-to-many** relationships. Set cross-filter di
 | `fact_responses[response_id]` | `fact_response_answers[response_id]` |
 | `dim_questions[question_field_id]` | `fact_response_answers[question_field_id]` |
 | `dim_answer_options[answer_option_id]` | `fact_response_answers[answer_option_id]` |
+| `fact_responses[response_id]` | `fact_comments[response_id]` |
+| `dim_questions[question_field_id]` | `fact_comments[question_field_id]` |
 
-A survey filter reaches responses, then their answers. Question and option filters reach the answer table. Keep this single route from surveys to answers; additional active routes can make filter behavior ambiguous. See [Microsoft's relationship explanation](https://learn.microsoft.com/en-us/power-bi/transform-model/desktop-relationships-understand) for the Power BI settings.
+A survey filter reaches responses, then both answer tables. Question filters reach both answer tables; option filters reach only `fact_response_answers`. Keep this single route from surveys to each answer table; additional active routes can make filter behavior ambiguous. Do not join `fact_response_answers` to `fact_comments`, or create a direct active `dim_surveys` → `fact_comments` relationship. See [Microsoft's relationship explanation](https://learn.microsoft.com/en-us/power-bi/transform-model/desktop-relationships-understand) for the Power BI settings.
 
 `dim_answer_options.question_field_id` tells you which field owns an option. Keep the relationship to the answer fact on `answer_option_id`. When presenting a field's full choice list, use `question_field_id` to restrict the option list to that field, including choices with zero answers.
 
@@ -112,7 +122,7 @@ New exports keep `source_choice_id`, `choice_value`, `recode_value`, `variable_n
 
 Older entity folders can lack these provenance columns. Do not treat `answer_code` as evidence of an explicit recode; it may be a native-ID fallback. Reparse the original CSV/ZIP with the matching QSF and rebuild the semantic model when you need the additional metadata. See [answer value provenance](../entity-model.md#answer-value-provenance) for defaults and matrix scope.
 
-For a date slicer, create a date table in your Power BI model; it is not one of the five exported tables. Convert `recorded_at` to a date for a daily relationship, or derive a separate date-only column from it; relate that column to the date table. Use the original timestamp when you need time-of-day analysis.
+For a date slicer, create a date table in your Power BI model; it is not one of the six exported tables. Convert `recorded_at` to a date for a daily relationship, or derive a separate date-only column from it; relate that column to the date table. Use the original timestamp when you need time-of-day analysis.
 
 ## 5. Add measures with the right denominator
 
@@ -130,7 +140,15 @@ Respondents With Answer = DISTINCTCOUNT(fact_response_answers[response_id])
 Answer Rows = COUNTROWS(fact_response_answers)
 ```
 
-The answer table excludes empty fields. Use `Responses` when you need the number of survey response records; counting rows in the answer table would count a person several times and omit people with no answers in the selected fields.
+```dax
+Comment Rows = COUNTROWS(fact_comments)
+```
+
+```dax
+Responses With Comment = DISTINCTCOUNT(fact_comments[response_id])
+```
+
+The answer table excludes empty fields. Use `Responses` when you need the number of survey response records; counting rows in the answer table would count a person several times and omit people with no answers in the selected fields. `Comment Rows` counts text fields; `Responses With Comment` counts submissions with at least one qualifying text field. Both are already included in the all-answer measures.
 
 Under the single-direction relationships above, a question filter does not filter `fact_responses`. For a report spanning multiple surveys, use a denominator limited to the surveys of the selected questions:
 
@@ -149,6 +167,15 @@ DIVIDE([Respondents With Answer], [Question-scoped Responses])
 
 Format `Question Response Rate` as a percentage. This measures the share of response records with an answer in the selected question fields. With several fields selected, a response counts in the numerator if it has an answer to any of them. The denominator includes the relevant surveys' response records even if branching skipped the question. It does not measure the proportion of invited people who responded, or the proportion eligible to see the question.
 
+For the selected comment field or fields, use:
+
+```dax
+Comment Response Rate =
+DIVIDE([Responses With Comment], [Question-scoped Responses])
+```
+
+This rate uses the same survey-scoped denominator and routing caveat. Filter to the intended text fields with `dim_questions`; a submission with several comments counts once in its numerator.
+
 For a numeric field, filter to that field before using:
 
 ```dax
@@ -163,6 +190,7 @@ With the first-report sample, confirm:
 | --- | --- |
 | All responses | 3 |
 | All answer rows | 5 |
+| Comment rows (already included in all answers) | 2 |
 | Respondents with a satisfaction answer | 3 |
 | Respondents with a comment | 2 |
 | Comment response rate | 2 ÷ 3, about 66.7% |

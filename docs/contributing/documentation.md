@@ -37,14 +37,14 @@ Start with the reader's task, the files they need, and the command they should r
 
 Edit the checked-in DBML sources when the exported schema changes:
 
-- `docs/entity-model.dbml` describes the nine parsed entities, including their IDs and relationships.
-- `docs/power-bi-model.dbml` describes the five semantic tables and the four recommended Power BI relationships. A Date table created in Power BI is outside this export.
+- `docs/entity-model.dbml` describes the nine authoritative entities and their derived comments table, including their IDs and relationships.
+- `docs/power-bi-model.dbml` describes the six semantic tables and the six recommended Power BI relationships. A Date table created in Power BI is outside this export.
 
 The MkDocs hook in `scripts/docs_dbml.py`, registered in `mkdocs.yml`, reads these files during each build and replaces the diagram placeholders with dbdiagram.io embed URLs. It encodes the UTF-8 DBML as Base64 in the URL fragment. The same generated URL supplies each iframe and its full-size link, so there is no separately published diagram to update. The source files are also copied into the site as downloads. No dbdiagram.io account, API key, or extra build dependency is needed.
 
 Use the usual `mkdocs build --strict` or `mkdocs serve` commands above. MkDocs watches the DBML files under `docs/`, so saving a schema rebuilds the preview with the updated diagram URL. Restart the preview server after editing the hook itself, because MkDocs imports hook modules at startup.
 
-The viewer loads from dbdiagram.io and needs an internet connection. Keep the Markdown downloads, table descriptions, and Power BI relationship instructions useful on their own. DBML symbols describe relationship cardinality; they do not configure Power BI filter direction. Keep the guide explicit about the four active relationships filtering from the one side to the many side with **Single** cross-filter direction.
+The viewer loads from dbdiagram.io and needs an internet connection. Keep the Markdown downloads, table descriptions, and Power BI relationship instructions useful on their own. DBML symbols describe relationship cardinality; they do not configure Power BI filter direction. Keep the guide explicit about the six active relationships filtering from the one side to the many side with **Single** cross-filter direction.
 
 After changing a schema or the hook, run the strict build and check both embedded models, their full-size links, and their downloads. Inspect the entity reference and Power BI guide at desktop and phone widths. Update the source DBML rather than pasting an encoded diagram URL into Markdown.
 

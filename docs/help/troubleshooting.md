@@ -129,7 +129,9 @@ uv run --extra cli --extra ui qualtrics semantic-model build output/customer/ent
 
 **Messages:** `missing entity files`, `Incomplete strict entity contract`, `Multiple formats found`, or `has multiple formats for entities`.
 
-A complete collection contains all nine entity files, including `sections`, even when some tables have no rows. Use the collection that `build` writes. An HTML report or a semantic model folder is not an entity collection.
+A complete collection contains the nine authoritative entity files, including `sections`, even when some tables have no rows. Current `build` output also contains the derived `comments` file, giving ten files. Legacy folders without `comments` still load and reconstruct it from the available metadata. An HTML report or a semantic model folder is not an entity collection.
+
+If validation reports that a supplied comments file does not match its source answers or responses, rebuild the entity folder from the original export. The comments projection must agree with its authoritative tables; do not edit its text, IDs, or copied language independently. See [the comments contract](../entity-model.md#comments).
 
 Keep exactly one file per entity name: for example, `surveys.json` or `surveys.csv`, not both in the same folder. Store alternative formats in separate folders. An explicit report file override does not bypass the loader's multiple-format check on its folder.
 
