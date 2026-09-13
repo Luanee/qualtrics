@@ -18,7 +18,7 @@ uv run --extra cli --extra ui qualtrics report \
   --output output/customer/report.html
 ```
 
-An API survey-definition JSON can also be passed to `--qsf`. Existing entity folders still work, but folders built before flow support need to be rebuilt from their source exports. Regenerating HTML alone cannot recover discarded flow information. The report explains when a definition has no available flow; it does not infer a flow from block order or responses.
+An API survey-definition JSON can also be passed to `--qsf`. Existing entity folders still work, but folders built before flow support need to be rebuilt from their source exports. Likewise, an older entity folder that lost sections from list-form blocks cannot recover their names or question links by regenerating HTML. Rebuild the entities from the original response export and matching QSF or API definition first. The report explains when a definition has no available flow; it does not infer a flow from block order or responses.
 
 ## Download the flow through the API
 

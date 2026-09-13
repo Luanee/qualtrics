@@ -16,7 +16,7 @@ data/my-survey/
 
 Use the original Qualtrics CSV export. Keep its header rows intact: field names, question text, and the metadata row containing values such as `{"ImportId":"QID1"}`. Saving a cleaned spreadsheet over the export can remove information the parser needs to identify questions and fields.
 
-A QSF describes the survey. It supplies question types, blocks, and the complete set of answer choices, including choices nobody selected. Without a QSF, you can parse the export, but `answer_options` will be empty and some question details will be unavailable.
+A QSF describes the survey. It supplies question types, blocks, and the complete set of answer choices, including choices nobody selected. Supplied QSF and API survey-definition JSON files preserve block names, order, and question-to-section links whether their blocks are keyed objects or lists. Dictionary keys supply block IDs when an entry has no explicit `ID`; list entries need an explicit `ID` to become sections. Without a definition, you can parse the export, but `answer_options` will be empty and some question details will be unavailable.
 
 ## 2. Choose an output format
 
