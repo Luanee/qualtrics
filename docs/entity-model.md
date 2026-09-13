@@ -10,7 +10,7 @@ Explore the ten exported entities and their relationships in the diagram below. 
 
 [Download the ten-entity DBML schema](entity-model.dbml) to inspect the full column and relationship contract in a compatible schema tool.
 
-Parsing produces nine authoritative entities plus the derived `comments` table, for ten exported tables. Occurrence IDs are survey-safe hashes; `*_external_id` columns preserve Qualtrics lineage. Catalog IDs identify normalized semantics across surveys.
+Parsing produces nine authoritative entities plus the derived `comments` table, for ten exported tables. Occurrence IDs are survey-safe hashes; `*_external_id` columns preserve Qualtrics lineage. Catalog IDs identify normalized semantics across surveys. Catalog merging compares the complete stored normalized content, including the parent question catalog ID for fields, while retaining the [first input’s representative display labels](guides/combine-surveys.md#representative-catalog-labels). Concrete question, field, and answer-option rows remain survey-specific.
 
 | Entity | Grain | Primary ID | Main parents |
 |---|---|---|---|

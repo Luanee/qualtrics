@@ -179,3 +179,38 @@ def survey_files(tmp_path: Path) -> tuple[Path, Path]:
         encoding="utf-8",
     )
     return csv_path, qsf_path
+
+
+@pytest.fixture
+def catalog_survey_factory(tmp_path: Path):
+    """Parse fictional single-question surveys with controlled display wording."""
+    from qualtrics import parse_survey
+
+    def create(survey_id: str, text: str, *, question: dict | None = None, answer: str = "Good"):
+        csv_path = tmp_path / f"{survey_id}.csv"
+        qsf_path = tmp_path / f"{survey_id}.qsf"
+        with csv_path.open("w", encoding="utf-8", newline="") as handle:
+            csv.writer(handle).writerows([
+                ["ResponseId", "QID1"],
+                ["Response ID", text],
+                [json.dumps({"ImportId": "_recordId"}), json.dumps({"ImportId": "QID1"})],
+                ["R1", answer],
+            ])
+        qsf_path.write_text(
+            json.dumps({
+                "SurveyEntry": {"SurveyID": survey_id, "SurveyName": survey_id},
+                "Questions": {
+                    "QID1": {
+                        "QuestionID": "QID1",
+                        "QuestionText": text,
+                        "QuestionType": "TE",
+                        "Selector": "SL",
+                        **(question or {}),
+                    }
+                },
+            }),
+            encoding="utf-8",
+        )
+        return parse_survey(csv_path, qsf_path)
+
+    return create
