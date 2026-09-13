@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from .comments import COMMENT_COLUMNS, build_comments
 from .entities import CORE_ENTITY_NAMES, EntitySet
 from .response_merge import merge_response_columns
@@ -191,8 +193,35 @@ def validate_entity_set(entities: EntitySet, *, strict: bool = False) -> None:
             raise ValueError("comments must match the projection of response_answers and responses")
 
 
+def _catalog_comparison_row(name: str, row: dict[str, object]) -> dict[str, object]:
+    """Ignore representative labels only when canonical identity evidence is present."""
+    if name == "question_catalog":
+        content_key, display_key = "normalized_question_content", "question_text"
+    else:
+        content_key, display_key = "normalized_field_content", "field_text"
+        # Field identity includes its parent; missing parents cannot prove equivalence.
+        if not row.get("question_catalog_id"):
+            return row
+    stored_content = row.get(content_key)
+    if not isinstance(stored_content, str):
+        return row
+    try:
+        content = json.loads(stored_content)
+    except ValueError:
+        return row
+    if not isinstance(content, dict) or not content:
+        return row
+    # Stored content is already canonical: normalizing again can change HTML entities.
+    # Serialize its structure to retain JSON scalar type distinctions.
+    # Other metadata (including field parents and question types) stays strict.
+    return {
+        **{key: value for key, value in row.items() if key != display_key},
+        content_key: json.dumps(content, ensure_ascii=False, sort_keys=True),
+    }
+
+
 def merge_entity_sets(entity_sets: list[EntitySet]) -> EntitySet:
-    """Combine surveys while de-duplicating the two canonical catalogs."""
+    """Combine surveys, retaining the first label for equivalent canonical catalogs."""
     result = EntitySet()
     if entity_sets:
         result._present_entities = set.intersection(*(item._present_entities for item in entity_sets))
@@ -214,9 +243,11 @@ def merge_entity_sets(entity_sets: list[EntitySet]) -> EntitySet:
             unique: dict[str, dict[str, object]] = {}
             for row in rows:
                 identifier = str(row[id_key])
-                if identifier in unique and unique[identifier] != row:
-                    raise ValueError(f"{name} catalog collision for {identifier}")
-                unique[identifier] = row
+                if identifier in unique:
+                    if _catalog_comparison_row(name, unique[identifier]) != _catalog_comparison_row(name, row):
+                        raise ValueError(f"{name} catalog collision for {identifier}")
+                else:
+                    unique[identifier] = row
             rows = list(unique.values())
         setattr(result, name, rows)
     result.surveys, result.responses, response_columns = merge_response_columns(entity_sets)

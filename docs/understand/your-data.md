@@ -34,7 +34,7 @@ These are the row counts for the practice survey, not a limit on your own export
 
 [Download this table guide as CSV](../assets/examples/table-guide.csv).
 
-The two catalog tables help you compare matching question and field meanings across surveys. Most readers can start with `surveys`, `questions`, `responses`, and `response_answers` and use the catalogs when they need comparisons.
+The two catalog tables help you compare matching question and field meanings across surveys. When combining, catalogs use the [first input’s representative labels](../guides/combine-surveys.md#representative-catalog-labels); each survey’s questions, fields, and options keep their own wording and recodes. Most readers can start with `surveys`, `questions`, `responses`, and `response_answers` and use the catalogs when they need comparisons.
 
 ## Comments are an answer subset
 

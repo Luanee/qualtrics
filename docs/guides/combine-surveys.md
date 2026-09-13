@@ -58,6 +58,14 @@ The combined `comments` table is regenerated from the original answer and respon
 
 The `responses` table contains the union of response-property columns. If survey A exports `Region` and survey B exports `Country`, the combined table has both; a property absent from a survey is null for its responses. Original collections are unchanged. The codebook records any renamed columns needed to distinguish duplicate names, names that differ only by case, or names that collide with built-in response fields. Check this mapping before combining similarly named fields in an analysis.
 
+### Representative catalog labels
+
+When complete normalized definitions match, the combined catalogs keep the first input's `question_text` and `field_text` as representative labels. For example, “How was your visit?” and “HOW WAS YOUR VISIT?” share a catalog entry when their types, roles, answer labels, and field structure also match. Whitespace and HTML entities follow the existing normalization rules. Field catalog identity also includes its parent question catalog ID.
+
+Input order determines the representative labels: reversing the folders can change those labels, but keeps the same IDs and survey-specific rows. Each survey's concrete questions and fields retain their own wording, and answer options retain their own choice IDs and recodes. A shared catalog entry does not combine or rewrite options.
+
+Incompatible canonical payloads or identity metadata claiming the same catalog ID still cause a catalog collision error. Older rows without usable normalized content require exact row agreement; missing content cannot establish equivalence. Combining does not reconstruct that missing evidence. Reparse the original response export with its matching QSF when you need complete canonical definitions.
+
 ## Use survey folders or a batch root
 
 You can pass survey folders containing `entities/`:

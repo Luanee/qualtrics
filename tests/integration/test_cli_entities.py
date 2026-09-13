@@ -96,3 +96,45 @@ def test_entities_combine_rejects_incomplete_entity_collection(tmp_path: Path) -
 
     assert result.exit_code == 2
     assert "missing entity files" in result.output
+
+
+def test_entities_combine_equivalent_catalog_labels_survive_serialization(
+    tmp_path: Path, catalog_survey_factory
+) -> None:
+    from qualtrics._common.models.entity_set import validate_entity_set
+
+    first = catalog_survey_factory("SV_1", "How was your visit?")
+    second = catalog_survey_factory("SV_2", "HOW WAS YOUR VISIT?")
+    source_a, source_b, output = (tmp_path / name for name in ("first", "second", "combined"))
+    write_entities(first, source_a, "json")
+    write_entities(second, source_b, "csv")
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "entities",
+            "combine",
+            str(source_a),
+            str(source_b),
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    combined = load_entities(output)
+    validate_entity_set(combined, strict=True)
+    assert combined.question_catalog == first.question_catalog
+    assert combined.question_field_catalog == first.question_field_catalog
+    assert [row["question_text"] for row in combined.questions] == ["How was your visit?", "HOW WAS YOUR VISIT?"]
+    assert [row["field_text"] for row in combined.question_fields] == ["How was your visit?", "HOW WAS YOUR VISIT?"]
+    assert (
+        len(combined.surveys)
+        == len(combined.responses)
+        == len(combined.response_answers)
+        == len(combined.comments)
+        == 2
+    )
+    assert {row["response_answer_id"] for row in combined.comments} == {
+        row["response_answer_id"] for item in (first, second) for row in item.comments
+    }
