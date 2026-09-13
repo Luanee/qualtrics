@@ -106,6 +106,8 @@ Standard columns retain existing normalized keys; `ResponseId` maps to `response
 
 Technical browser and timing values are stored on responses. Existing question-field definitions can still describe those exported fields. Derived question outputs retain their question relationship and existing answer identities; their dictionary classification distinguishes them from direct answers. The established entity and catalog hash algorithms are unchanged.
 
+`questions.question_role` is optional in legacy entity folders. Report analytics and the comments projection honor a saved role; otherwise they classify the normalized question type and selector, then related question fields' `import_external_id` (falling back to legacy `source_import_id`). ImportId evidence is confined to the same survey and question. Timing and metadata questions are omitted from respondent-facing report counts, question spotlights, coverage, and unused-field diagnostics, while their saved question fields, responses, answer rows, raw values, language, and IDs remain intact. A question without surviving technical evidence defaults to the response role; rebuilding a report does not restore evidence absent from the saved entities.
+
 Reparse the original export to recover fields omitted by older versions. An older entity folder without `source_columns_json` remains readable, but it cannot provide source evidence or values it never retained.
 
 ## Semantic projection

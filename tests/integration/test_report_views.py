@@ -1,4 +1,6 @@
+from qualtrics._common.analytics import analyze_entities
 from qualtrics._common.models.entities import EntitySet
+from qualtrics._common.serialization.io import load_entities, write_entities
 from qualtrics.ui.report import render_report
 
 
@@ -146,3 +148,121 @@ def test_summary_distinguishes_not_marked_finished_without_inventing_partial_sta
     assert "id='overview-other'>2</strong>" in document
     assert "Not marked finished" in document
     assert "href='#overview' aria-current='page'" in document
+
+
+def test_legacy_json_without_roles_keeps_technical_data_out_of_report_statistics(tmp_path):
+    labels = (
+        ("answer", "Your name", "TE", ""),
+        ("timing", "Page timing", "Timing", "PageTimer"),
+        ("browser", "Browser diagnostics", "Meta", "Browser"),
+    )
+    entities = EntitySet(
+        surveys=[{"survey_id": "s", "survey_name": "Fictional survey"}],
+        question_catalog=[
+            {"question_catalog_id": f"catalog-{key}", "question_text": label, "canonical_question_type": kind}
+            for key, label, kind, _ in labels
+        ],
+        question_field_catalog=[
+            {
+                "question_field_catalog_id": f"field-catalog-{key}",
+                "question_catalog_id": f"catalog-{key}",
+                "field_text": label,
+            }
+            for key, label, _, _ in labels
+        ],
+        questions=[
+            {
+                "question_id": key,
+                "question_external_id": f"QID{i}",
+                "survey_id": "s",
+                "question_catalog_id": f"catalog-{key}",
+                "question_text": label,
+                "question_type": kind,
+                "selector": selector,
+            }
+            for i, (key, label, kind, selector) in enumerate(labels, 1)
+        ],
+        question_fields=[
+            {
+                "question_field_id": f"field-{key}",
+                "field_id": f"field-{key}",
+                "survey_id": "s",
+                "question_id": key,
+                "question_catalog_id": f"catalog-{key}",
+                "question_field_catalog_id": f"field-catalog-{key}",
+                "field_text": label,
+                "answer_value_type": "text" if key != "timing" else "numeric",
+                "import_external_id": f"QID{i}"
+                if key == "answer"
+                else f"QID{i}_PAGE_SUBMIT"
+                if key == "timing"
+                else f"QID{i}_BROWSER",
+            }
+            for i, (key, label, _, _) in enumerate(labels, 1)
+        ],
+        responses=[
+            {
+                "response_id": "r",
+                "response_external_id": "R1",
+                "survey_id": "s",
+                "user_language": "DE",
+                "browser": "FictionalBrowser",
+            }
+        ],
+        response_answers=[
+            {
+                "response_answer_id": f"value-{key}",
+                "response_id": "r",
+                "survey_id": "s",
+                "question_id": key,
+                "question_field_id": f"field-{key}",
+                "field_id": f"field-{key}",
+                "question_catalog_id": f"catalog-{key}",
+                "question_field_catalog_id": f"field-catalog-{key}",
+                "answer_value_type": "text" if key != "timing" else "numeric",
+                "answer_text": value,
+                "raw_value": value,
+                "answer_option_id": None,
+                "answer_numeric": None,
+                "answer_boolean": None,
+                "is_selected": None,
+            }
+            for key, value in (("answer", "Mira"), ("timing", "4"), ("browser", "FictionalBrowser"))
+        ],
+    )
+    folder = tmp_path / "legacy"
+    write_entities(entities, folder)
+    loaded = load_entities(folder)
+    assert all("question_role" not in question for question in loaded.questions)
+    assert [(item["response_answer_id"], item["raw_value"]) for item in loaded.response_answers] == [
+        ("value-answer", "Mira"),
+        ("value-timing", "4"),
+        ("value-browser", "FictionalBrowser"),
+    ]
+    assert loaded.responses[0]["user_language"] == "DE"
+    assert [comment["answer_text"] for comment in loaded.comments] == ["Mira"]
+
+    analysis = analyze_entities(loaded)
+    assert analysis.question_roles == {
+        ("s", "answer"): "response",
+        ("s", "timing"): "timing",
+        ("s", "browser"): "metadata",
+    }
+    assert analysis.content_answer_count == 1
+    assert len(analysis.response_questions) == 1
+    assert analysis.unanswered_questions == []
+    assert analysis.unused_fields == []
+    assert len(analysis.answers[("s", "r")]) == 3
+
+    output = tmp_path / "report.html"
+    render_report(loaded, output)
+    document = output.read_text()
+    assert "id='stat-questions'>1</strong>" in document
+    assert "id='stat-answers'>1</strong>" in document
+    assert "id='overview-unanswered'>0</strong>" in document
+    assert "id='overview-unused-fields'>0</strong>" in document
+    assert "data-label='Your name'" in document
+    assert "data-label='Page timing'" not in document
+    assert "data-label='Browser diagnostics'" not in document
+    assert "class='finding' data-survey='s'" in document
+    assert "FictionalBrowser" in document

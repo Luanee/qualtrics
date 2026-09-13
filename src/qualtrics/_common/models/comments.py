@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from .question_types import classify_question_role, field_value_type, resolve_question_type
+from .question_types import classify_entity_question_role, field_value_type, resolve_question_type
 
 if TYPE_CHECKING:
     from .entities import EntitySet
@@ -26,10 +26,7 @@ def is_comment_answer(question: dict[str, Any], field: dict[str, Any], answer: d
     value = answer.get("answer_text")
     if not isinstance(value, str) or not value.strip():
         return False
-    role = question.get("question_role") or classify_question_role(
-        {"QuestionType": question.get("question_type"), "Selector": question.get("selector")},
-        [str(field.get("import_external_id") or field.get("source_import_id") or "")],
-    )
+    role = classify_entity_question_role(question, [field])
     resolved = resolve_question_type(
         question.get("question_type"), question.get("selector"), question.get("sub_selector")
     )
