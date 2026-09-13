@@ -1,20 +1,26 @@
 # Read and share reports
 
-Create one HTML file from a folder of parsed tables. You can open it in a browser, search answers, inspect question patterns, and review individual responses.
+One file, six views: turn parsed tables into a report you can open offline and share.
 
-Try the [interactive report example](../examples/question-types.md) with fictional responses across every question family recognized by the toolkit. It includes the survey definition, response CSV, and a table explaining each case's presentation and limits.
+[Try the fictional report](../examples/question-types.md){ .md-button .md-button--primary }
 
-Install `qualtrics[cli,ui]` for the report command (`uv sync --extra cli --extra ui` in the repository). You need a parsed entity folder from [your first report](../getting-started/first-report.md) or [your own export](parse-exports.md). Run the examples from the project folder; for an isolated CLI installation, replace `uv run --extra cli --extra ui qualtrics` with `qualtrics`.
+The example includes its survey definition, response CSV, and a guide to each question family's presentation and limits.
 
 ## Generate the HTML file
 
-```text
-uv run --extra cli --extra ui qualtrics report --folder data/first-report/entities --output data/first-report/report.html
+```bash
+uv run --extra cli --extra ui qualtrics report \
+  --folder data/first-report/entities \
+  --output data/first-report/report.html
 ```
 
 Replace the two paths with your entity folder and desired report location. The output's parent folder must already exist. If an HTML file already exists at that path, the command replaces it.
 
 You should see `Wrote HTML report to ...`. Open the resulting file in your browser. The file contains its styles, scripts, and report content, so the recipient does not need Python or the entity folder to read it.
+
+??? info "Before you run the command"
+
+    Install `qualtrics[cli,ui]` (`uv sync --extra cli --extra ui` in this repository). You need a parsed entity folder from [your first report](../getting-started/first-report.md) or [your own export](parse-exports.md). Run the example from the project folder; with a separate CLI installation, use `qualtrics` instead of `uv run --extra cli --extra ui qualtrics`.
 
 ## Read the report
 
@@ -29,31 +35,37 @@ Use the side navigation to move between six views. On a narrow screen, navigatio
 | **Responses** | Review individual response records and choose which questions to display. |
 | **Codebook** | Look up export columns, field types, and answer codes; download the filtered dictionary. |
 
-The **Surveys** selector applies across all views. Moving between views keeps your survey selection. Use your browser's Back and Forward buttons to return to earlier views or question details.
+The **Surveys** selector filters every view. For a walk through branches and conditions, [launch the flow example](../examples/survey-flow.md). Its hypothetical answers do not affect the response charts.
 
-The **Theme** selector in the header offers **System**, **Light**, and **Dark**. System follows your browser's preferred appearance. A manual choice applies until you reload the file.
+??? info "Navigation, theme, and flow controls"
 
-The [survey flow guide](survey-flow.md) explains how to supply a definition and use the map and walkthrough. Try the [fictional flow example](../examples/survey-flow.md) to compare Sales and Engineering routes, an early ending, and a randomizer. Walkthrough answers are hypothetical and do not affect response statistics.
+    Moving between views keeps your survey selection. Use your browser's Back and Forward buttons to return to earlier views or question details.
 
-In Flow, select a card to read its settings and questions. Pan across the canvas, use the zoom controls to change scale, or select **Fit** for the full route. The **Show outline** control gives you the same structure as an expandable list. Printing uses that readable outline.
+    The **Theme** selector in the header offers **System**, **Light**, and **Dark**. System follows your browser's preferred appearance. A manual choice applies until you reload the file.
+
+    The [survey flow guide](survey-flow.md) explains how to supply a definition and use the map and walkthrough. The fictional flow example compares Sales and Engineering routes, an early ending, and a randomizer.
+
+    In Flow, select a card to read its settings and questions. Pan across the canvas, use the zoom controls to change scale, or select **Fit** for the full route. The **Show outline** control gives you the same structure as an expandable list. Printing uses that readable outline.
 
 ### Understand the totals
 
-| Report label | Meaning |
-| --- | --- |
-| **Responses** | Response records in the selected surveys, including records marked unfinished. |
-| **Finished** | Responses whose exported finished flag is `true` or `1`. The percentage beside the label is their share of the selected response records. |
-| **Not marked finished** | All other response records, including records with no finished flag. This does not establish that each record is a partial response. |
-| **Response questions** | Questions classified as respondent-facing questions in the selected surveys. |
-| **Respondent answers** | Response-and-question pairs with at least one answer. A matrix question with several filled fields counts once for that response here. |
-| **Unanswered questions** | Questions with no observed respondent answer in the export. |
-| **Unused fields** | Concrete exported fields with no observed respondent value. |
+The top three totals count **Responses**, **Finished**, and **Not marked finished** in the selected surveys. They describe the exported records, not everyone invited. Expand **Coverage and data quality** below the charts for question and field counts.
 
-These counts describe the export you provided. They do not count everyone invited to the survey. The finished share is not the proportion of invited people who participated.
+??? info "What each total counts"
 
-If an older entity folder omits optional `questions.question_role`, the report infers each question's role from its saved question type and selector, then its related fields' ImportIds (`import_external_id`, or legacy `source_import_id`). A saved role takes precedence. Timing and browser metadata questions stay out of respondent-facing totals, coverage, spotlights, and unused-field diagnostics; their original rows and values remain in the entity folder. When no technical evidence survives, a question counts as a response question. Reparse the source export to recover evidence that was never saved.
+    | Report label | Meaning |
+    | --- | --- |
+    | **Responses** | Response records in the selected surveys, including records marked unfinished. |
+    | **Finished** | Responses whose exported finished flag is `true` or `1`. The percentage beside the label is their share of the selected response records. |
+    | **Not marked finished** | All other response records, including records with no finished flag. This does not establish that each record is a partial response. |
+    | **Response questions** | Questions classified as respondent-facing questions in the selected surveys. |
+    | **Respondent answers** | Response-and-question pairs with at least one answer. A matrix question with several filled fields counts once for that response here. |
+    | **Unanswered questions** | Questions with no observed respondent answer in the export. |
+    | **Unused fields** | Concrete exported fields with no observed respondent value. |
 
-The first three totals appear above the dashboard. Below the charts, expand **Coverage and data quality** for the question, answer, unanswered-question, and unused-field totals, followed by the detailed diagnostics.
+    The finished share is not the proportion of invited people who participated. The first three totals appear above the dashboard. Below the charts, expand **Coverage and data quality** for the other four totals and detailed diagnostics.
+
+    If an older entity folder omits optional `questions.question_role`, the report infers each question's role from its saved question type and selector, then its related fields' ImportIds (`import_external_id`, or legacy `source_import_id`). A saved role takes precedence. Timing and browser metadata questions stay out of respondent-facing totals, coverage, spotlights, and unused-field diagnostics; their original rows and values remain in the entity folder. When no technical evidence survives, a question counts as a response question. Reparse the source export to recover evidence that was never saved.
 
 ### Explore the Summary dashboard
 
@@ -66,15 +78,19 @@ The dashboard follows the **Surveys** selector. It updates from the data inside 
 | **Question spotlights** | Choose up to two question distributions to inspect together, then follow a question link to its full analysis. |
 | **Questions with little recorded data** | Inspect the eight questions with the lowest answer coverage across the selected surveys. Each link opens that question's details. |
 
-The timeline uses calendar dates as written in the exported recorded-date field; it does not convert timestamps to your browser's time zone. Missing or invalid dates are excluded from this chart and counted in its note. Those records still contribute to response totals and the other charts. A period without recorded responses appears as zero between the first and last usable dates. Very long spans group adjacent periods to keep the chart within 260 points; the note identifies the grouping and the table retains exact counts for each interval.
+Coverage is a clue, not proof that a question was shown: optional questions and branches also produce missing answers. Open a question or **Coverage and data quality** to investigate.
 
-**Cumulative** adds each period's responses to the preceding total across the selected surveys. It stays flat through periods with no responses and continues across year boundaries. In this mode, the table shows both the period count and its cumulative total. Changing the survey selection recalculates the running total; missing or invalid dates remain excluded.
+??? info "Chart dates, denominators, and selection behavior"
 
-Spotlight menus list available NPS questions first, then declared numeric fields, then categorical questions, with larger answer counts first within each type. The first chart defaults to the first available choice; the second prefers a different answer type when available. Changing the survey selection keeps a choice when it is still available and selects another when necessary. Questions from different surveys retain their own labels, answer counts, and denominators; the report does not combine their distributions. For categorical questions with more than 12 options, the spotlight shows the 12 most selected and links to the full distribution.
+    The timeline uses calendar dates as written in the exported recorded-date field; it does not convert timestamps to your browser's time zone. Missing or invalid dates are excluded from this chart and counted in its note. Those records still contribute to response totals and the other charts. A period without recorded responses appears as zero between the first and last usable dates. Very long spans group adjacent periods to keep the chart within 260 points; the note identifies the grouping and the table retains exact counts for each interval.
 
-An NPS spotlight shows the recorded score distribution. Numeric charts use usable numeric values and state any excluded values. Categorical percentages use the question's or field's answering respondents; multiple selections can make percentages add up to more than 100%. Written answers remain in their own view.
+    **Cumulative** adds each period's responses to the preceding total across the selected surveys. It stays flat through periods with no responses and continues across year boundaries. In this mode, the table shows both the period count and its cumulative total. Changing the survey selection recalculates the running total; missing or invalid dates remain excluded.
 
-Coverage divides respondents with an answer by all response records for that survey. Missing answers do not establish whether the question was shown: optional questions and survey branching can both produce low coverage. Use the chart to decide what to inspect, then open **Coverage and data quality** for the full coverage list.
+    Spotlight menus list available NPS questions first, then declared numeric fields, then categorical questions, with larger answer counts first within each type. The first chart defaults to the first available choice; the second prefers a different answer type when available. Changing the survey selection keeps a choice when it is still available and selects another when necessary. Questions from different surveys retain their own labels, answer counts, and denominators; the report does not combine their distributions. For categorical questions with more than 12 options, the spotlight shows the 12 most selected and links to the full distribution.
+
+    An NPS spotlight shows the recorded score distribution. Numeric charts use usable numeric values and state any excluded values. Categorical percentages use the question's or field's answering respondents; multiple selections can make percentages add up to more than 100%. Written answers remain in their own view.
+
+    Coverage divides respondents with an answer by all response records for that survey. Use the chart to decide what to inspect, then open **Coverage and data quality** for the full coverage list.
 
 ### Follow a finding to the evidence
 
@@ -119,17 +135,19 @@ The question and field types determine how answers appear:
 | **Numeric** | A value distribution alongside minimum, average, median, maximum, and sample standard deviation for each numeric field. |
 | **Written response** | Number of responses, number of unique values, and the most frequent values. Read individual comments under **Written answers**, or inspect a complete record under **Responses**. |
 
-Multiple-choice percentages use respondents who answered the question. The report counts each respondent once per option, so selecting several options can produce percentages that add up to more than 100%. The selection total uses the same deduplicated counts. Attached written answers appear separately.
+??? info "Percentages, numeric rules, and recodes"
 
-Matrix percentages use **Answered (n)** for each statement. For example, if 20 people answer the delivery row and 10 choose “Good,” that cell shows **10 / 50%**. If only 8 answer the support row and all choose “Good,” its cell shows **8 / 100%**. Each statement therefore has its own denominator. Multiple-answer matrix fields belonging to the same statement share one row. A dash means there are no responses for that row or the option was not exported for it. A missing answer does not establish whether someone saw the question.
+    Multiple-choice percentages use respondents who answered the question. The report counts each respondent once per option, so selecting several options can produce percentages that add up to more than 100%. The selection total uses the same deduplicated counts. Attached written answers appear separately.
 
-Numeric summaries use the declared question or field type. A text field containing employee numbers such as `000123` stays text. Numeric fields with no usable values show an empty-state message; non-numeric and infinite values are excluded with a count. Standard deviation describes the spread of the observed values and uses the sample formula, dividing by `n − 1`. It appears as a dash when fewer than two numeric values are available.
+    Matrix percentages use **Answered (n)** for each statement. For example, if 20 people answer the delivery row and 10 choose “Good,” that cell shows **10 / 50%**. If only 8 answer the support row and all choose “Good,” its cell shows **8 / 100%**. Each statement therefore has its own denominator. Multiple-answer matrix fields belonging to the same statement share one row. A dash means there are no responses for that row or the option was not exported for it. A missing answer does not establish whether someone saw the question.
 
-Numeric charts show up to 12 distinct values individually. Larger domains use up to eight equal-width intervals, with counts and percentages of usable numeric values. Interval labels show which boundaries they include; the final interval includes the maximum value.
+    Numeric summaries use the declared question or field type. A text field containing employee numbers such as `000123` stays text. Numeric fields with no usable values show an empty-state message; non-numeric and infinite values are excluded with a count. Standard deviation describes the spread of the observed values and uses the sample formula, dividing by `n − 1`. It appears as a dash when fewer than two numeric values are available.
 
-Explicit recode values take priority over internal choice IDs when parsing answers. For example, if choice `1` (Yes) has recode `2`, an exported `2` links to Yes. Display labels and other identifiers still match when there is no explicit recode match. Duplicate recodes remain unresolved, and unknown values retain their original text. Rebuild the entities with the matching QSF to apply this rule to an older export; generating HTML alone does not repair stored option links.
+    Numeric charts show up to 12 distinct values individually. Larger domains use up to eight equal-width intervals, with counts and percentages of usable numeric values. Interval labels show which boundaries they include; the final interval includes the maximum value.
 
-Charts and unused-option diagnostics follow the resolved option link. A raw value that happens to equal another choice's internal ID does not also mark that other choice as used. Older records without a valid link retain the existing raw-value fallback.
+    Explicit recode values take priority over internal choice IDs when parsing answers. For example, if choice `1` (Yes) has recode `2`, an exported `2` links to Yes. Display labels and other identifiers still match when there is no explicit recode match. Duplicate recodes remain unresolved, and unknown values retain their original text. Rebuild the entities with the matching QSF to apply this rule to an older export; generating HTML alone does not repair stored option links.
+
+    Charts and unused-option diagnostics follow the resolved option link. A raw value that happens to equal another choice's internal ID does not also mark that other choice as used. Older records without a valid link retain the existing raw-value fallback.
 
 ## Review individual responses
 
@@ -148,14 +166,19 @@ The survey selector updates the summary totals. Local search and the question se
 
 Pass one `--folder` option per input:
 
-```text
-uv run --extra cli --extra ui qualtrics report --folder data/survey-a/entities --folder data/survey-b/entities --output data/combined-report.html
+```bash
+uv run --extra cli --extra ui qualtrics report \
+  --folder data/survey-a/entities \
+  --folder data/survey-b/entities \
+  --output data/combined-report.html
 ```
 
 For the batch layout made by the [API example](api-access.md), you can pass its shared root:
 
-```text
-uv run --extra cli --extra ui --extra parquet qualtrics report --folder data/api-export --output data/api-export/report.html
+```bash
+uv run --extra cli --extra ui --extra parquet qualtrics report \
+  --folder data/api-export \
+  --output data/api-export/report.html
 ```
 
 The command discovers immediate `<survey-id>/entities/` folders. It also accepts a survey folder containing `entities/`. Inputs must represent different surveys; overlapping survey IDs cause an error. See [combine surveys](combine-surveys.md) if you also want a combined table collection.
@@ -172,16 +195,18 @@ The report is a snapshot. To include new responses, rebuild the entity folder an
 
 Open **Codebook** to connect a column in your CSV to its question, specific field or matrix row, section, question type, and answer codes. For example, a field called `QID8_2` might represent the working-hours row of a satisfaction matrix.
 
-For newly parsed exports, the codebook includes question fields and response properties such as `ResponseId`, `RecordedDate`, and embedded `Region`. It shows the original export column, ImportId, classification, evidence, and storage table/column. Derived question outputs, such as an NPS group, are distinguished from direct answers. Unknown source fields are labeled **Unclassified**, so they remain inspectable without being counted as confirmed question answers. Older entity folders without the source dictionary still show their available question fields.
-
-Each newly parsed choice lists its respondent-visible label, native choice ID, explicit recode, and normalized value. A configured multiple-choice export label (`variable_name`) is shown separately from a compatibility export tag (`answer_export_tag`). For matrix options, the native choice ID refers to the scale answer, not the statement row. Search and the downloaded codebook CSV include this same choice text.
-
-**Explicit recode: unavailable** means the source did not provide that metadata; it does not rule out Qualtrics default numeric codes. The normalized value is the explicit recode when available, otherwise the choice text. Legacy options retain their existing code-and-label display, without claiming their old `answer_code` was an explicit recode. Reparse the original export with its matching definition to recover provenance; rebuilding HTML from an older folder cannot recreate it.
-
 - Use **Find a field** to search question text, column names, sections, codes, and labels.
 - Use the report's **Surveys** selector to limit the codebook to particular surveys.
 - Click **Download CSV** to save all rows matching the codebook search and selected surveys as `codebook.csv`, including matches on other pages.
 
-Codes and labels come from the survey definition, including options nobody selected. Where a recode differs from the choice ID, both are shown. Without a QSF, the codebook still shows the available export headers and field metadata, but it does not invent missing choices. Text that could be interpreted as a spreadsheet formula is exported as literal text.
+??? info "Column classifications, recodes, and older folders"
 
-Codebook search is independent of response search. It changes which dictionary rows appear and are downloaded; it does not change response statistics. A codebook match from global search opens the relevant row.
+    For newly parsed exports, the codebook includes question fields and response properties such as `ResponseId`, `RecordedDate`, and embedded `Region`. It shows the original export column, ImportId, classification, evidence, and storage table/column. Derived question outputs, such as an NPS group, are distinguished from direct answers. Unknown source fields are labeled **Unclassified**, so they remain inspectable without being counted as confirmed question answers. Older entity folders without the source dictionary still show their available question fields.
+
+    Each newly parsed choice lists its respondent-visible label, native choice ID, explicit recode, and normalized value. A configured multiple-choice export label (`variable_name`) is shown separately from a compatibility export tag (`answer_export_tag`). For matrix options, the native choice ID refers to the scale answer, not the statement row. Search and the downloaded codebook CSV include this same choice text.
+
+    **Explicit recode: unavailable** means the source did not provide that metadata; it does not rule out Qualtrics default numeric codes. The normalized value is the explicit recode when available, otherwise the choice text. Legacy options retain their existing code-and-label display, without claiming their old `answer_code` was an explicit recode. Reparse the original export with its matching definition to recover provenance; rebuilding HTML from an older folder cannot recreate it.
+
+    Codes and labels come from the survey definition, including options nobody selected. Where a recode differs from the choice ID, both are shown. Without a QSF, the codebook still shows the available export headers and field metadata, but it does not invent missing choices. Text that could be interpreted as a spreadsheet formula is exported as literal text.
+
+    Codebook search is independent of response search. It changes which dictionary rows appear and are downloaded; it does not change response statistics. A codebook match from global search opens the relevant row.
