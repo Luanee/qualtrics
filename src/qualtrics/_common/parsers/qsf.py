@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from .columns import embedded_field_names
-from .flow import _unwrap, extract_flow_definition
+from .flow import _items, _unwrap, extract_flow_definition
 
 
 def _qsf(
@@ -78,15 +78,20 @@ def _qsf(
         {},
     )
     block_elements = {}
-    if isinstance(element_blocks, dict):
-        block_elements.update(element_blocks)
-    direct_blocks = data.get("Blocks", {})
-    if isinstance(direct_blocks, dict):
-        block_elements.update(direct_blocks)
-    for block_order, block in enumerate(block_elements.values(), start=1):
+    for source in (element_blocks, data.get("Blocks", {})):
+        for fallback_id, block in _items(source):
+            # Retain mapping-key merge precedence for existing dictionary inputs.
+            # Anonymous list entries retain their ordering position without
+            # becoming source block IDs or entity sections.
+            key = fallback_id if fallback_id is not None else block.get("ID") or object()
+            if key:
+                block_elements[key] = (fallback_id, block)
+    for block_order, (fallback_id, block) in enumerate(block_elements.values(), start=1):
         if block.get("Type") == "Trash":
             continue
-        section_id = block.get("ID")
+        section_id = block.get("ID") or fallback_id
+        if not section_id:
+            continue
         sections.append({
             "section_id": section_id,
             "section_name": block.get("Description"),
@@ -94,6 +99,8 @@ def _qsf(
             "section_order": block_order,
         })
         for question_order, element in enumerate(block.get("BlockElements", []), start=1):
+            if not isinstance(element, dict):
+                continue
             question_id = element.get("QuestionID")
             if question_id:
                 question_blocks[str(question_id)] = {
