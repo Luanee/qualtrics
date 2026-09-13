@@ -47,9 +47,21 @@ def is_comment_answer(question: dict[str, Any], field: dict[str, Any], answer: d
 def build_comments(entities: EntitySet) -> list[dict[str, Any]]:
     """Return fresh comment rows; language is authoritative only on the response."""
     questions = {(str(row.get("survey_id")), str(row.get("question_id"))): row for row in entities.questions}
+    question_fields: dict[tuple[str, str], list[dict[str, Any]]] = {}
     fields = {
-        (str(row.get("question_id")), str(row.get("question_field_id") or row.get("field_id"))): row
+        (
+            str(row["survey_id"]) if row.get("survey_id") is not None else None,
+            str(row.get("question_id")),
+            str(row.get("question_field_id") or row.get("field_id")),
+        ): row
         for row in entities.question_fields
+    }
+    for (survey_id, question_id, _), field in fields.items():
+        if survey_id is not None:
+            question_fields.setdefault((survey_id, question_id), []).append(field)
+    question_roles = {
+        key: classify_entity_question_role(question, question_fields.get(key, []))
+        for key, question in questions.items()
     }
     responses = {(str(row.get("survey_id")), str(row.get("response_id"))): row for row in entities.responses}
     comments = []
@@ -57,11 +69,15 @@ def build_comments(entities: EntitySet) -> list[dict[str, Any]]:
         question_key = (str(answer.get("survey_id")), str(answer.get("question_id")))
         field_id = answer.get("question_field_id") or answer.get("field_id")
         question = questions.get(question_key)
-        field = fields.get((question_key[1], str(field_id)))
+        field = fields.get((*question_key, str(field_id))) or fields.get((None, question_key[1], str(field_id)))
         response = responses.get((question_key[0], str(answer.get("response_id"))))
-        if question is None or field is None or response is None or not is_comment_answer(question, field, answer):
-            continue
-        if field.get("survey_id") is not None and str(field["survey_id"]) != question_key[0]:
+        if (
+            question is None
+            or field is None
+            or response is None
+            or question_roles.get(question_key) != "response"
+            or not is_comment_answer(question, field, answer)
+        ):
             continue
         comment = {column: answer.get(column) for column in COMMENT_COLUMNS}
         comment["question_field_id"] = field_id

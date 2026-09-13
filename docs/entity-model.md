@@ -108,6 +108,8 @@ Technical browser and timing values are stored on responses. Existing question-f
 
 `questions.question_role` is optional in legacy entity folders. Report analytics and the comments projection honor a saved role; otherwise they classify the normalized question type and selector, then related question fields' `import_external_id` (falling back to legacy `source_import_id`). ImportId evidence is confined to the same survey and question. Timing and metadata questions are omitted from respondent-facing report counts, question spotlights, coverage, and unused-field diagnostics, while their saved question fields, responses, answer rows, raw values, language, and IDs remain intact. A question without surviving technical evidence defaults to the response role; rebuilding a report does not restore evidence absent from the saved entities.
 
+When an older `comments` file contains text that the corrected question-wide role excludes, strict loading rejects that stale projection. Remove the stale `comments` file, load the nine authoritative entity tables, and write a new entity folder to regenerate comments. Rebuild the semantic model from that folder to refresh `fact_comments`; the original `response_answers` and response language remain authoritative.
+
 Reparse the original export to recover fields omitted by older versions. An older entity folder without `source_columns_json` remains readable, but it cannot provide source evidence or values it never retained.
 
 ## Semantic projection

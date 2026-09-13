@@ -123,3 +123,85 @@ def test_legacy_comment_field_does_not_require_optional_survey_lineage():
             "user_language": "DE",
         }
     ]
+
+
+def test_comment_projection_scopes_question_role_and_reused_field_ids_to_survey():
+    from qualtrics._common.analytics import analyze_entities
+    from qualtrics._common.models.comments import build_comments
+
+    entities = EntitySet(
+        questions=[{"survey_id": sid, "question_id": "q"} for sid in ("ordinary", "technical")],
+        question_fields=[
+            {"survey_id": "ordinary", "question_id": "q", "field_id": "text", "is_comment_field": True},
+            {
+                "survey_id": "technical",
+                "question_id": "q",
+                "field_id": "timing",
+                "import_external_id": "QID2_PAGE_SUBMIT",
+            },
+            {"survey_id": "technical", "question_id": "q", "field_id": "text", "is_comment_field": False},
+        ],
+        responses=[
+            {"survey_id": "ordinary", "response_id": "ordinary-r", "user_language": "FR"},
+            {"survey_id": "technical", "response_id": "technical-r", "user_language": "DE"},
+        ],
+        response_answers=[
+            {
+                "survey_id": "ordinary",
+                "question_id": "q",
+                "field_id": "text",
+                "response_id": "ordinary-r",
+                "response_answer_id": "ordinary-a",
+                "answer_text": "Bonjour",
+                "raw_value": "Bonjour",
+            },
+            {
+                "survey_id": "technical",
+                "question_id": "q",
+                "field_id": "text",
+                "response_id": "technical-r",
+                "response_answer_id": "technical-a",
+                "answer_text": "Diagnostic",
+                "raw_value": "Diagnostic",
+            },
+        ],
+    )
+
+    assert analyze_entities(entities).question_roles == {("ordinary", "q"): "response", ("technical", "q"): "timing"}
+    assert build_comments(entities) == [
+        {
+            "response_answer_id": "ordinary-a",
+            "response_id": "ordinary-r",
+            "survey_id": "ordinary",
+            "question_id": "q",
+            "question_field_id": "text",
+            "answer_text": "Bonjour",
+            "raw_value": "Bonjour",
+            "user_language": "FR",
+        }
+    ]
+
+
+def test_explicit_response_role_remains_authoritative_for_comments_with_technical_import_id():
+    from qualtrics._common.models.comments import build_comments
+
+    entities = EntitySet(
+        questions=[{"survey_id": "s", "question_id": "q", "question_role": "response"}],
+        question_fields=[
+            {"survey_id": "s", "question_id": "q", "field_id": "timing", "import_external_id": "QID2_PAGE_SUBMIT"},
+            {"survey_id": "s", "question_id": "q", "field_id": "text", "is_comment_field": True},
+        ],
+        responses=[{"survey_id": "s", "response_id": "r", "user_language": "DE"}],
+        response_answers=[
+            {
+                "survey_id": "s",
+                "question_id": "q",
+                "field_id": "text",
+                "response_id": "r",
+                "response_answer_id": "a",
+                "answer_text": "Authoritative text",
+                "raw_value": "Authoritative text",
+            }
+        ],
+    )
+    assert [row["answer_text"] for row in build_comments(entities)] == ["Authoritative text"]
