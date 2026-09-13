@@ -1,5 +1,26 @@
 # Release Notes
 
+## 0.4.1 (2026-09-13)
+
+### Documentation
+
+* 📝 docs: simplify README and highlight key features. PR [#47](https://github.com/Luanee/qualtrics/pull/47) by [@Luanee](https://github.com/Luanee).
+
+### Internal
+
+* 🔧 chore: add pull request template. PR [#46](https://github.com/Luanee/qualtrics/pull/46) by [@Luanee](https://github.com/Luanee).
+* 🔧 chore: standardize the pull request template filename. PR [#48](https://github.com/Luanee/qualtrics/pull/48) by [@Luanee](https://github.com/Luanee).
+* 👷 build(deps): bump codecov/codecov-action from 5 to 7. PR [#49](https://github.com/Luanee/qualtrics/pull/49) by [@dependabot[bot]](https://github.com/dependabot[bot]).
+* 👷 build(deps): bump astral-sh/setup-uv from 10.0.1 to 10.1.0. PR [#50](https://github.com/Luanee/qualtrics/pull/50) by [@dependabot[bot]](https://github.com/dependabot[bot]).
+
+### Other changes
+
+* 🔖 Map looped fields to the correct answer choices. PR [#51](https://github.com/Luanee/qualtrics/pull/51) by [@Luanee](https://github.com/Luanee).
+* 🔖 Reload CSV entities with large metadata fields. PR [#52](https://github.com/Luanee/qualtrics/pull/52) by [@Luanee](https://github.com/Luanee).
+* 🔖 Merge equivalent canonical catalogs safely. PR [#53](https://github.com/Luanee/qualtrics/pull/53) by [@Luanee](https://github.com/Luanee).
+* 🔖 Preserve section lineage from list block definitions. PR [#54](https://github.com/Luanee/qualtrics/pull/54) by [@Luanee](https://github.com/Luanee).
+* 🔖 Infer missing question roles for reports and comments. PR [#55](https://github.com/Luanee/qualtrics/pull/55) by [@Luanee](https://github.com/Luanee).
+
 ## 0.4.0 (2026-09-12)
 
 ### Other changes
