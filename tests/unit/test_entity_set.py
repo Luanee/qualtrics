@@ -7,6 +7,7 @@ import pytest
 
 from qualtrics._common.models.entities import EntitySet
 from qualtrics._common.models.entity_set import merge_entity_sets, validate_entity_set
+from qualtrics._common.models.identity import canonicalize, semantic_id
 
 
 def _catalog_entities(name: str, row: Mapping[str, object]) -> EntitySet:
@@ -253,3 +254,45 @@ def test_merge_field_catalog_without_parent_keeps_conservative_collision_check()
             EntitySet(question_field_catalog=[row]),
             EntitySet(question_field_catalog=[{**row, "field_text": "VISIT"}]),
         ])
+
+
+@pytest.mark.parametrize(
+    "catalog, content_key, display_key, domain",
+    [
+        ("question_catalog", "normalized_question_content", "question_text", "question"),
+        ("question_field_catalog", "normalized_field_content", "field_text", "question-field"),
+    ],
+)
+def test_merge_rejects_distinct_once_canonicalized_html_entities(catalog, content_key, display_key, domain) -> None:
+    rows = []
+    for text in ("A &amp;amp; B", "A &amp; B"):
+        field_content = {"text": text, "role": "answer", "value_type": "text"}
+        if catalog == "question_catalog":
+            content = {
+                "text": text,
+                "type": "text_entry",
+                "role": "response",
+                "answers": [],
+                "structure": {"definition": {}, "fields": [field_content]},
+            }
+            identity_content = content
+        else:
+            content = field_content
+            identity_content = {"question": "parent", **content}
+        row = {
+            f"{catalog}_id": semantic_id(domain, identity_content),
+            display_key: text,
+            content_key: json.dumps(canonicalize(content)),
+        }
+        if catalog == "question_field_catalog":
+            row["question_catalog_id"] = "parent"
+        rows.append(row)
+
+    assert [json.loads(row[content_key])["text"] for row in rows] == ["a &amp; b", "a & b"]
+    assert rows[0][f"{catalog}_id"] != rows[1][f"{catalog}_id"]
+    first, second = (_catalog_entities(catalog, row) for row in rows)
+    assert len(getattr(merge_entity_sets([first, second]), catalog)) == 2
+
+    getattr(second, catalog)[0][f"{catalog}_id"] = rows[0][f"{catalog}_id"]
+    with pytest.raises(ValueError, match=f"{catalog} catalog collision"):
+        merge_entity_sets([first, second])
