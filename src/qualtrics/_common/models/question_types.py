@@ -99,6 +99,17 @@ def classify_question_role(definition: dict[str, Any], import_ids: list[str]) ->
     return "response"
 
 
+def classify_entity_question_role(question: dict[str, Any], fields: list[dict[str, Any]]) -> str:
+    """Classify normalized entity rows, retaining persisted role precedence."""
+    return str(
+        question.get("question_role")
+        or classify_question_role(
+            {"QuestionType": question.get("question_type"), "Selector": question.get("selector")},
+            [str(field.get("import_external_id") or field.get("source_import_id") or "") for field in fields],
+        )
+    )
+
+
 def field_value_type(question: dict[str, Any], field: dict[str, Any]) -> str:
     """Use the same explicit field/question precedence as question analysis."""
     if field.get("is_text_field"):

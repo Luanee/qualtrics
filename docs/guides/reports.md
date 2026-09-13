@@ -51,6 +51,8 @@ In Flow, select a card to read its settings and questions. Pan across the canvas
 
 These counts describe the export you provided. They do not count everyone invited to the survey. The finished share is not the proportion of invited people who participated.
 
+If an older entity folder omits optional `questions.question_role`, the report infers each question's role from its saved question type and selector, then its related fields' ImportIds (`import_external_id`, or legacy `source_import_id`). A saved role takes precedence. Timing and browser metadata questions stay out of respondent-facing totals, coverage, spotlights, and unused-field diagnostics; their original rows and values remain in the entity folder. When no technical evidence survives, a question counts as a response question. Reparse the source export to recover evidence that was never saved.
+
 The first three totals appear above the dashboard. Below the charts, expand **Coverage and data quality** for the question, answer, unanswered-question, and unused-field totals, followed by the detailed diagnostics.
 
 ### Explore the Summary dashboard

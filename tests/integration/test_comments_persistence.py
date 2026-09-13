@@ -206,6 +206,65 @@ def test_semantic_build_reconstructs_default_comments_on_manual_legacy_entities(
     assert model.fact_responses == entities.responses
 
 
+def test_missing_type_uses_sibling_timing_field_to_exclude_comments_and_fact_comments(
+    tmp_path: Path, comment_entities: EntitySet
+) -> None:
+    from qualtrics._common.analytics import analyze_entities
+
+    entities = comment_entities
+    question = next(row for row in entities.questions if row["question_external_id"] == "QID2")
+    question.pop("question_role", None)
+    question.pop("question_type", None)
+    question.pop("selector", None)
+    timing_field = next(row for row in entities.question_fields if row["question_external_id"] == "QID2")
+    timing_field["import_external_id"] = "QID2_PAGE_SUBMIT"
+    text_field = {
+        **timing_field,
+        "question_field_id": "technical-sibling-text",
+        "field_id": "technical-sibling-text",
+        "field_external_id": "QID2_OTHER",
+        "import_external_id": None,
+        "source_import_id": None,
+    }
+    entities.question_fields.append(text_field)
+    original_answer = next(row for row in entities.response_answers if row["question_external_id"] == "QID2")
+    technical_answer = {
+        **original_answer,
+        "response_answer_id": "technical-sibling-answer",
+        "question_field_id": text_field["question_field_id"],
+        "field_id": text_field["field_id"],
+        "field_external_id": text_field["field_external_id"],
+        "answer_text": "Diagnostic note",
+        "raw_value": "Diagnostic note",
+        "user_language": "STALE_ANSWER_LANGUAGE",
+    }
+    entities.response_answers.append(technical_answer)
+    before = {name: copy.deepcopy(getattr(entities, name)) for name in CORE_NAMES}
+
+    write_entities(entities, tmp_path / "legacy")
+    loaded = load_entities(tmp_path / "legacy")
+    analysis = analyze_entities(loaded)
+    model = build_semantic_model(loaded)
+
+    assert analysis.question_roles[(str(question["survey_id"]), str(question["question_id"]))] == "timing"
+    assert analysis.content_answer_count == 6
+    assert len(analysis.response_questions) == 2
+    assert [row["question_external_id"] for row in loaded.response_answers].count("QID2") == 3
+    assert (
+        next(row for row in loaded.response_answers if row["response_answer_id"] == "technical-sibling-answer")
+        == technical_answer
+    )
+    assert all(row["question_id"] != question["question_id"] for row in loaded.comments)
+    assert [(row["answer_text"], row["user_language"]) for row in loaded.comments] == [
+        ("00123", "pt-BR"),
+        ("00123", None),
+    ]
+    assert model.fact_comments == loaded.comments
+    assert model.fact_response_answers == loaded.response_answers
+    assert model.fact_responses == loaded.responses
+    assert {name: getattr(entities, name) for name in CORE_NAMES} == before
+
+
 @pytest.mark.parametrize("format", ["json", "csv", "parquet", "sqlite"])
 def test_semantic_writes_rebuild_comments_and_preserve_text_types(
     tmp_path: Path,
