@@ -4,7 +4,6 @@ import json
 
 from .comments import COMMENT_COLUMNS, build_comments
 from .entities import CORE_ENTITY_NAMES, EntitySet
-from .identity import canonicalize
 from .response_merge import merge_response_columns
 
 PRIMARY_KEYS = {
@@ -212,11 +211,12 @@ def _catalog_comparison_row(name: str, row: dict[str, object]) -> dict[str, obje
         return row
     if not isinstance(content, dict) or not content:
         return row
-    # Compare serialized structured content to retain JSON scalar type distinctions.
+    # Stored content is already canonical: normalizing again can change HTML entities.
+    # Serialize its structure to retain JSON scalar type distinctions.
     # Other metadata (including field parents and question types) stays strict.
     return {
         **{key: value for key, value in row.items() if key != display_key},
-        content_key: json.dumps(canonicalize(content), ensure_ascii=False, sort_keys=True),
+        content_key: json.dumps(content, ensure_ascii=False, sort_keys=True),
     }
 
 
