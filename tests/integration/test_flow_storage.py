@@ -89,6 +89,23 @@ def test_flow_scalar_round_trips_entity_formats(tmp_path: Path, format: str) -> 
     assert loaded.surveys[0]["flow_definition_json"] == entities.surveys[0]["flow_definition_json"]
 
 
+def test_large_flow_scalar_round_trips_csv_with_unicode_quotes_and_newlines(tmp_path: Path) -> None:
+    entities = parse_survey(*_survey_files(tmp_path / "input"))
+    flow = json.loads(entities.surveys[0]["flow_definition_json"])
+    flow["blocks"]["BL_1"]["name"] = 'Café — "Questions"\n' + "long description " * 9_000
+    scalar = json.dumps(flow, ensure_ascii=False, indent=2)
+    assert len(scalar) > 131_072
+    assert "\n" in scalar
+    entities.surveys[0]["flow_definition_json"] = scalar
+    write_entities(entities, tmp_path / "csv", "csv")
+
+    loaded = load_entities(tmp_path / "csv")
+
+    assert loaded.surveys[0]["flow_definition_json"] == scalar
+    assert json.loads(loaded.surveys[0]["flow_definition_json"]) == flow
+    assert loaded.response_answers == entities.response_answers
+
+
 def test_flow_scalar_reaches_semantic_sqlite(tmp_path: Path) -> None:
     entities = parse_survey(*_survey_files(tmp_path / "input"))
     destination = tmp_path / "semantic"
