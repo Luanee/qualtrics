@@ -86,6 +86,8 @@ Keep your raw CSV or ZIP and its QSF. Rerun `build` when the export or definitio
 
 To recover response properties omitted by an older parser, rebuild from the original export with the matching QSF using the commands above. Regenerating HTML from an old entity folder cannot recover discarded values. Existing entity folders remain readable, but their codebooks may lack the new source-column dictionary.
 
+To correct choice links in older Loop & Merge entities, reparse the original CSV or ZIP with its matching definition, then rebuild the report and semantic model. Loading or rewriting an existing entity folder does not repair its option links. See the [loop-prefix and native-suffix rules](../entity-model.md) for supported legacy formats and identity behavior.
+
 `build` replaces the entity files of the selected format. If you change formats, choose a new output folder; old files in another format remain and can make later commands reject the collection as ambiguous.
 
 Without a definition, the parser uses the input filename stem as the source survey identity. For one input file, you can supply a stable identity with `--survey-id SV_123`; replace `SV_123` with your survey's actual ID. Keep that choice consistent across rebuilds.
