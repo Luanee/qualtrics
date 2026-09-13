@@ -115,9 +115,7 @@ def _has_nontext_validation(definition: dict[str, object], choice_id: str | None
     )
 
 
-def _comment_field_evidence(
-    definition: dict[str, object], field: dict[str, object], metadata: dict[str, object]
-) -> bool:
+def _comment_field_evidence(definition: dict[str, object], field: dict[str, object]) -> bool:
     """Classify comment eligibility without changing answer types or identity inputs."""
     resolved = resolve_question_type(
         definition.get("QuestionType"), definition.get("Selector"), definition.get("SubSelector")
@@ -125,13 +123,6 @@ def _comment_field_evidence(
     choice_id = str(field.get("choice_external_id") or "") or None
     source = str(field.get("import_external_id") or field.get("field_external_id") or "")
     question_id = str(field.get("question_external_id") or "")
-    if resolved.canonical_question_type != "side_by_side":
-        # When a native choice suffix follows QID, preceding iteration tokens
-        # must not scope validation. Prefix-only choice imports (2_QID1_TEXT)
-        # retain their original mapping. Existing choice IDs and hashes stay put.
-        native = re.match(rf"^(?:\d+_)+({re.escape(question_id)}_\d+(?:_.*)?)$", source)
-        if native:
-            choice_id = _field_choice_id(metadata, native.group(1), "", question_id, definition)
     if resolved.canonical_question_type == "side_by_side":
         # Native #column_row syntax maps directly to AdditionalQuestions. A
         # display label or an unscoped numeric suffix cannot prove a column type.
@@ -173,6 +164,32 @@ def _comment_field_evidence(
     return field_value_type(question, field) == "text"
 
 
+def _native_field_option_tokens(source: str, question_id: str, definition: dict[str, object]) -> list[str] | None:
+    """Interpret option positions separately from historical field text/identity suffixes."""
+    native = re.fullmatch(rf"((?:\d+_)*){re.escape(question_id)}(?:_(.*))?", source, re.I)
+    if not native:
+        # Export-tag suffixes and older metadata-associated columns have no QID.
+        return None
+    prefix = re.findall(r"\d+", native.group(1))
+    suffix = re.findall(r"[A-Za-z0-9]+", (native.group(2) or "").upper())
+    if not suffix or suffix[0] == "TEXT":
+        # Prefix-only legacy imports encode a choice, including attached text.
+        return prefix[-1:]
+    sub_selector = "".join(
+        character for character in str(definition.get("SubSelector") or "").casefold() if character.isalnum()
+    )
+    if (
+        str(definition.get("QuestionType") or "").casefold() == "matrix"
+        and sub_selector == "multipleanswer"
+        and prefix
+        and len(suffix) == 1
+    ):
+        # Legacy cells use row_QID_answer. Native loop cells instead have
+        # iteration_QID_row_answer, so their prefix never enters the domain.
+        return [prefix[-1], *suffix]
+    return suffix
+
+
 def _field_choice_id(
     metadata: dict[str, object], import_id: str, column: str, question_id: str, definition: dict[str, object]
 ) -> str | None:
@@ -188,12 +205,18 @@ def _field_choice_id(
         )
     else:
         valid_ids = set()
-    explicit = metadata.get("choiceId") or metadata.get("ChoiceId") or metadata.get("choiceID")
-    if explicit is not None and str(explicit) in valid_ids:
-        return str(explicit)
+    for key in ("choiceId", "ChoiceId", "choiceID"):
+        explicit = metadata.get(key)
+        if explicit is not None and str(explicit) in valid_ids:
+            return str(explicit)
     for source in (import_id, column):
-        without_question = source.upper().replace(question_id.upper(), "")
-        for token in re.findall(r"[A-Za-z0-9]+", without_question):
+        native = _native_field_option_tokens(source, question_id, definition)
+        tokens = (
+            native[:1]
+            if native is not None
+            else re.findall(r"[A-Za-z0-9]+", source.upper().replace(question_id.upper(), ""))
+        )
+        for token in tokens:
             if token in valid_ids:
                 return token
     return None
@@ -209,14 +232,18 @@ def _field_matrix_answer_id(
 ) -> str | None:
     answers = definition.get("Answers") or {}
     valid_ids = {str(answer_id) for answer_id in answers} if isinstance(answers, dict) else set()
-    explicit = metadata.get("answerId") or metadata.get("AnswerId") or metadata.get("answerID")
-    if explicit is not None and str(explicit) in valid_ids:
-        return str(explicit)
+    for key in ("answerId", "AnswerId", "answerID"):
+        explicit = metadata.get(key)
+        if explicit is not None and str(explicit) in valid_ids:
+            return str(explicit)
     for source in (import_id, column):
-        without_question = source.upper().replace(question_id.upper(), "")
-        tokens = re.findall(r"[A-Za-z0-9]+", without_question)
-        if choice_id in tokens:
-            tokens.remove(choice_id)
+        native = _native_field_option_tokens(source, question_id, definition)
+        if native is not None:
+            tokens = native[1:2]
+        else:
+            tokens = re.findall(r"[A-Za-z0-9]+", source.upper().replace(question_id.upper(), ""))
+            if choice_id in tokens:
+                tokens.remove(choice_id)
         for token in tokens:
             if token in valid_ids:
                 return token
@@ -722,8 +749,7 @@ def _parse_survey_file(
     _apply_identity_contract(entities)
     for field in entities.question_fields:
         definition = qsf_questions.get(str(field["question_external_id"]), {})
-        metadata = source_columns[int(field["source_column_index"])].metadata
-        field["is_comment_field"] = _comment_field_evidence(definition, field, metadata)
+        field["is_comment_field"] = _comment_field_evidence(definition, field)
     entities.comments = build_comments(entities)
     entities._present_columns["comments"] = set(COMMENT_COLUMNS)
     return entities
