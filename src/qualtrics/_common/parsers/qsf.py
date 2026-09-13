@@ -77,14 +77,26 @@ def _qsf(
         (element.get("Payload", {}) for element in data.get("SurveyElements", []) if element.get("Element") == "BL"),
         {},
     )
+    direct_blocks = data.get("Blocks", {})
+    mixed_containers = isinstance(element_blocks, dict) != isinstance(direct_blocks, dict)
     block_elements = {}
-    for source in (element_blocks, data.get("Blocks", {})):
+    for source_index, source in enumerate((element_blocks, direct_blocks)):
         for fallback_id, block in _items(source):
             # Retain mapping-key merge precedence for existing dictionary inputs.
             # Anonymous list entries retain their ordering position without
             # becoming source block IDs or entity sections.
             key = fallback_id if fallback_id is not None else block.get("ID") or object()
             if key:
+                if source_index == 1 and mixed_containers and key not in block_elements:
+                    # Mixed containers can describe the same block under a
+                    # positional mapping key and its native ID. Replace the
+                    # earlier value in place so section order and grain hold.
+                    native_id = block.get("ID") or fallback_id
+                    if native_id:
+                        for previous_key, (previous_fallback, previous_block) in block_elements.items():
+                            if str(previous_block.get("ID") or previous_fallback) == str(native_id):
+                                key = previous_key
+                                break
                 block_elements[key] = (fallback_id, block)
     for block_order, (fallback_id, block) in enumerate(block_elements.values(), start=1):
         if block.get("Type") == "Trash":

@@ -376,6 +376,75 @@ def test_direct_blocks_keep_existing_precedence_over_qsf_blocks(tmp_path: Path) 
     )
 
 
+@pytest.mark.parametrize("qsf_container,direct_container", [("dict", "list"), ("list", "dict")])
+@pytest.mark.parametrize("format", ["json", "csv", "parquet"])
+def test_equivalent_mixed_source_blocks_keep_one_native_section_and_original_order(
+    tmp_path: Path, qsf_container: str, direct_container: str, format: str
+) -> None:
+    csv_path, definition_path, _ = _lineage_files(
+        tmp_path / "input", source="qsf", container=qsf_container, flow_mode="embedded"
+    )
+    definition = json.loads(definition_path.read_text(encoding="utf-8"))
+    block_element = next(element for element in definition["SurveyElements"] if element["Element"] == "BL")
+    blocks = list(block_element["Payload"].values()) if qsf_container == "dict" else block_element["Payload"]
+    if qsf_container == "dict":
+        block_element["Payload"] = {str(index): block for index, block in enumerate(blocks)}
+    if direct_container == "dict":
+        definition["Blocks"] = {str(index): block for index, block in enumerate(blocks)}
+    else:
+        definition["Blocks"] = blocks
+    baseline_definition = tmp_path / "baseline.json"
+    baseline_definition.write_text(
+        json.dumps({key: value for key, value in definition.items() if key != "Blocks"}), encoding="utf-8"
+    )
+    baseline = parse_survey(csv_path, baseline_definition)
+    definition_path.write_text(json.dumps(definition), encoding="utf-8")
+
+    entities = parse_survey(csv_path, definition_path)
+    _assert_lineage(entities, has_flow=True)
+    assert entities.sections == baseline.sections
+    assert entities.questions == baseline.questions
+    assert len({section["section_id"] for section in entities.sections}) == 2
+    assert build_semantic_model(entities).dim_questions == build_semantic_model(baseline).dim_questions
+
+    destination = tmp_path / format
+    write_entities(entities, destination, format)
+    loaded = load_entities(destination)
+    _assert_lineage(loaded, has_flow=True)
+
+
+@pytest.mark.parametrize("qsf_container,direct_container", [("dict", "list"), ("list", "dict")])
+def test_direct_mixed_source_block_metadata_wins_at_original_position(
+    tmp_path: Path, qsf_container: str, direct_container: str
+) -> None:
+    csv_path, definition_path, _ = _lineage_files(
+        tmp_path / "input", source="qsf", container=qsf_container, flow_mode="embedded"
+    )
+    definition = json.loads(definition_path.read_text(encoding="utf-8"))
+    block_element = next(element for element in definition["SurveyElements"] if element["Element"] == "BL")
+    blocks = list(block_element["Payload"].values()) if qsf_container == "dict" else block_element["Payload"]
+    if qsf_container == "dict":
+        block_element["Payload"] = {str(index): block for index, block in enumerate(blocks)}
+    direct_blocks = [
+        {**block, "Description": "Direct first"} if block["ID"] == "BL_FIRST" else block for block in blocks
+    ]
+    definition["Blocks"] = (
+        {str(index): block for index, block in enumerate(direct_blocks)}
+        if direct_container == "dict"
+        else direct_blocks
+    )
+    definition_path.write_text(json.dumps(definition), encoding="utf-8")
+
+    entities = parse_survey(csv_path, definition_path)
+    assert [(row["section_external_id"], row["section_name"], row["section_order"]) for row in entities.sections] == [
+        ("BL_FIRST", "Direct first", 1),
+        ("BL_SECOND", "Second block", 3),
+    ]
+    first_question = next(row for row in entities.questions if row["question_external_id"] == "QID1")
+    assert first_question["block_name"] == "Direct first"
+    assert first_question["block_order"] == 1
+
+
 def test_fictional_feedback_qsf_list_blocks_keep_dictionary_lineage(tmp_path: Path) -> None:
     source = Path("docs/assets/examples/feedback.csv")
     original = Path("docs/assets/examples/feedback.qsf")

@@ -27,7 +27,7 @@ Parsing produces nine authoritative entities plus the derived `comments` table, 
 
 Each `sections` row represents one configured survey block, identified internally by the survey-scoped `section_id`. Its `section_external_id` retains the native block ID, including a dictionary key used when the block has no explicit `ID`. List position never becomes a block ID. `questions.section_id` links to that internal section ID; the flattened `dim_questions` carries the section name and block order. A block referenced more than once in survey flow still has one section row, while the flow keeps each occurrence as a separate node. Trash blocks have no section row, but their position remains in block ordering.
 
-When a definition supplies both QSF `BL.Payload` and direct `Blocks`, direct entries replace QSF entries with the same container key (or the native ID for list entries). Differently keyed entries remain separate, as in existing dictionary parsing; reconcile conflicting definitions at the source.
+When a definition supplies both QSF `BL.Payload` and direct `Blocks`, direct entries take precedence. Matching dictionary keys retain their existing merge behavior and position. If one container is a dictionary and the other is a list, matching native block IDs also reconcile into one section at the first occurrence's position, even when dictionary keys differ. Two dictionaries with different keys remain separate under the established key-based behavior; reconcile conflicting definitions at the source.
 
 Questions retain `question_type`, `selector`, and `sub_selector` exactly and add `canonical_question_type`. Fields and answers add `answer_value_type`. Unknown combinations remain available with `unsupported` classification.
 
