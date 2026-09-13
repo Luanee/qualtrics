@@ -79,7 +79,7 @@ def test_choice_validation_uses_field_suffix_without_changing_loop_identities(
 
     assert [row["answer_text"] for row in validated.comments] == ["Taylor"]
     assert [row["is_comment_field"] for row in validated.question_fields] == [True, False]
-    assert [row["choice_external_id"] for row in validated.question_fields] == (["2", "1"] if looped else ["1", "2"])
+    assert [row["choice_external_id"] for row in validated.question_fields] == ["1", "2"]
     catalog_keys = {"question_catalog_id", "question_field_catalog_id"} if question_type == "MC" else set()
     assert [
         {key: value for key, value in row.items() if key not in catalog_keys} for row in validated.response_answers

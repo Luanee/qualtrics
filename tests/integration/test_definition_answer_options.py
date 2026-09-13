@@ -452,3 +452,276 @@ def test_empty_csv_table_must_expose_current_answer_option_schema(
 
     with pytest.raises(ValueError, match="answer_options schema is missing required columns"):
         load_entities(output)
+
+
+@pytest.fixture
+def looped_answer_files(tmp_path: Path) -> tuple[Path, Path]:
+    source = tmp_path / "looped.csv"
+    definition = tmp_path / "looped.qsf"
+    imports = ["2_QID1_1", "1_QID1_2", "1_QID1_1"]
+    with source.open("w", newline="", encoding="utf-8") as handle:
+        csv.writer(handle).writerows([
+            ["ResponseId", *imports],
+            ["Response ID", "Features - Fast", "Features - Safe", "Features - Fast"],
+            ["{}", *(json.dumps({"ImportId": value}) for value in imports)],
+            ["R1", "Selected", "Selected", "Selected"],
+        ])
+    definition.write_text(
+        json.dumps({
+            "SurveyEntry": {"SurveyID": "SV_LOOP", "SurveyName": "Looped options"},
+            "Questions": {
+                "QID1": {
+                    "QuestionID": "QID1",
+                    "QuestionText": "Features",
+                    "QuestionType": "MC",
+                    "Selector": "MAVR",
+                    "Choices": {"1": {"Display": "Fast"}, "2": {"Display": "Safe"}},
+                }
+            },
+        }),
+        encoding="utf-8",
+    )
+    return source, definition
+
+
+@pytest.mark.parametrize("format", ["json", "csv", "parquet"])
+def test_looped_selections_keep_native_choice_links_through_storage_and_reporting(
+    looped_answer_files, tmp_path, format
+):
+    entities = parse_survey(*looped_answer_files)
+    assert [field["choice_external_id"] for field in entities.question_fields] == ["1", "2", "1"]
+    assert len({field["question_field_id"] for field in entities.question_fields}) == 3
+    assert len({answer["response_answer_id"] for answer in entities.response_answers}) == 3
+    write_entities(entities, tmp_path / "entities", format)
+    loaded = load_entities(tmp_path / "entities")
+    model = build_semantic_model(loaded)
+    options = {option["answer_option_id"]: option for option in model.dim_answer_options}
+    assert [answer["raw_value"] for answer in model.fact_response_answers] == ["Selected"] * 3
+    assert [answer["answer_text"] for answer in model.fact_response_answers] == ["Selected"] * 3
+    linked = [options[answer["answer_option_id"]] for answer in model.fact_response_answers]
+    assert [(option["source_choice_id"], option["choice_value"]) for option in linked] == [
+        ("1", "Fast"),
+        ("2", "Safe"),
+        ("1", "Fast"),
+    ]
+    assert [option["question_field_id"] for option in linked] == [
+        answer["question_field_id"] for answer in model.fact_response_answers
+    ]
+    output = tmp_path / "report.html"
+    render_report(loaded, output)
+    document = output.read_text(encoding="utf-8").split("data-question='QID1'", 1)[1].split("</details>", 1)[0]
+    assert ">Fast</span>" in document
+    assert ">Safe</span>" in document
+    assert ">Selected</span>" not in document
+
+
+@pytest.mark.parametrize("key", ["choiceId", "ChoiceId", "choiceID"])
+@pytest.mark.parametrize(("explicit", "expected"), [("2", "2"), ("invalid", "1")])
+def test_looped_choice_metadata_precedes_suffix_but_invalid_metadata_does_not(
+    looped_answer_files, key, explicit, expected
+):
+    source, definition = looped_answer_files
+    with source.open(newline="") as handle:
+        rows = list(csv.reader(handle))
+    rows[2][1] = json.dumps({"ImportId": "2_QID1_1", key: explicit})
+    with source.open("w", newline="") as handle:
+        csv.writer(handle).writerows(rows)
+    entities = parse_survey(source, definition)
+    field = entities.question_fields[0]
+    answer = entities.response_answers[0]
+    option = next(
+        option for option in entities.answer_options if option["answer_option_id"] == answer["answer_option_id"]
+    )
+    assert field["choice_external_id"] == option["source_choice_id"] == expected
+
+
+@pytest.mark.parametrize("multiple", [False, True])
+@pytest.mark.parametrize("explicit", [False, True])
+@pytest.mark.parametrize("looped", [False, True])
+def test_looped_matrix_rows_and_cells_use_suffix_positions(definition_answer_files, multiple, explicit, looped):
+    source, definition = definition_answer_files
+    with source.open(newline="") as handle:
+        rows = list(csv.reader(handle))
+    first = "2_QID3_1_3" if multiple else "2_QID3_1"
+    second = "1_QID3_2_1" if multiple else "1_QID3_2"
+    if not looped:
+        first, second = first[2:], second[2:]
+    rows[2][5] = json.dumps({"ImportId": first, **({"choiceId": "2", "answerId": "2"} if explicit else {})})
+    rows[2][6] = json.dumps({"ImportId": second, "choiceId": "invalid", "answerId": "invalid"})
+    rows[3][5:7] = ["Selected", "Selected"] if multiple else ["1", "-1"]
+    with source.open("w", newline="") as handle:
+        csv.writer(handle).writerows(rows)
+    qsf = json.loads(definition.read_text())
+    matrix = next(item["Payload"] for item in qsf["SurveyElements"] if item.get("PrimaryAttribute") == "QID3")
+    if multiple:
+        matrix["SubSelector"] = "MultipleAnswer"
+    definition.write_text(json.dumps(qsf))
+    entities = parse_survey(source, definition)
+    fields = [field for field in entities.question_fields if field["question_external_id"] == "QID3"]
+    assert [field["choice_external_id"] for field in fields] == (["2", "2"] if explicit else ["1", "2"])
+    assert [field["statement_text"] for field in fields] == (
+        ["Support", "Support"] if explicit else ["Delivery", "Support"]
+    )
+    options = {option["answer_option_id"]: option for option in entities.answer_options}
+    answers = [answer for answer in entities.response_answers if answer["question_external_id"] == "QID3"]
+    assert [options[answer["answer_option_id"]]["source_choice_id"] for answer in answers] == [
+        "2" if multiple and explicit else "3",
+        "1",
+    ]
+
+
+def test_looped_parser_preserves_baseline_occurrence_and_unchanged_catalog_ids(looped_answer_files):
+    entities = parse_survey(*looped_answer_files)
+    # Captured from the same fictional source on e59c5b4, before fixing option lookup.
+    assert entities.surveys[0]["survey_id"] == "SV_LOOP"
+    assert entities.questions[0]["question_id"] == "2444a60997a47ba0052fcada76afe30f94dca98724a0016d287fe1d5c79d71ef"
+    assert entities.responses[0]["response_id"] == "d8f5dde8abbeb6013717efdd743c33d8bf78b4af833a3e947c0e060306571117"
+    assert [field["question_field_id"] for field in entities.question_fields] == [
+        "717e352ea5fc796fb7b41a8d58f544016ab7094d009adc076d0fc775dd9e7e2d",
+        "8ffe8932005158c64a475489ae360086c14bc6c59df61c55169ef632f0bb154b",
+        "e7c763233182b75c7293110ea28fe986a9740ed169319990dad432ad12b4641f",
+    ]
+    assert [answer["response_answer_id"] for answer in entities.response_answers] == [
+        "36b59d2a3eecf18fb2330cc21f2cad720568e70f59b11822fe1438d8e1bee174",
+        "201154f6ad188e686bf0c77d180eb2df19cb518a19d0d4260e6f5ea02d8a674c",
+        "b39855be2ab049420b473173b0e81d31dff651987f0d833c5f38989638e8ea81",
+    ]
+    assert [field["source_field_suffix"] for field in entities.question_fields] == ["2__1", "1__2", "1__1"]
+    assert [field["field_text"] for field in entities.question_fields] == ["Fast", "Safe", "Fast"]
+    assert (
+        entities.question_catalog[0]["question_catalog_id"]
+        == "dcadf33bd354d1b25b7cae7fd885aa64a9622fd1a00c1d1e15106235b0b396e4"
+    )
+    assert [field["question_field_catalog_id"] for field in entities.question_fields] == [
+        "ae59cfd99bb40fdcde7f533451664739004d06d166b47cd5d9bdac66251a3bd0",
+        "bfd3af22dcc8e9aa558b86cff39ed2a8fc2895948e2dd8d6e35a0e55963b9989",
+        "ae59cfd99bb40fdcde7f533451664739004d06d166b47cd5d9bdac66251a3bd0",
+    ]
+    # Corrected ordering has the same normalized option content in this fixture.
+    content = json.loads(entities.question_catalog[0]["normalized_question_content"])
+    assert content["answers"] == ["fast", "fast", "safe"]
+
+
+def test_corrected_loop_option_changes_catalog_content_when_selected_domain_changes(looped_answer_files):
+    source, definition = looped_answer_files
+    with source.open(newline="") as handle:
+        rows = list(csv.reader(handle))
+    with source.open("w", newline="") as handle:
+        csv.writer(handle).writerows([row[:2] for row in rows])
+    entities = parse_survey(source, definition)
+    assert (
+        entities.question_fields[0]["question_field_id"]
+        == "717e352ea5fc796fb7b41a8d58f544016ab7094d009adc076d0fc775dd9e7e2d"
+    )
+    assert (
+        entities.response_answers[0]["response_answer_id"]
+        == "36b59d2a3eecf18fb2330cc21f2cad720568e70f59b11822fe1438d8e1bee174"
+    )
+    assert entities.response_answers[0]["raw_value"] == "Selected"
+    # The old domain contained only Safe. Correcting it to Fast changes content,
+    # hence these catalog IDs, while both identity algorithms remain unchanged.
+    assert (
+        entities.question_catalog[0]["question_catalog_id"]
+        == "67efe1e0a6d441fa3ff9a928ca2322feb37d04d528e40f912b32183cc34aaee8"
+    )
+    assert json.loads(entities.question_catalog[0]["normalized_question_content"]) == {
+        "answers": ["fast"],
+        "role": "response",
+        "text": "features",
+        "type": "multiple_choice_multiple",
+        "structure": {
+            "definition": {"Choices": [["fast"], ["safe"]]},
+            "fields": [{"role": "answer", "text": "fast", "value_type": "categorical"}],
+        },
+    }
+    assert (
+        entities.question_field_catalog[0]["question_field_catalog_id"]
+        == "5722f167a3b4b8a358ddf85f5302d1118eadcbad58e62968c37ff1e7701bd867"
+    )
+    assert json.loads(entities.question_field_catalog[0]["normalized_field_content"]) == {
+        "role": "answer",
+        "text": "fast",
+        "value_type": "categorical",
+    }
+
+
+def test_invalid_native_choice_does_not_fall_back_to_loop_iteration(looped_answer_files):
+    source, definition = looped_answer_files
+    with source.open(newline="") as handle:
+        rows = list(csv.reader(handle))
+    rows[0][1] = "2_QID1_9"
+    rows[2][1] = json.dumps({"ImportId": "2_QID1_9"})
+    with source.open("w", newline="") as handle:
+        csv.writer(handle).writerows(rows)
+    entities = parse_survey(source, definition)
+    assert entities.question_fields[0]["choice_external_id"] is None
+    assert entities.response_answers[0]["answer_option_id"] is None
+    assert entities.response_answers[0]["raw_value"] == "Selected"
+
+
+def test_metadata_associated_legacy_columns_keep_choice_and_matrix_answer_mapping(definition_answer_files):
+    source, definition = definition_answer_files
+    with source.open(newline="") as handle:
+        rows = list(csv.reader(handle))
+    rows[2][2] = json.dumps({"ImportId": "legacy_1", "questionId": "QID2"})
+    rows[2][5] = json.dumps({"ImportId": "legacy_1_3", "questionId": "QID3"})
+    rows[3][5] = "Selected"
+    with source.open("w", newline="") as handle:
+        csv.writer(handle).writerows(rows)
+    qsf = json.loads(definition.read_text())
+    matrix = next(item["Payload"] for item in qsf["SurveyElements"] if item.get("PrimaryAttribute") == "QID3")
+    matrix["SubSelector"] = "MultipleAnswer"
+    definition.write_text(json.dumps(qsf))
+    entities = parse_survey(source, definition)
+    fields = {field["field_external_id"]: field for field in entities.question_fields}
+    assert fields["one"]["choice_external_id"] == fields["matrix_one"]["choice_external_id"] == "1"
+    answers = {answer["field_external_id"]: answer for answer in entities.response_answers}
+    options = {option["answer_option_id"]: option for option in entities.answer_options}
+    assert options[answers["one"]["answer_option_id"]]["source_choice_id"] == "1"
+    assert options[answers["matrix_one"]["answer_option_id"]]["source_choice_id"] == "3"
+
+
+@pytest.mark.parametrize("key", ["choiceId", "ChoiceId", "choiceID"])
+def test_valid_zero_choice_metadata_precedes_loop_suffix(looped_answer_files, key):
+    source, definition = looped_answer_files
+    with source.open(newline="") as handle:
+        rows = list(csv.reader(handle))
+    rows[2][1] = json.dumps({"ImportId": "2_QID1_1", key: 0})
+    with source.open("w", newline="") as handle:
+        csv.writer(handle).writerows(rows)
+    qsf = json.loads(definition.read_text())
+    qsf["Questions"]["QID1"]["Choices"]["0"] = {"Display": "Other"}
+    definition.write_text(json.dumps(qsf))
+    entities = parse_survey(source, definition)
+    assert entities.question_fields[0]["choice_external_id"] == "0"
+    option = next(
+        option
+        for option in entities.answer_options
+        if option["answer_option_id"] == entities.response_answers[0]["answer_option_id"]
+    )
+    assert option["source_choice_id"] == "0"
+
+
+@pytest.mark.parametrize("key", ["answerId", "AnswerId", "answerID"])
+def test_valid_zero_matrix_answer_metadata_precedes_loop_suffix(looped_answer_files, key):
+    source, definition = looped_answer_files
+    with source.open(newline="") as handle:
+        rows = list(csv.reader(handle))
+    rows[2][1] = json.dumps({"ImportId": "2_QID1_1_1", key: 0})
+    with source.open("w", newline="") as handle:
+        csv.writer(handle).writerows(rows)
+    qsf = json.loads(definition.read_text())
+    qsf["Questions"]["QID1"].update({
+        "QuestionType": "Matrix",
+        "Selector": "Likert",
+        "SubSelector": "MultipleAnswer",
+        "Answers": {"0": {"Display": "No"}, "1": {"Display": "Yes"}},
+    })
+    definition.write_text(json.dumps(qsf))
+    entities = parse_survey(source, definition)
+    option = next(
+        option
+        for option in entities.answer_options
+        if option["answer_option_id"] == entities.response_answers[0]["answer_option_id"]
+    )
+    assert option["source_choice_id"] == "0"
