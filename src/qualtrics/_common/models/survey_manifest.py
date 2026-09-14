@@ -37,8 +37,7 @@ def write_manifest(folder: Path, surveys: list[dict[str, Any]], manifests: dict[
     (folder / MANIFEST_FILENAME).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def load_manifest(folder: Path, surveys: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    path = folder / MANIFEST_FILENAME
+def load_manifest(path: Path, surveys: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     if not path.exists():
         return {}
     try:

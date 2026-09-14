@@ -163,7 +163,8 @@ data/api-export/SV_123/
 ├── responses.csv
 ├── report.html
 └── entities/
-    └── ... ten Parquet files ...
+    ├── ... ten Parquet files ...
+    └── manifest.json
 ```
 
 This script uses Parquet by default; the base package includes PyArrow. Add `--format csv` or `--format json` for another entity format. Its `--labels` default, optional `--codes`, and `--start-date` / `--end-date` export filters appear in:

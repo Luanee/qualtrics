@@ -28,7 +28,7 @@ A QSF describes the survey. It supplies question types, blocks, and the complete
 
 The base package includes PyArrow, and the report command reads all three formats. Use one format per entity folder.
 
-CSV entity files can contain source-column and survey-flow metadata cells larger than 128 KiB. The loader reads these cells without truncating them. It raises Python's process-wide CSV field limit before reading, first trying `sys.maxsize` and halving the candidate if the platform rejects it. It keeps any larger limit already configured by the caller. A field beyond the resulting `csv.field_size_limit()` still raises a CSV error; JSON or Parquet are alternatives for data that exceeds that platform limit.
+The entity folder also contains `manifest.json` with source-column and survey-flow metadata for each survey ID. Keep it alongside the tables when copying or combining folders. CSV response cells can still be large; the loader raises Python's field-size limit as far as the platform permits. If a cell exceeds that limit, use JSON or Parquet.
 
 ## 3. Parse the export
 

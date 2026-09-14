@@ -40,6 +40,24 @@ def test_semantic_model_cli_rejects_tables_in_another_format(tmp_path: Path, sur
     assert "already contains semantic tables" in result.output
 
 
+def test_semantic_model_cli_does_not_replace_existing_manifest(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
+    source = tmp_path / "entities"
+    output = tmp_path / "semantic"
+    write_entities(parse_survey(*survey_files), source, "json")
+    output.mkdir()
+    manifest = output / "manifest.json"
+    manifest.write_text("original", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        app, ["semantic-model", "build", str(source), "--output", str(output), "--format", "sqlite"]
+    )
+
+    assert result.exit_code == 2
+    assert "already contains semantic tables" in result.output
+    assert manifest.read_text(encoding="utf-8") == "original"
+    assert list(output.iterdir()) == [manifest]
+
+
 def test_semantic_parquet_has_columns_for_empty_tables(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
     import pyarrow.parquet as pq
 

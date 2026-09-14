@@ -72,7 +72,7 @@ def test_wide_survey_manifest_round_trips_all_formats_and_supports_semantic_mode
         assert model.fact_responses[0]["Region"] == "North"
 
     explicit_tables = load_entities(**{name: tmp_path / "csv" / f"{name}.csv" for name in ENTITY_NAMES})
-    assert explicit_tables.survey_manifests == {}
+    assert explicit_tables.survey_manifests[survey_id] == manifest
     assert "source_columns_json" not in explicit_tables.surveys[0]
     assert explicit_tables.responses[0]["Region"] == "North"
 

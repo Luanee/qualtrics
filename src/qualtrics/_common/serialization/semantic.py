@@ -14,7 +14,7 @@ from ..models.comments import COMMENT_COLUMNS, build_comments
 from ..models.entities import EntitySet
 from ..models.response_columns import read_source_columns
 from ..models.semantic import SEMANTIC_TABLE_NAMES, SemanticModel
-from ..models.survey_manifest import write_manifest
+from ..models.survey_manifest import validate_manifests, write_manifest
 
 SEMANTIC_COLUMNS = {
     "fact_responses": (
@@ -188,6 +188,7 @@ def _write_sqlite(model: SemanticModel, destination: Path) -> None:
 
 
 def write_semantic_model(model: SemanticModel, folder: str | Path, format: str = "parquet") -> None:
+    validate_manifests({str(row["survey_id"]) for row in model.dim_surveys}, model.survey_manifests)
     model = replace(
         model,
         fact_comments=build_comments(

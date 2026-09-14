@@ -82,3 +82,30 @@ def test_report_cli_still_accepts_one_entity_folder(tmp_path: Path, survey_files
     report = output.read_text(encoding="utf-8")
     assert "<title>Sample · Response report</title>" in report
     assert "Second survey" not in report
+
+
+def test_report_cli_explicit_files_keep_manifest_codebook(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
+    entities = parse_survey(*survey_files)
+    entities.survey_manifests["SV_SAMPLE"]["source_columns_json"][0]["label"] = "Manifest-only source label"
+    folder = tmp_path / "entities"
+    write_entities(entities, folder, "json")
+    output = tmp_path / "report.html"
+    names = (
+        "surveys",
+        "sections",
+        "question_catalog",
+        "question_field_catalog",
+        "questions",
+        "answer_options",
+        "question_fields",
+        "responses",
+        "response_answers",
+    )
+    arguments = ["report", "--output", str(output), "--manifest", str(folder / "manifest.json")]
+    for name in names:
+        arguments.extend((f"--{name.replace('_', '-')}", str(folder / f"{name}.json")))
+
+    result = CliRunner().invoke(app, arguments)
+
+    assert result.exit_code == 0, result.output
+    assert "Manifest-only source label" in output.read_text(encoding="utf-8")

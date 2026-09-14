@@ -8,7 +8,7 @@ from pathlib import Path
 from ..models.comments import COMMENT_COLUMNS, build_comments
 from ..models.entities import ENTITY_NAMES, EntitySet
 from ..models.response_columns import read_source_columns
-from ..models.survey_manifest import load_manifest, write_manifest
+from ..models.survey_manifest import MANIFEST_FILENAME, load_manifest, validate_manifests, write_manifest
 
 CSV_FIELD_TYPES: dict[str, dict[str, type[int] | type[float] | type[bool]]] = {
     "sections": {"section_order": int},
@@ -241,6 +241,7 @@ def _column_names(entities: EntitySet, name: str) -> list[str]:
 
 
 def write_entities(entities: EntitySet, folder: str | Path, format: str = "json") -> None:
+    validate_manifests({str(row["survey_id"]) for row in entities.surveys}, entities.survey_manifests)
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
     for name in ENTITY_NAMES:
@@ -330,8 +331,17 @@ def load_entities(folder: str | Path | None = None, **paths: str | Path) -> Enti
             result._present_columns[name] = set(table.schema.names)
         setattr(result, name, records)
         result._present_entities.add(name)
-    if folder:
-        result.survey_manifests = load_manifest(folder, result.surveys)
+    if "manifest" in paths:
+        manifest_path = Path(paths["manifest"])
+        if not manifest_path.is_file():
+            raise ValueError(f"Survey manifest does not exist: {manifest_path}")
+    elif folder:
+        manifest_path = folder / MANIFEST_FILENAME
+    else:
+        parent_folders = {Path(path).resolve().parent for name, path in paths.items() if name in ENTITY_NAMES}
+        manifest_path = next(iter(parent_folders)) / MANIFEST_FILENAME if len(parent_folders) == 1 else None
+    if manifest_path is not None:
+        result.survey_manifests = load_manifest(manifest_path, result.surveys)
     validate_entity_set(result, strict=folder is not None)
     result.comments = build_comments(result)
     result._present_columns["comments"] = set(COMMENT_COLUMNS)

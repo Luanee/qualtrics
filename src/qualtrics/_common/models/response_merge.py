@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from copy import deepcopy
 from typing import Any
 
 from .entities import EntitySet
@@ -90,7 +91,7 @@ def merge_response_columns(
             {},
         )
         merged_manifests[survey_id] = {
-            "flow_definition_json": original.get("flow_definition_json"),
+            "flow_definition_json": deepcopy(original.get("flow_definition_json")),
             "source_columns_json": columns,
         }
     return surveys, responses, set(keys), merged_manifests

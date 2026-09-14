@@ -88,8 +88,8 @@ write_semantic_model(
 | `parse_survey` | Accepts a CSV, a ZIP containing one CSV, or a wildcard pattern matching several inputs. Discovers a same-stem `.qsf` then `.json` definition if you omit `qsf_path`. A `survey_id` override applies to one input only. |
 | `parse_surveys` | Expands wildcard patterns in each supplied path, sorting each pattern's matches. Explicit definitions pair with inputs by position; supply one per input or omit them for adjacent discovery. |
 | `merge_entity_sets` | Combines distinct survey IDs and deduplicates identical records in the two catalogs. Raises `ValueError` for repeated survey IDs or conflicting records with the same catalog ID. |
-| `write_entities` | Writes all ten entities as `json`, `csv`, or `parquet`. Creates the folder and overwrites matching files. |
-| `load_entities` | Loads entity files named for their tables. Explicit keyword paths use table names, such as `responses="responses.json"`. Validates the full contract when you supply a folder; without a folder, validates the supplied subset's keys and relationships. Rejects multiple formats for the same entity in a folder. |
+| `write_entities` | Writes all ten entities as `json`, `csv`, or `parquet`, plus one `manifest.json`. Creates the folder and overwrites matching files. |
+| `load_entities` | Loads entity files named for their tables. Explicit keyword paths use table names, such as `responses="responses.json"`; `manifest="metadata.json"` selects a separate manifest. When explicit table paths share a folder, its sibling `manifest.json` is loaded automatically. Validates the full contract when you supply a folder; without a folder, validates the supplied subset's keys and relationships. Rejects multiple formats for the same entity in a folder. |
 | `render_report` | Writes a self-contained HTML report with the built-in design. The output's parent directory must exist. Overwrites the target file. |
 | `analyze_entities` | Calculates response counts, question roles, answer groupings, and unused or unanswered content for reports. Returns a `ReportAnalytics` without requiring the `ui` extra. |
 | `build_semantic_model` | Requires a complete, valid entity collection. Returns six tables in a `SemanticModel`. |
@@ -136,7 +136,7 @@ Use the downloadable inputs in [your first report](../getting-started/first-repo
 
 ### Collections and table names
 
-`EntitySet` is a dataclass with lists of dictionaries named `surveys`, `sections`, `question_catalog`, `question_field_catalog`, `questions`, `answer_options`, `question_fields`, `responses`, `response_answers`, and `comments`. Prefer `parse_survey` or `load_entities` to construct a collection with the metadata needed for strict validation.
+`EntitySet` is a dataclass with lists of dictionaries named `surveys`, `sections`, `question_catalog`, `question_field_catalog`, `questions`, `answer_options`, `question_fields`, `responses`, `response_answers`, and `comments`. Its keyword-only `survey_manifests` map holds the per-survey sidecar data in memory. Prefer `parse_survey` or `load_entities` to construct a collection with the metadata needed for strict validation.
 
 `SemanticModel` is a dataclass with `fact_responses`, `fact_response_answers`, `dim_surveys`, `dim_questions`, `dim_answer_options`, and `fact_comments`, also lists of dictionaries. `dim_questions` has one row per exported question field.
 
