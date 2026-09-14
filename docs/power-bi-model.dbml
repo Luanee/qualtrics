@@ -15,9 +15,7 @@ Table dim_surveys [headercolor: #386CB0] {
   survey_name varchar [not null]
   survey_status varchar
   default_language varchar
-  source_columns_json text [note: 'Optional JSON list of source-column classifications and storage mappings, including survey-specific response properties']
-  flow_definition_json text [note: 'Optional serialized survey flow definition when available from the source']
-  Note: 'One survey. source_columns_json and flow_definition_json are optional metadata and can be absent from older exports.'
+  Note: 'One survey. Flow and source-column descriptors are keyed by survey_id in the sibling manifest.json.'
 }
 
 Table dim_questions [headercolor: #386CB0] {
@@ -106,7 +104,7 @@ Table fact_responses [headercolor: #C57622] {
   operating_system varchar
   screen_resolution varchar
   user_agent varchar
-  Note: 'One survey response. Additional response-property columns vary by survey and hold text or null. Read dim_surveys.source_columns_json for original source names and storage mappings. Timestamps, is_finished, progress and duration_seconds are exported as text.'
+  Note: 'One survey response. Additional response-property columns vary by survey and hold text or null. Read manifest.json for original source names and storage mappings. Timestamps, is_finished, progress and duration_seconds are exported as text.'
 }
 
 Table fact_response_answers [headercolor: #C57622] {

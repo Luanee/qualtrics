@@ -14,6 +14,7 @@ from ..models.comments import COMMENT_COLUMNS, build_comments
 from ..models.entities import EntitySet
 from ..models.response_columns import read_source_columns
 from ..models.semantic import SEMANTIC_TABLE_NAMES, SemanticModel
+from ..models.survey_manifest import validate_manifests, write_manifest
 
 SEMANTIC_COLUMNS = {
     "fact_responses": (
@@ -126,8 +127,8 @@ def _column_names(name: str, rows: list[dict[str, Any]], model: SemanticModel) -
     keys = list(SEMANTIC_COLUMNS[name])
     keys.extend(key for row in rows for key in row if key not in keys)
     if name == "fact_responses":
-        for survey in model.dim_surveys:
-            for column in read_source_columns(survey):
+        for manifest in model.survey_manifests.values():
+            for column in read_source_columns(manifest):
                 key = column.get("storage_column")
                 if column.get("storage_table") == "responses" and isinstance(key, str) and key and key not in keys:
                     keys.append(key)
@@ -187,6 +188,7 @@ def _write_sqlite(model: SemanticModel, destination: Path) -> None:
 
 
 def write_semantic_model(model: SemanticModel, folder: str | Path, format: str = "parquet") -> None:
+    validate_manifests({str(row["survey_id"]) for row in model.dim_surveys}, model.survey_manifests)
     model = replace(
         model,
         fact_comments=build_comments(
@@ -207,6 +209,7 @@ def write_semantic_model(model: SemanticModel, folder: str | Path, format: str =
     destination.mkdir(parents=True, exist_ok=True)
     if format == "sqlite":
         _write_sqlite(model, destination)
+        write_manifest(destination, model.dim_surveys, model.survey_manifests)
         return
     for name in SEMANTIC_TABLE_NAMES:
         rows = getattr(model, name)
@@ -224,7 +227,7 @@ def write_semantic_model(model: SemanticModel, folder: str | Path, format: str =
                 import pyarrow as pa
                 import pyarrow.parquet as pq
             except ImportError as exc:
-                raise RuntimeError("Install qualtrics[parquet]") from exc
+                raise RuntimeError("PyArrow is required for Parquet output") from exc
             keys = _column_names(name, rows, model)
             fields = []
             for key in keys:
@@ -249,3 +252,4 @@ def write_semantic_model(model: SemanticModel, folder: str | Path, format: str =
             pq.write_table(pa.Table.from_pylist(normalized, schema=pa.schema(fields)), path)
         else:
             raise ValueError(f"Unsupported format: {format}")
+    write_manifest(destination, model.dim_surveys, model.survey_manifests)

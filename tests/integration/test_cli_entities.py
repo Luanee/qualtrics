@@ -87,6 +87,22 @@ def test_entities_combine_rejects_output_with_existing_entity_files(
     assert "already contains entity files" in result.output
 
 
+def test_entities_combine_does_not_replace_existing_manifest(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
+    source = tmp_path / "source"
+    output = tmp_path / "combined"
+    write_entities(parse_survey(*survey_files), source, "json")
+    output.mkdir()
+    manifest = output / "manifest.json"
+    manifest.write_text("original", encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["entities", "combine", str(source), "--output", str(output)])
+
+    assert result.exit_code == 2
+    assert "already contains entity files" in result.output
+    assert manifest.read_text(encoding="utf-8") == "original"
+    assert list(output.iterdir()) == [manifest]
+
+
 def test_entities_combine_rejects_incomplete_entity_collection(tmp_path: Path) -> None:
     source = tmp_path / "source"
     source.mkdir()

@@ -87,7 +87,8 @@ def test_embedded_and_unknown_columns_are_preserved_without_inventing_questions(
     assert [(answer["question_external_id"], answer["answer_text"]) for answer in entities.response_answers] == [
         ("QID1", "Example country")
     ]
-    dictionary = json.loads(entities.surveys[0]["source_columns_json"])
+    assert "source_columns_json" not in entities.surveys[0]
+    dictionary = entities.survey_manifests["SV_TEST"]["source_columns_json"]
     assert [column["kind"] for column in dictionary] == [
         "system",
         "embedded",
@@ -135,7 +136,7 @@ def test_duplicate_and_reserved_properties_have_lossless_storage_names(tmp_path:
         ["R_TEST", "One", "Two", "Three", "Other ID", "My status", "001"],
     )
     entities = parse_survey(*paths)
-    dictionary = json.loads(entities.surveys[0]["source_columns_json"])
+    dictionary = entities.survey_manifests["SV_TEST"]["source_columns_json"]
     response = entities.responses[0]
     property_columns = [column["storage_column"] for column in dictionary[1:]]
     assert len({name.casefold() for name in response}) == len(response)
@@ -167,7 +168,7 @@ def test_technical_question_values_are_response_properties(tmp_path: Path) -> No
     assert entities.responses[0]["Time_First Click"] == "1.25"
     assert entities.responses[0]["browser"] == "SyntheticBrowser"
     assert [answer["answer_text"] for answer in entities.response_answers] == ["9", "Promoter"]
-    dictionary = json.loads(entities.surveys[0]["source_columns_json"])
+    dictionary = entities.survey_manifests["SV_TEST"]["source_columns_json"]
     assert [column["kind"] for column in dictionary] == ["system", "metadata", "timing", "question", "derived"]
     assert dictionary[-1]["question_external_id"] == "QID3"
 
@@ -242,7 +243,7 @@ def test_declared_embedded_field_takes_priority_over_a_question_export_tag(tmp_p
     entities = parse_survey(*paths)
     assert entities.responses[0]["Country"] == "Example country"
     assert entities.response_answers == []
-    descriptor = json.loads(entities.surveys[0]["source_columns_json"])[1]
+    descriptor = entities.survey_manifests["SV_TEST"]["source_columns_json"][1]
     assert descriptor["kind"] == "embedded"
 
 
@@ -257,7 +258,7 @@ def test_quality_and_geolocation_properties_have_explicit_evidence(tmp_path: Pat
         ["R_TEST", "00.5", "0.9"],
     )
     entities = parse_survey(*paths)
-    dictionary = json.loads(entities.surveys[0]["source_columns_json"])
+    dictionary = entities.survey_manifests["SV_TEST"]["source_columns_json"]
     assert [item["kind"] for item in dictionary] == ["system", "system", "quality"]
     assert entities.responses[0][dictionary[1]["storage_column"]] == "00.5"
 
@@ -274,11 +275,21 @@ def test_duplicate_fields_avoid_colliding_with_real_suffixed_names(tmp_path: Pat
     assert [row["answer_text"] for row in entities.response_answers] == ["One", "Two", "Three"]
 
 
-@pytest.mark.parametrize("value", [None, "", "{", "null", '{"key":"value"}', "[1,null]"])
-def test_read_source_columns_tolerates_absent_or_invalid_metadata(value: object) -> None:
+@pytest.mark.parametrize("value", [None, "", "{", "null", {"key": "value"}, [1, None]])
+def test_read_source_columns_tolerates_absent_or_invalid_manifest_descriptors(value: object) -> None:
     from qualtrics._common.models.response_columns import read_source_columns
 
     assert read_source_columns({"source_columns_json": value}) == []
+
+
+def test_read_source_columns_returns_independent_native_descriptors() -> None:
+    from qualtrics._common.models.response_columns import read_source_columns
+
+    manifest = {"source_columns_json": [{"source_column": "Region", "kind": "embedded"}]}
+    descriptors = read_source_columns(manifest)
+    descriptors[0]["kind"] = "unclassified"
+
+    assert manifest["source_columns_json"] == [{"source_column": "Region", "kind": "embedded"}]
 
 
 def test_explicit_flow_override_retains_original_embedded_field_declarations(tmp_path: Path) -> None:
@@ -297,9 +308,9 @@ def test_explicit_flow_override_retains_original_embedded_field_declarations(tmp
         json.dumps({"Type": "Root", "Flow": [{"Type": "EmbeddedData", "EmbeddedData": [{"Field": "Cohort"}]}]})
     )
     entities = parse_survey(source, definition, flow_path=flow)
-    dictionary = json.loads(entities.surveys[0]["source_columns_json"])
+    dictionary = entities.survey_manifests["SV_TEST"]["source_columns_json"]
     assert [column["kind"] for column in dictionary] == ["system", "embedded", "embedded"]
-    report_flow = json.loads(entities.surveys[0]["flow_definition_json"])
+    report_flow = entities.survey_manifests["SV_TEST"]["flow_definition_json"]
     assert report_flow["root"]["children"][0]["config"]["EmbeddedData"] == [{"Field": "Cohort"}]
 
 
@@ -316,7 +327,7 @@ def test_quality_evidence_takes_priority_over_embedded_declarations_and_ambiguou
         questions={"QID1": {"DataExportTag": "Country"}, "QID2": {"DataExportTag": "Country"}},
     )
     entities = parse_survey(source, definition)
-    assert [row["kind"] for row in json.loads(entities.surveys[0]["source_columns_json"])] == [
+    assert [row["kind"] for row in entities.survey_manifests["SV_TEST"]["source_columns_json"]] == [
         "system",
         "quality",
         "embedded",

@@ -58,7 +58,9 @@ uv run --extra cli --extra ui qualtrics report \
 | --- | --- | --- |
 | `--output`, `-o` | Yes | HTML file to write. Its parent directory must exist. An existing file will be overwritten. |
 | `--folder DIRECTORY` | Unless you supply entity paths | Repeat to include multiple surveys. Accepts the directory layouts below. |
+| `--manifest PATH` | No | Explicit survey metadata file; otherwise read a sibling `manifest.json` when all entity paths share a folder. |
 | `--surveys PATH` | No | Explicit `surveys` file. |
+| `--sections PATH` | No | Explicit `sections` file. |
 | `--question-catalog PATH` | No | Explicit `question_catalog` file. |
 | `--question-field-catalog PATH` | No | Explicit `question_field_catalog` file. |
 | `--questions PATH` | No | Explicit `questions` file. |
@@ -69,7 +71,7 @@ uv run --extra cli --extra ui qualtrics report \
 
 All input options default to unset. Entity files may use JSON, CSV, or Parquet. The renderer uses a built-in design; the command has no style, theme, or template options. Choose System, Light, or Dark using the **Theme** selector in the generated report.
 
-Prefer `--folder` for a complete collection. Explicit paths can override files in one collection, or load a subset without a folder, subject to relationship validation. You cannot combine explicit paths with multiple resolved folders. The CLI has no `--sections` option; load sections through `--folder`.
+Prefer `--folder` for a complete collection. Explicit paths can override files in one collection, or load a subset without a folder, subject to relationship validation. If the files live in different folders, pass `--manifest` to retain their source-column dictionary and flow. You cannot combine explicit paths with multiple resolved folders.
 
 For multiple surveys, repeat `--folder` or pass a batch root:
 
@@ -111,7 +113,7 @@ Use this command for distinct surveys. It does not append successive exports fro
 ## `semantic-model build`
 
 ```bash
-uv run --extra cli --extra ui --extra parquet qualtrics semantic-model build output/combined/entities \
+uv run --extra cli --extra ui qualtrics semantic-model build output/combined/entities \
   --output output/combined/semantic --format parquet
 ```
 
@@ -125,8 +127,8 @@ The command validates the entity collection and writes `fact_responses`, `fact_r
 
 For SQLite, use `--format sqlite`; the command writes `semantic_model.sqlite` inside the output directory. It preserves IDs as text, represents booleans as `0`/`1`, and includes typed columns even for empty tables. The database becomes available only after all six tables have been written successfully. Existing output is never replaced.
 
-!!! note "Parquet requires an extra dependency"
-    `entities combine` and `semantic-model build` default to Parquet. Install the extra with `uv sync --extra cli --extra ui --extra parquet`, or select `--format json` or `--format csv`. The semantic-model command also supports `--format sqlite` without an extra dependency. See [installation](../getting-started/installation.md).
+!!! note "Parquet is the default"
+    `entities combine` and `semantic-model build` default to Parquet, which the base package supports. Select `--format json` or `--format csv` for text files. The semantic-model command also supports `--format sqlite`. See [installation](../getting-started/installation.md).
 
 ## API commands
 

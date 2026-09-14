@@ -81,7 +81,7 @@ Keep public exports, command entry points, version information, and `py.typed` a
 
 Keep `_common/__init__.py` minimal. Shared code must not import `api`, `cli`, `ui`, Typer, Rich, or Jinja. Parsers, analytics, and serialization can use shared models; analytics must not depend on parsers. Put question-role classification in the shared question models. Preserve the separate identity algorithms in the parser and model modules when changing them, since their identifiers serve different contracts.
 
-The package layout does not change installation requirements. The base package still installs the remote SDK dependencies and supports parsing, analytics, and JSON/CSV serialization. Keep Typer/Rich in `cli`, Jinja/MarkupSafe in `ui`, and PyArrow in `parquet`. Import Parquet dependencies only when a Parquet operation needs them, and keep the root `render_report` import usable before installing UI dependencies.
+The base package installs the remote SDK dependencies and PyArrow, and supports parsing, analytics, and JSON/CSV/Parquet serialization. Keep Typer/Rich in `cli` and Jinja/MarkupSafe in `ui`. Import PyArrow only when a Parquet operation needs it, and keep the root `render_report` import usable before installing UI dependencies.
 
 ## Maintain the report components
 

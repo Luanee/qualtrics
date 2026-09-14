@@ -70,7 +70,9 @@ def build_codebook(entities: EntitySet) -> list[dict[str, str]]:
     """Describe question fields and response properties without reading their values."""
     surveys = {str(row["survey_id"]): row for row in entities.surveys}
     survey_order = {survey_id: index for index, survey_id in enumerate(surveys)}
-    source_columns = {survey_id: read_source_columns(row) for survey_id, row in surveys.items()}
+    source_columns = {
+        survey_id: read_source_columns(entities.survey_manifests.get(survey_id, {})) for survey_id in surveys
+    }
     source_by_index = {
         (survey_id, _order(column.get("source_column_index"))): column
         for survey_id, columns in source_columns.items()

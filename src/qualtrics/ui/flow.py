@@ -257,12 +257,12 @@ def render_flow(entities: EntitySet, question_targets: dict[tuple[str, str], str
     for index, survey in enumerate(entities.surveys, 1):
         sid = str(survey["survey_id"])
         label = str(survey.get("survey_name") or sid)
-        encoded = survey.get("flow_definition_json")
+        encoded = entities.survey_manifests.get(sid, {}).get("flow_definition_json")
         definition = None
         message = "No flow definition is available. Re-parse with a survey definition that includes its flow."
         if encoded:
             try:
-                definition = _safe_definition(json.loads(str(encoded)))
+                definition = _safe_definition(encoded if isinstance(encoded, dict) else json.loads(str(encoded)))
             except (ValueError, TypeError, RecursionError, AttributeError):
                 message = "This flow definition could not be read. Re-parse it from the source definition."
         targets = {qid: target for (survey_id, qid), target in question_targets.items() if survey_id == sid}

@@ -1,6 +1,3 @@
-import json
-
-
 def test_flow_showcase_uses_production_parser_and_reproducible_routes(tmp_path):
     from scripts.survey_flow_showcase import build_showcase
 
@@ -11,7 +8,7 @@ def test_flow_showcase_uses_production_parser_and_reproducible_routes(tmp_path):
     from qualtrics import parse_survey
 
     entities = parse_survey(first["responses"], first["survey"])
-    definition = json.loads(entities.surveys[0]["flow_definition_json"])
+    definition = entities.survey_manifests[entities.surveys[0]["survey_id"]]["flow_definition_json"]
     assert len(entities.responses) == 24
     assert definition["questions"]["QID1"]["choices"]["1"] == "Sales"
     assert definition["questions"]["QID1"]["choices"]["2"] == "Engineering"

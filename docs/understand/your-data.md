@@ -34,6 +34,8 @@ These are the row counts for the practice survey, not a limit on your own export
 
 [Download this table guide as CSV](../assets/examples/table-guide.csv).
 
+Each export folder also has a `manifest.json`. It is not a table: it records the source-column dictionary and available survey flow for each survey ID. A combined folder has one manifest with entries for all its surveys.
+
 The two catalog tables help you compare matching question and field meanings across surveys. When combining, catalogs use the [first input’s representative labels](../guides/combine-surveys.md#representative-catalog-labels); each survey’s questions, fields, and options keep their own wording and recodes. Most readers can start with `surveys`, `questions`, `responses`, and `response_answers` and use the catalogs when they need comparisons.
 
 ## Comments are an answer subset
@@ -90,7 +92,7 @@ The parser uses CSV identifiers and the matching definition to decide where a fi
 
 Standard fields use established names such as `StartDate` → `started_at`, `RecordedDate` → `recorded_at`, and `IPAddress` → `ip_address`. Custom fields normally keep their source names, including `Region`, `Country`, or `distr_ch`. Unknown columns are retained as **Unclassified** properties so you can inspect them without treating them as confirmed question answers. The [codebook](../guides/reports.md#look-up-exported-columns-in-the-codebook) shows the evidence and storage column for each source field.
 
-Custom values remain text or null: a code such as `001` keeps its leading zeros. The parser copies observed CSV values; it does not fill response properties from defaults or hypothetical assignments in the survey flow.
+Custom values remain text or null: a code such as `001` keeps its leading zeros. When surveys have different properties, the combined `responses` table includes their union and uses null for properties absent from a particular response. The parser copies observed CSV values; it does not fill response properties from defaults or hypothetical assignments in the survey flow.
 
 ## Read missing values carefully
 
@@ -105,7 +107,7 @@ Custom values remain text or null: a code such as `001` keeps its leading zeros.
 | --- | --- | --- |
 | CSV | Opening tables in a spreadsheet or sharing with analysts | One text file per table; spreadsheet apps may infer dates or numbers differently |
 | JSON | Inspecting records or writing a script | Readable records with field names; the default for `qualtrics build` |
-| Parquet | Data pipelines and larger analytical tables | Typed column data; requires the Parquet extra |
+| Parquet | Data pipelines and larger analytical tables | Typed column data; supported by the base package |
 
 Keep one format per entity folder. To switch formats, choose a new output folder so the loader does not find two versions of the same table.
 

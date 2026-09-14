@@ -143,13 +143,13 @@ The stages are `starting`, `exporting`, `downloading`, and `complete`. `percent_
 The repository includes `examples/export_parse_and_report.py`. With your connection configured, run:
 
 ```text
-uv run --extra ui --extra parquet python examples/export_parse_and_report.py SV_123 --output data/api-export
+uv run --extra ui python examples/export_parse_and_report.py SV_123 --output data/api-export
 ```
 
 For several surveys, list their IDs:
 
 ```text
-uv run --extra ui --extra parquet python examples/export_parse_and_report.py SV_123 SV_456 SV_789 --output data/api-export --batch-size 2
+uv run --extra ui python examples/export_parse_and_report.py SV_123 SV_456 SV_789 --output data/api-export --batch-size 2
 ```
 
 The script defaults to one survey at a time. It uses the same progress display and retry policy as `api export`; `--batch-size`, `--retries`, and `--no-progress` control them. Its overall completed count includes parsing and report generation. If a survey fails, the other surveys continue and the command exits with an error after printing the successful results.
@@ -163,13 +163,14 @@ data/api-export/SV_123/
 ├── responses.csv
 ├── report.html
 └── entities/
-    └── ... ten Parquet files ...
+    ├── ... ten Parquet files ...
+    └── manifest.json
 ```
 
-This script uses Parquet by default, so keep the `parquet` extra installed. Add `--format csv` or `--format json` for another entity format. Its `--labels` default, optional `--codes`, and `--start-date` / `--end-date` export filters appear in:
+This script uses Parquet by default; the base package includes PyArrow. Add `--format csv` or `--format json` for another entity format. Its `--labels` default, optional `--codes`, and `--start-date` / `--end-date` export filters appear in:
 
 ```text
-uv run --extra ui --extra parquet python examples/export_parse_and_report.py --help
+uv run --extra ui python examples/export_parse_and_report.py --help
 ```
 
 Choose a fresh output root for a new snapshot if you want to keep the previous files. Open each `report.html`, or follow [read and share reports](reports.md) to generate one report across the batch.

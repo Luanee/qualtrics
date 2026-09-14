@@ -25,6 +25,7 @@ def test_semantic_model_cli_writes_six_json_tables(tmp_path: Path, survey_files:
         "dim_surveys.json",
         "dim_questions.json",
         "dim_answer_options.json",
+        "manifest.json",
     }
 
 
@@ -37,6 +38,24 @@ def test_semantic_model_cli_rejects_tables_in_another_format(tmp_path: Path, sur
     result = CliRunner().invoke(app, ["semantic-model", "build", str(source), "--output", str(output)])
     assert result.exit_code != 0
     assert "already contains semantic tables" in result.output
+
+
+def test_semantic_model_cli_does_not_replace_existing_manifest(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
+    source = tmp_path / "entities"
+    output = tmp_path / "semantic"
+    write_entities(parse_survey(*survey_files), source, "json")
+    output.mkdir()
+    manifest = output / "manifest.json"
+    manifest.write_text("original", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        app, ["semantic-model", "build", str(source), "--output", str(output), "--format", "sqlite"]
+    )
+
+    assert result.exit_code == 2
+    assert "already contains semantic tables" in result.output
+    assert manifest.read_text(encoding="utf-8") == "original"
+    assert list(output.iterdir()) == [manifest]
 
 
 def test_semantic_parquet_has_columns_for_empty_tables(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
@@ -61,7 +80,7 @@ def test_semantic_model_cli_writes_one_sqlite_database(tmp_path: Path, survey_fi
     )
 
     assert result.exit_code == 0, result.output
-    assert [path.name for path in output.iterdir()] == ["semantic_model.sqlite"]
+    assert {path.name for path in output.iterdir()} == {"semantic_model.sqlite", "manifest.json"}
     assert str(output / "semantic_model.sqlite") in result.output
     with sqlite3.connect(output / "semantic_model.sqlite") as connection:
         assert connection.execute("SELECT count(*) FROM fact_responses").fetchone() == (2,)

@@ -81,21 +81,21 @@ python -m pip install 'qualtrics[cli,ui]'
 
 From the repository, run `uv sync --extra cli --extra ui`. API and data commands need only `cli`; reports called directly from Python need only `ui`. A CLI-only installation can still show `qualtrics report --help`, but generating HTML requires `ui`.
 
-## Parquet fails with `Install qualtrics[parquet]`
+## Parquet fails because PyArrow is missing
 
-Install the optional dependency in the environment that runs the command:
-
-```bash
-uv sync --extra cli --extra ui --extra parquet
-```
-
-For an existing package environment:
+Current installations include PyArrow in the base package. From the repository, sync the environment that runs the command:
 
 ```bash
-python -m pip install 'qualtrics[parquet]'
+uv sync --extra cli --extra ui
 ```
 
-Or select `--format json` or `--format csv` when writing. Reading existing Parquet files still needs the dependency. A fresh entity folder in JSON or CSV lets you use the full offline workflow without Parquet.
+For an existing package environment, upgrade the package:
+
+```bash
+python -m pip install --upgrade qualtrics
+```
+
+If you see `PyArrow is required for Parquet input` or `PyArrow is required for Parquet output`, check which Python environment runs the command and reinstall the base package there. PyArrow is now a core dependency. You can select `--format json` or `--format csv` when writing; reading an existing Parquet file still needs PyArrow.
 
 ## The output already contains files
 

@@ -250,7 +250,7 @@ def merge_entity_sets(entity_sets: list[EntitySet]) -> EntitySet:
                     unique[identifier] = row
             rows = list(unique.values())
         setattr(result, name, rows)
-    result.surveys, result.responses, response_columns = merge_response_columns(entity_sets)
+    result.surveys, result.responses, response_columns, result.survey_manifests = merge_response_columns(entity_sets)
     if response_columns:
         result._present_columns["responses"] = response_columns
     result.comments = build_comments(result)
