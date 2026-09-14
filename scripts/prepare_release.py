@@ -7,6 +7,7 @@ import json
 import re
 import subprocess
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
@@ -27,6 +28,38 @@ SECTIONS = {
     "chore": ("Internal", "🔧"),
     "test": ("Internal", "✅"),
     "style": ("Internal", "🎨"),
+}
+RELEASE_LABELS = {
+    "enhancement": ("Features", "✨"),
+    "bug": ("Fixes", "🐛"),
+    "performance": ("Performance", "⚡"),
+    "refactor": ("Refactors", "♻️"),
+    "documentation": ("Documentation", "📝"),
+    "internal": ("Internal", "🔧"),
+}
+INTERNAL_CONTEXT_LABELS = {"dependencies", "github_actions"}
+PREFIX_LABELS = {
+    "feat": "enhancement",
+    "feature": "enhancement",
+    "fix": "bug",
+    "bug": "bug",
+    "perf": "performance",
+    "performance": "performance",
+    "refactor": "refactor",
+    "docs": "documentation",
+    "build": "internal",
+    "ci": "internal",
+    "chore": "internal",
+    "test": "internal",
+    "style": "internal",
+}
+LABEL_DETAILS = {
+    "enhancement": ("a2eeef", "New or improved user-facing behavior"),
+    "bug": ("d73a4a", "Bug fixes"),
+    "performance": ("0e8a16", "Performance improvements"),
+    "refactor": ("c5def5", "Code restructuring without behavior changes"),
+    "documentation": ("0075ca", "Documentation changes"),
+    "internal": ("ededed", "Build, CI, tests, and maintenance"),
 }
 SECTION_ORDER = (
     "Features",
@@ -51,6 +84,7 @@ class PullRequest:
     author: str
     url: str
     merged_at: str
+    labels: tuple[str, ...] = ()
 
 
 def _run(*command: str) -> str:
@@ -103,16 +137,91 @@ def github_pull_requests(
                 author=str(author or "ghost"),
                 url=str(item["html_url"]),
                 merged_at=str(item["merged_at"]),
+                labels=tuple(
+                    label["name"]
+                    for label in (item.get("labels") or [])
+                    if isinstance(label, dict) and isinstance(label.get("name"), str)
+                ),
             )
             pull_requests[pull_request.number] = pull_request
 
     return sorted(pull_requests.values(), key=lambda pull_request: (pull_request.merged_at, pull_request.number))
 
 
-def _section_and_icon(title: str) -> tuple[str, str]:
-    match = TITLE_PATTERN.match(title)
+def _section_and_icon(pull_request: PullRequest) -> tuple[str, str]:
+    release_labels = set(pull_request.labels) & RELEASE_LABELS.keys()
+    if len(release_labels) > 1:
+        names = ", ".join(sorted(release_labels))
+        raise ValueError(f"PR #{pull_request.number} has conflicting release labels: {names}")
+    if release_labels:
+        return RELEASE_LABELS[next(iter(release_labels))]
+    if INTERNAL_CONTEXT_LABELS & set(pull_request.labels):
+        return "Internal", "👷"
+    match = TITLE_PATTERN.match(pull_request.title)
     kind = match.group("kind") if match else ""
     return SECTIONS.get(kind, ("Other changes", "🔖"))
+
+
+def suggest_release_label(title: str, branch: str, files: list[str]) -> str | None:
+    """Return a category only when PR metadata supports one."""
+
+    title_match = TITLE_PATTERN.match(title)
+    if title_match and (label := PREFIX_LABELS.get(title_match.group("kind"))):
+        return label
+    branch_prefix = branch.partition("/")[0]
+    if (label := PREFIX_LABELS.get(branch_prefix)) and branch_prefix != branch:
+        return label
+    if files and all(path.startswith("docs/") or path in {"README.md", "mkdocs.yml"} for path in files):
+        return "documentation"
+    return None
+
+
+def ensure_release_labels(repository: str) -> None:
+    """Create missing category labels without changing existing labels."""
+
+    existing = json.loads(_run("gh", "label", "list", "--repo", repository, "--limit", "1000", "--json", "name"))
+    existing_names = {item.get("name") for item in existing if isinstance(item, dict)}
+    for label, (color, description) in LABEL_DETAILS.items():
+        if label not in existing_names:
+            try:
+                _run(
+                    "gh", "label", "create", label, "--repo", repository, "--color", color, "--description", description
+                )
+            except subprocess.CalledProcessError:
+                latest = json.loads(
+                    _run("gh", "label", "list", "--repo", repository, "--limit", "1000", "--json", "name")
+                )
+                if not any(isinstance(item, dict) and item.get("name") == label for item in latest):
+                    raise
+
+
+def apply_release_label(event: Mapping[str, object], repository: str) -> str | None:
+    """Assign an initial release category to a pull request."""
+
+    if not REPOSITORY_PATTERN.fullmatch(repository):
+        raise ValueError(f"Invalid GitHub repository: {repository}")
+    pull_request = event["pull_request"]
+    assert isinstance(pull_request, dict)
+    number = int(pull_request["number"])
+    head = pull_request["head"]
+    assert isinstance(head, dict)
+    ensure_release_labels(repository)
+    labels = pull_request.get("labels") or []
+    if any(isinstance(item, dict) and item.get("name") in RELEASE_LABELS for item in labels):
+        return None
+    title = str(pull_request["title"])
+    branch = str(head["ref"])
+    label = suggest_release_label(title, branch, [])
+    if label is None:
+        files = _run("gh", "api", "--paginate", f"repos/{repository}/pulls/{number}/files", "--jq", ".[].filename")
+        label = suggest_release_label(title, branch, files.splitlines())
+    if label is None:
+        return None
+    current_labels = _run("gh", "api", "--paginate", f"repos/{repository}/issues/{number}/labels", "--jq", ".[].name")
+    if set(current_labels.splitlines()) & RELEASE_LABELS.keys():
+        return None
+    _run("gh", "api", "--method", "POST", f"repos/{repository}/issues/{number}/labels", "-f", f"labels[]={label}")
+    return label
 
 
 def render_section(
@@ -133,7 +242,7 @@ def render_section(
 
     grouped: dict[str, list[str]] = defaultdict(list)
     for pull_request in pull_requests:
-        section, icon = _section_and_icon(pull_request.title)
+        section, icon = _section_and_icon(pull_request)
         title = pull_request.title.rstrip(".")
         pull_request_link = f"[#{pull_request.number}]({pull_request.url})"
         author_link = f"[@{pull_request.author}](https://github.com/{pull_request.author})"
@@ -190,6 +299,20 @@ def generate(
     section = render_section(version, release_date, pull_requests, repository)
     prepend_release_notes(notes, section)
     typer.echo(f"Added {len(pull_requests)} pull request(s) to {notes}")
+
+
+@app.command("label-pr")
+def label_pr(
+    event: Annotated[Path, typer.Option(help="GitHub pull request event payload.")],
+    repository: Annotated[str, typer.Option(help="GitHub repository in owner/name form.")],
+) -> None:
+    """Assign one initial release category when PR metadata supports it."""
+
+    payload = json.loads(event.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("GitHub event payload must be an object")
+    label = apply_release_label(payload, repository)
+    typer.echo(f"Assigned {label}" if label else "No release category assigned")
 
 
 @app.command("extract")
