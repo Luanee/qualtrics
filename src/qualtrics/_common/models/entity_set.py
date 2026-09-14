@@ -134,6 +134,54 @@ def validate_entity_set(entities: EntitySet, *, strict: bool = False) -> None:
             if value is not None and str(value) not in parent_ids:
                 raise ValueError(f"{child} {foreign_key} {value} has no parent in {parent}.{parent_key}")
     if strict:
+        base_questions = {
+            (str(row["survey_id"]), str(row["question_external_id"])): row
+            for row in entities.questions
+            if not row.get("is_localized")
+        }
+        base_fields = {
+            (str(row["survey_id"]), str(row.get("question_external_id")), str(row.get("field_external_id"))): row
+            for row in entities.question_fields
+            if not row.get("is_localized")
+        }
+        all_questions = {str(row["question_id"]): row for row in entities.questions}
+        for name in ("questions", "question_fields", "answer_options"):
+            for row in getattr(entities, name):
+                if not row.get("is_localized"):
+                    continue
+                survey_id = str(row["survey_id"])
+                language_code = row.get("language_code")
+                registry = entities.survey_manifests.get(survey_id, {}).get("languages", {})
+                if (
+                    not isinstance(language_code, str)
+                    or not language_code
+                    or not isinstance(registry, dict)
+                    or language_code not in registry.get("all_languages", [])
+                    or language_code == registry.get("base_language")
+                ):
+                    raise ValueError(f"{name} localized row has invalid language_code")
+                base_question = base_questions.get((survey_id, str(row["question_external_id"])))
+                catalog_id = (
+                    all_questions[str(row["question_id"])]["question_catalog_id"]
+                    if name == "answer_options"
+                    else row["question_catalog_id"]
+                )
+                if base_question is None or str(catalog_id) != str(base_question["question_catalog_id"]):
+                    raise ValueError(f"{name} localized row must retain the base question catalog")
+                if name == "question_fields":
+                    base_field = base_fields.get((
+                        survey_id,
+                        str(row["question_external_id"]),
+                        str(row["field_external_id"]),
+                    ))
+                    if (
+                        base_field is None
+                        or row["question_field_catalog_id"] != base_field["question_field_catalog_id"]
+                    ):
+                        raise ValueError("Localized question field must retain the base field catalog")
+        localized_question_ids = {str(row["question_id"]) for row in entities.questions if row.get("is_localized")}
+        if any(str(row["question_id"]) in localized_question_ids for row in entities.response_answers):
+            raise ValueError("Response answers must link to base questions")
         fields = {str(row["question_field_id"]): row for row in entities.question_fields}
         responses = {str(row["response_id"]): row for row in entities.responses}
         options = {str(row["answer_option_id"]): row for row in entities.answer_options}

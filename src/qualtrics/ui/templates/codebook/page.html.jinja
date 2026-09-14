@@ -8,10 +8,11 @@
     </div>
     <div class='codebook-scroll' tabindex='0' role='region' aria-label='Codebook table'>
       <table class='codebook-table'>
-        <caption>Exported columns and response properties</caption>
+        <caption>Exported columns, definition languages, and response properties</caption>
         <thead>
           <tr>
             <th scope='col'>Survey</th>
+            <th scope='col'>Language</th>
             <th scope='col'>Export column</th>
             <th scope='col'>Question / property</th>
             <th scope='col'>Field / part</th>
@@ -24,12 +25,13 @@
         {% for row in rows %}{% set entry = row.entry %}
           <tr class='codebook-row' data-survey='{{ entry.survey_id }}' data-search='{{ row.search }}' data-csv='{{ row.csv }}'>
             <td>{{ entry.survey }}</td>
+            <td>{{ entry.language_code or '—' }}{% if entry.label_source_language and entry.label_source_language != entry.language_code %}<small>Label from {{ entry.label_source_language }}</small>{% endif %}</td>
             <td><code>{{ entry.export_column }}</code><small>ImportId: {{ entry.import_id or 'Unavailable' }}</small></td>
             <td><strong>{{ entry.question or entry.field or entry.question_id }}</strong><small>{{ entry.question_id }}{% if entry.section %} · {{ entry.section }}{% endif %}</small></td>
             <td>{{ entry.field }}</td>
             <td>{{ entry.question_type|replace('_', ' ') }}<small>{{ entry.value_type }}</small></td>
             <td class='codebook-choices'>{{ entry.choices or '—' }}</td>
-            <td><b>{{ entry.kind|replace('_', ' ')|capitalize }}</b><small>{{ entry.reason }}</small>{% if entry.storage_table == 'responses' %}<code>responses.{{ entry.storage_column }}</code>{% else %}<code>response_answers.answer_text</code><small>Answer field: {{ entry.storage_column }}</small>{% endif %}{% if entry.source_column_index %}<small>Source index: {{ entry.source_column_index }} (zero based)</small>{% endif %}</td>
+            <td><b>{{ entry.kind|replace('_', ' ')|capitalize }}</b><small>{{ entry.reason }}</small>{% if entry.storage_table == 'responses' %}<code>responses.{{ entry.storage_column }}</code>{% elif entry.storage_table == 'response_answers' %}<code>response_answers.answer_text</code><small>Answer field: {{ entry.storage_column }}</small>{% else %}<small>No separate answer column</small>{% endif %}{% if entry.source_column_index %}<small>Source index: {{ entry.source_column_index }} (zero based)</small>{% endif %}</td>
           </tr>
         {% endfor %}
         </tbody>
