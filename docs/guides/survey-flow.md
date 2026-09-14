@@ -1,8 +1,8 @@
 # Understand a survey flow
 
-Open **Flow** in the HTML report to see connected cards for the survey's blocks and rules. Select a card to inspect its settings and questions, then follow a question link to its response analysis. The report includes definition-only questions even when the CSV has no answer column for them.
+Open **Flow** in the HTML report to see where each branch goes. Select a step to inspect its rules and questions, then follow a question link to the recorded answers. Definition-only questions still appear even if the CSV has no answer column for them.
 
-Try the [interactive flow example](../examples/survey-flow.md) with a fictional team survey and 24 fake responses.
+[Try the fictional flow](../examples/survey-flow.md) first: three routes, a randomizer, and 24 fake responses.
 
 ## Add flow information to a report
 
@@ -18,7 +18,7 @@ uv run --extra cli --extra ui qualtrics report \
   --output output/customer/report.html
 ```
 
-An API survey-definition JSON can also be passed to `--qsf`. Existing entity folders still work, but folders built before flow support need to be rebuilt from their source exports. Likewise, an older entity folder that lost sections from list-form blocks cannot recover their names or question links by regenerating HTML. Rebuild the entities from the original response export and matching QSF or API definition first. The report explains when a definition has no available flow; it does not infer a flow from block order or responses.
+An API survey-definition JSON can also be passed to `--qsf`. If your entity folder predates flow support, rebuild it from the original export and matching definition; regenerating HTML cannot restore missing flow or list-form block sections. Without a flow definition, the report says so rather than guessing from block order or responses.
 
 ## Download the flow through the API
 
@@ -37,23 +37,23 @@ uv run --extra cli --extra ui qualtrics build data/customer.csv \
 
 `--flow` supplies the flow for one CSV or response ZIP. Keep `--qsf` when available: it supplies block names, question wording, and choices. Use files from the same survey and definition revision. The API flow is a snapshot of the configured definition at download time; it may differ from the version used to collect older responses.
 
-Python users can retrieve the same data:
+??? info "Use Python instead"
 
-```python
-import json
-from pathlib import Path
+    ```python
+    import json
+    from pathlib import Path
 
-from qualtrics import QualtricsClient, parse_survey, render_report
+    from qualtrics import QualtricsClient, parse_survey, render_report
 
-with QualtricsClient() as client:
-    flow = client.survey_definitions.get_flow("SV_EXAMPLE")
+    with QualtricsClient() as client:
+        flow = client.survey_definitions.get_flow("SV_EXAMPLE")
 
-Path("flow.json").write_text(json.dumps(flow), encoding="utf-8")
-entities = parse_survey("responses.csv", "survey.qsf", flow_path="flow.json")
-render_report(entities, "report.html")
-```
+    Path("flow.json").write_text(json.dumps(flow), encoding="utf-8")
+    entities = parse_survey("responses.csv", "survey.qsf", flow_path="flow.json")
+    render_report(entities, "report.html")
+    ```
 
-The command uses Qualtrics' [Get Flow endpoint](https://www.postman.com/qualtrics-public-apis/qualtrics-public-workspace/request/u10zls2/get-flow) and the client's existing read retries. It does not change the live survey.
+    The command uses Qualtrics' [Get Flow endpoint](https://www.postman.com/qualtrics-public-apis/qualtrics-public-workspace/request/u10zls2/get-flow) and the client's existing read retries. It does not change the live survey.
 
 ## Read the map
 
@@ -67,23 +67,25 @@ The canvas shows one survey at a time. **Map and walkthrough survey** chooses fr
 | **Selected step** | Return to the selected card at a readable scale. |
 | **Show outline** | Read the configured steps as an expandable list. This is also the printing and no-JavaScript view. |
 
-You can Tab to a card and select it with the keyboard. With the canvas focused, arrow keys pan, **+**/**−** zoom, and **Home** fits the route. The report keeps survey content inside the HTML file; these controls work offline.
+??? info "Keyboard, touch, and map element details"
 
-On a touch screen, swipe vertically to scroll the page. Select **Move map** to drag the route with your finger, then **Done moving** to return to page scrolling. Zoom buttons remain available in either mode.
+    You can Tab to a card and select it with the keyboard. With the canvas focused, arrow keys pan, **+**/**−** zoom, and **Home** fits the route. The report keeps survey content inside the HTML file; these controls work offline.
 
-| Element | How to read it |
-| --- | --- |
-| Block | A set of questions encountered at this point in the survey. |
-| Branch | Follow **Condition met** into its steps, or **Condition not met** past them. Routes rejoin before the next shared step unless the survey ended. |
-| Group | Keep a set of steps together. |
-| Randomizer | Choose the configured number of eligible children in a randomized order. Connections show alternatives; the walkthrough sets the actual order for your scenario. |
-| Embedded data | Set a field used by later rules, or read a value supplied from outside the survey. |
-| End of survey | Stop this route, including any later steps outside the current branch. |
-| Advanced or unknown element | Its position remains visible; the walkthrough explains what cannot be evaluated locally. |
+    On a touch screen, swipe vertically to scroll the page. Select **Move map** to drag the route with your finger, then **Done moving** to return to page scrolling. Zoom buttons remain available in either mode.
 
-Blocks can occur more than once. The map keeps each occurrence in place and shows source Flow IDs as secondary information. Search finds a block, question, condition, or embedded-data field and centers the matching card, switching surveys when necessary. Joining markers explain where a shared route continues; a survey ending has no outgoing connection.
+    | Element | How to read it |
+    | --- | --- |
+    | Block | A set of questions encountered at this point in the survey. |
+    | Branch | Follow **Condition met** into its steps, or **Condition not met** past them. Routes rejoin before the next shared step unless the survey ended. |
+    | Group | Keep a set of steps together. |
+    | Randomizer | Choose the configured number of eligible children in a randomized order. Connections show alternatives; the walkthrough sets the actual order for your scenario. |
+    | Embedded data | Set a field used by later rules, or read a value supplied from outside the survey. |
+    | End of survey | Stop this route, including any later steps outside the current branch. |
+    | Advanced or unknown element | Its position remains visible; the walkthrough explains what cannot be evaluated locally. |
 
-Qualtrics documents [branch continuation](https://www.qualtrics.com/support/survey-platform/survey-module/survey-flow/standard-elements/branch-logic/) and [randomizer behavior](https://www.qualtrics.com/support/survey-platform/survey-module/survey-flow/standard-elements/randomizer/). In particular, randomizers selecting branches consider their conditions before selecting them.
+    Blocks can occur more than once. The map keeps each occurrence in place and shows source Flow IDs as secondary information. Search finds a block, question, condition, or embedded-data field and centers the matching card, switching surveys when necessary. Joining markers explain where a shared route continues; a survey ending has no outgoing connection.
+
+    Qualtrics documents [branch continuation](https://www.qualtrics.com/support/survey-platform/survey-module/survey-flow/standard-elements/branch-logic/) and [randomizer behavior](https://www.qualtrics.com/support/survey-platform/survey-module/survey-flow/standard-elements/randomizer/). In particular, randomizers selecting branches consider their conditions before selecting them.
 
 ## Try a hypothetical walkthrough
 
@@ -91,9 +93,11 @@ Open **What if**, choose a survey and start the walkthrough. Enter hypothetical 
 
 At a randomizer, explicitly choose the elements and their order for this scenario. This illustrates one possible outcome; it does not reproduce Qualtrics' allocation history or evenly-present counters.
 
-The first version evaluates common selected/not-selected choice conditions, explicit AND/OR combinations, and embedded-data equality and numeric comparisons. It applies literal embedded-data assignments. Unsupported operators and missing values stay unknown. Advanced elements, quotas, authentication, web services, question display/skip logic, and loop settings may require an explicit scenario assumption before continuing. The report lists these assumptions. It never calls a web service or executes survey JavaScript.
-
 This is an explanation of the supplied definition with hypothetical inputs. It is not an observed respondent path, a complete simulation of all Qualtrics behavior, or proof that a respondent saw a question. Response counts and the dashboard remain based on the recorded responses; walkthrough answers do not change them.
+
+??? info "What the walkthrough can and cannot evaluate"
+
+    The first version evaluates common selected/not-selected choice conditions, explicit AND/OR combinations, and embedded-data equality and numeric comparisons. It applies literal embedded-data assignments. Unsupported operators and missing values stay unknown. Advanced elements, quotas, authentication, web services, question display/skip logic, and loop settings may require an explicit scenario assumption before continuing. The report lists these assumptions. It never calls a web service or executes survey JavaScript.
 
 ## Saved formats and sharing
 

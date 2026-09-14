@@ -78,6 +78,51 @@
   margin-bottom: 0.7rem;
 }
 
+.md-typeset .flow-example-preview {
+  border-block: 1px solid var(--md-default-fg-color--lightest);
+  margin: 1.5rem 0;
+  padding: 1rem 0;
+}
+
+.md-typeset .flow-example-preview__eyebrow {
+  color: var(--md-default-fg-color--light);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin: 0 0 0.7rem;
+  text-transform: uppercase;
+}
+
+.md-typeset .flow-example-preview ol {
+  display: grid;
+  gap: 0.6rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.md-typeset .flow-example-preview li {
+  align-items: baseline;
+  display: grid;
+  gap: 0.3rem 1rem;
+  grid-template-columns: minmax(8rem, 0.38fr) 1fr;
+  margin: 0;
+  padding: 0.45rem 0;
+}
+
+.md-typeset .flow-example-preview li + li {
+  border-top: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.md-typeset .flow-example-preview strong {
+  color: var(--md-primary-fg-color);
+}
+
+.md-typeset .flow-example-preview em {
+  color: var(--md-default-fg-color--light);
+  font-style: normal;
+}
+
 .md-typeset .dbml-model {
   background: var(--md-default-bg-color);
   border: 1px solid var(--md-default-fg-color--lightest);
@@ -90,6 +135,10 @@
 }
 
 @media (max-width: 600px) {
+  .md-typeset .flow-example-preview li {
+    grid-template-columns: 1fr;
+  }
+
   .md-typeset .showcase-report {
     min-height: 26rem;
   }

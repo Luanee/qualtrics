@@ -1,5 +1,15 @@
 # Release Notes
 
+## 0.4.2 (2026-09-14)
+
+### Features
+
+* ✨ Move survey metadata to a multi-survey manifest. PR [#57](https://github.com/Luanee/qualtrics/pull/57) by [@Luanee](https://github.com/Luanee).
+
+### Documentation
+
+* 📝 Make the MkDocs survey flow example usable. PR [#58](https://github.com/Luanee/qualtrics/pull/58) by [@Luanee](https://github.com/Luanee).
+
 ## 0.4.1 (2026-09-13)
 
 ### Fixes
