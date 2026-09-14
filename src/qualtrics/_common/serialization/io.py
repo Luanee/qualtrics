@@ -12,17 +12,19 @@ from ..models.survey_manifest import MANIFEST_FILENAME, load_manifest, validate_
 
 CSV_FIELD_TYPES: dict[str, dict[str, type[int] | type[float] | type[bool]]] = {
     "sections": {"section_order": int},
-    "answer_options": {"answer_order": int, "is_definition_only": bool},
+    "answer_options": {"answer_order": int, "is_definition_only": bool, "is_localized": bool},
     "questions": {
         "block_order": int,
         "question_order_in_block": int,
         "is_definition_only": bool,
+        "is_localized": bool,
     },
     "question_fields": {
         "source_column_index": int,
         "is_text_field": bool,
         "is_comment_field": bool,
         "is_definition_only": bool,
+        "is_localized": bool,
     },
     "response_answers": {
         "answer_numeric": float,
@@ -62,6 +64,9 @@ ENTITY_COLUMNS: dict[str, tuple[str, ...]] = {
         "canonical_question_type",
         "answer_value_type",
         "is_definition_only",
+        "is_localized",
+        "language_code",
+        "label_source_language",
         "block_order",
         "question_order_in_block",
     ),
@@ -85,6 +90,9 @@ ENTITY_COLUMNS: dict[str, tuple[str, ...]] = {
         "field_id",
         "survey_id",
         "is_definition_only",
+        "is_localized",
+        "language_code",
+        "label_source_language",
     ),
     "question_fields": (
         "question_field_id",
@@ -102,6 +110,9 @@ ENTITY_COLUMNS: dict[str, tuple[str, ...]] = {
         "is_text_field",
         "is_comment_field",
         "is_definition_only",
+        "is_localized",
+        "language_code",
+        "label_source_language",
         "choice_external_id",
         "import_external_id",
         "source_field_suffix",

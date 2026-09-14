@@ -94,4 +94,6 @@ def merge_response_columns(
             "flow_definition_json": deepcopy(original.get("flow_definition_json")),
             "source_columns_json": columns,
         }
+        if "languages" in original:
+            merged_manifests[survey_id]["languages"] = deepcopy(original["languages"])
     return surveys, responses, set(keys), merged_manifests

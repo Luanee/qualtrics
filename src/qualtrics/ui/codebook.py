@@ -12,6 +12,8 @@ from .templating import render_template, trusted_html
 CODEBOOK_COLUMNS = (
     "survey_id",
     "survey",
+    "language_code",
+    "label_source_language",
     "export_column",
     "import_id",
     "question_id",
@@ -108,8 +110,14 @@ def build_codebook(entities: EntitySet) -> list[dict[str, str]]:
     for field in fields:
         survey_id = str(field["survey_id"])
         external_field = _text(field.get("field_external_id") or field.get("field_id"))
-        source = source_by_index.get(
-            (survey_id, _order(field.get("source_column_index"))), source_by_field.get((survey_id, external_field), {})
+        localized = bool(field.get("is_localized"))
+        source = (
+            {}
+            if localized
+            else source_by_index.get(
+                (survey_id, _order(field.get("source_column_index"))),
+                source_by_field.get((survey_id, external_field), {}),
+            )
         )
         if source.get("storage_table") == "responses":
             # A technical field may still exist in an older question catalog.
@@ -123,10 +131,13 @@ def build_codebook(entities: EntitySet) -> list[dict[str, str]]:
             domains.get((survey_id, question_id, field_id), []), key=lambda row: _order(row.get("answer_order"))
         )
         definition_only = bool(field.get("is_definition_only"))
+        no_export = definition_only or localized
         entries.append({
             "survey_id": survey_id,
             "survey": _text(surveys.get(survey_id, {}).get("survey_name") or survey_id),
-            "export_column": "" if definition_only else _text(source.get("source_column") or external_field),
+            "language_code": _text(field.get("language_code")),
+            "label_source_language": _text(field.get("label_source_language")),
+            "export_column": "" if no_export else _text(source.get("source_column") or external_field),
             "import_id": _text(
                 source.get("source_import_id") or field.get("import_external_id") or field.get("source_import_id")
             ),
@@ -140,12 +151,18 @@ def build_codebook(entities: EntitySet) -> list[dict[str, str]]:
             "value_type": _text(field.get("answer_value_type") or question.get("answer_value_type") or "Unknown"),
             "choices": "\n".join(_choice(option) for option in options),
             "source_column_index": _text(source.get("source_column_index", field.get("source_column_index"))),
-            "kind": "definition" if definition_only else _text(source.get("kind") or "question"),
-            "reason": "Defined in QSF; no exported column"
+            "kind": "translation"
+            if localized
+            else "definition"
+            if definition_only
+            else _text(source.get("kind") or "question"),
+            "reason": "Localized QSF definition; no separate response column"
+            if localized
+            else "Defined in QSF; no exported column"
             if definition_only
             else _text(source.get("reason") or "Exported question field; source classification unavailable"),
-            "storage_table": "" if definition_only else "response_answers",
-            "storage_column": "" if definition_only else _text(source.get("storage_column") or external_field),
+            "storage_table": "" if no_export else "response_answers",
+            "storage_column": "" if no_export else _text(source.get("storage_column") or external_field),
         })
     for survey_id, columns in source_columns.items():
         for source in columns:

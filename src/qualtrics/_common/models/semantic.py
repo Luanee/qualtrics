@@ -42,6 +42,8 @@ def build_semantic_model(entities: EntitySet) -> SemanticModel:
     field_catalog = {str(row["question_field_catalog_id"]): row for row in entities.question_field_catalog}
     dimensions = []
     for field_row in entities.question_fields:
+        if field_row.get("is_definition_only") or field_row.get("is_localized"):
+            continue
         question = questions[str(field_row["question_id"])]
         section = sections.get(str(question.get("section_id") or ""), {})
         catalog = question_catalog.get(str(question["question_catalog_id"]), {})
@@ -53,6 +55,10 @@ def build_semantic_model(entities: EntitySet) -> SemanticModel:
         fact_response_answers=[dict(row) for row in entities.response_answers],
         dim_surveys=[dict(row) for row in entities.surveys],
         dim_questions=dimensions,
-        dim_answer_options=[dict(row) for row in entities.answer_options],
+        dim_answer_options=[
+            dict(row)
+            for row in entities.answer_options
+            if not row.get("is_definition_only") and not row.get("is_localized")
+        ],
         fact_comments=entities.comments,
     )

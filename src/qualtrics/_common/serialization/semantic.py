@@ -89,6 +89,9 @@ SEMANTIC_COLUMNS = {
         "is_text_field",
         "is_comment_field",
         "is_definition_only",
+        "is_localized",
+        "language_code",
+        "label_source_language",
         "import_external_id",
         "source_field_suffix",
         "source_column_index",
@@ -115,12 +118,22 @@ SEMANTIC_COLUMNS = {
         "field_id",
         "survey_id",
         "is_definition_only",
+        "is_localized",
+        "language_code",
+        "label_source_language",
     ),
     "fact_comments": COMMENT_COLUMNS,
 }
 
 _FLOAT_COLUMNS = {"answer_numeric"}
-_BOOL_COLUMNS = {"answer_boolean", "is_selected", "is_text_field", "is_comment_field", "is_definition_only"}
+_BOOL_COLUMNS = {
+    "answer_boolean",
+    "is_selected",
+    "is_text_field",
+    "is_comment_field",
+    "is_definition_only",
+    "is_localized",
+}
 _INT_COLUMNS = {"source_column_index", "section_order", "answer_order"}
 SEMANTIC_SQLITE_FILENAME = "semantic_model.sqlite"
 
