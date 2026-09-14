@@ -22,6 +22,9 @@ def test_entity_documentation_names_every_normalized_entity_and_semantic_table()
         "dim_surveys",
         "dim_questions",
         "dim_answer_options",
+        "dim_display_languages",
+        "dim_question_labels",
+        "dim_answer_option_labels",
     ):
         assert name in contract
     assert "Question Response Rate" in contract
@@ -47,10 +50,10 @@ def test_dbml_covers_every_fixed_export_column(filename: str, fixed_columns: dic
     assert not any(missing.values()), missing
 
 
-def test_power_bi_dbml_has_only_the_six_recommended_relationships() -> None:
+def test_power_bi_dbml_keeps_six_fact_relationships_and_two_display_only_relationships() -> None:
     source = (Path(__file__).parents[2] / "docs/power-bi-model.dbml").read_text(encoding="utf-8")
     references = re.findall(r"^Ref(?: \w+)?: (\w+\.\w+) (<|>|-|<>) (\w+\.\w+)$", source, re.MULTILINE)
-    assert len(references) == len(re.findall(r"^Ref\b", source, re.MULTILINE)) == 6
+    assert len(references) == len(re.findall(r"^Ref\b", source, re.MULTILINE)) == 8
     assert not re.search(r"\[[^\]]*\bref\s*:", source)
     assert set(references) == {
         ("dim_surveys.survey_id", "<", "fact_responses.survey_id"),
@@ -59,6 +62,8 @@ def test_power_bi_dbml_has_only_the_six_recommended_relationships() -> None:
         ("dim_answer_options.answer_option_id", "<", "fact_response_answers.answer_option_id"),
         ("fact_responses.response_id", "<", "fact_comments.response_id"),
         ("dim_questions.question_field_id", "<", "fact_comments.question_field_id"),
+        ("dim_display_languages.language_code", "<", "dim_question_labels.language_code"),
+        ("dim_display_languages.language_code", "<", "dim_answer_option_labels.language_code"),
     }
     primary_keys = re.findall(r"^  (\w+) varchar \[pk\]$", source, re.MULTILINE)
     assert sorted(primary_keys) == sorted([
@@ -68,6 +73,9 @@ def test_power_bi_dbml_has_only_the_six_recommended_relationships() -> None:
         "response_answer_id",
         "question_field_id",
         "answer_option_id",
+        "language_code",
+        "question_field_label_id",
+        "answer_option_label_id",
     ])
 
 

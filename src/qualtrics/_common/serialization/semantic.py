@@ -123,6 +123,35 @@ SEMANTIC_COLUMNS = {
         "label_source_language",
     ),
     "fact_comments": COMMENT_COLUMNS,
+    "dim_display_languages": (
+        "language_code",
+        "is_available",
+        "available_survey_count",
+        "defined_survey_count",
+    ),
+    "dim_question_labels": (
+        "question_field_label_id",
+        "survey_id",
+        "language_code",
+        "question_field_id",
+        "question_id",
+        "question_external_id",
+        "question_text",
+        "field_text",
+        "question_label_source_language",
+        "field_label_source_language",
+    ),
+    "dim_answer_option_labels": (
+        "answer_option_label_id",
+        "survey_id",
+        "language_code",
+        "answer_option_id",
+        "question_field_id",
+        "question_external_id",
+        "answer_external_id",
+        "answer_text",
+        "label_source_language",
+    ),
 }
 
 _FLOAT_COLUMNS = {"answer_numeric"}
@@ -133,8 +162,15 @@ _BOOL_COLUMNS = {
     "is_comment_field",
     "is_definition_only",
     "is_localized",
+    "is_available",
 }
-_INT_COLUMNS = {"source_column_index", "section_order", "answer_order"}
+_INT_COLUMNS = {
+    "source_column_index",
+    "section_order",
+    "answer_order",
+    "available_survey_count",
+    "defined_survey_count",
+}
 SEMANTIC_SQLITE_FILENAME = "semantic_model.sqlite"
 
 
