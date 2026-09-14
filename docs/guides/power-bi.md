@@ -50,7 +50,7 @@ A **fact table** holds the records you count or measure. A **dimension table** d
 | `fact_responses` | One survey response, including its available response metadata. | Count responses; filter by survey, date, or language. |
 | `fact_response_answers` | One non-empty exported answer field. | Count answer rows or average a numeric answer. |
 | `dim_surveys` | One survey. | Display survey names. |
-| `dim_questions` | One exported or QSF-only question field, with its question and block details. | Label and filter the exact field you want to analyze. |
+| `dim_questions` | One exported base-language question field, with its question and block details. | Label and filter the exact field you want to analyze without multiplying answer facts by language. |
 | `dim_answer_options` | One choice defined for one question field. | Show choice labels and definition order, including unused choices. |
 | `fact_comments` | One nonblank text answer field, derived from all answers. | Read comments or count submissions with a written answer. |
 

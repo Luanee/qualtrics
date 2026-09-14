@@ -14,15 +14,17 @@ Parsing produces nine authoritative entities plus the derived `comments` table, 
 
 When a QSF supplies `SurveyLanguage`, including under `SurveyOptions`, that code becomes `surveys.default_language` and identifies the language of the base question text used for catalog identity. The per-survey `manifest.json` entry also records `languages.base_language`, declared `languages.available_languages`, and `languages.all_languages` (the base, available, and every code found under a question's `Language` object). An absent QSF leaves these values empty or null; response `UserLanguage` is never inferred from them.
 
+For every code in `all_languages`, `questions`, `question_fields`, and `answer_options` contain a language variant. Each variant has its own internal ID and `language_code`, but retains the base question and field catalog IDs and native external IDs. `label_source_language` records whether its visible label came from that translation or fell back to the base language. Localized rows have no separate CSV column or answer facts; the original base rows remain the fact targets. Combining surveys retains each survey's language registry and keeps same-named native IDs survey-scoped.
+
 | Entity | Grain | Primary ID | Main parents |
 |---|---|---|---|
 | `surveys` | survey | `survey_id` | none |
 | `sections` | survey block | `section_id` | `survey_id` |
 | `question_catalog` | semantic question | `question_catalog_id` | none |
 | `question_field_catalog` | semantic field | `question_field_catalog_id` | `question_catalog_id` |
-| `questions` | survey question, exported or QSF-only | `question_id` | survey, section, question catalog |
-| `answer_options` | definition option for one question field | `answer_option_id` | survey, question, question field |
-| `question_fields` | exported or QSF-only question field | `question_field_id` | question, both catalogs |
+| `questions` | survey question × definition language, exported or QSF-only | `question_id` | survey, section, question catalog |
+| `answer_options` | definition option × language for one question field | `answer_option_id` | survey, question, question field |
+| `question_fields` | exported or QSF-only question field × language | `question_field_id` | question, both catalogs |
 | `responses` | submitted response | `response_id` | survey |
 | `response_answers` | non-empty response field | `response_answer_id` | response, question, field, optional option |
 | `comments` | derived nonblank text answer field | original `response_answer_id` | original answer, response, survey, question, field |
@@ -146,6 +148,8 @@ The semantic model has six exported tables plus the sibling `manifest.json`. Its
 [Download the six-table Power BI DBML schema](power-bi-model.dbml). The interactive viewer requires an internet connection; the relationship instructions below also describe the model.
 
 `dim_questions` has one row per analyzable exported question field and flattens section, question, field, and catalog attributes. Create these active single-direction relationships in Power BI:
+
+The active `dim_questions` and `dim_answer_options` keep only base-language, exported rows. Definition-only and localized entity rows are reserved for the codebook and dedicated localization tables, so adding languages never duplicates measures or creates zero-looking answer categories.
 
 ```text
 dim_surveys[survey_id] 1 -> * fact_responses[survey_id]
