@@ -111,6 +111,7 @@
   }
   function updateAll() {
     applySnapshot(); applyLabels();
+    writtenPage.setLanguage(displayLanguage());
     summary.update(); questions.update(); responses.update(); writtenPage.update();
     window.updateCodebook?.(); search.update();
   }

@@ -36,13 +36,13 @@
           {% for code in respondent_languages %}<option value='{{ code }}'>{{ 'Missing / unknown' if code == missing_language else code }}</option>{% endfor %}
         </select>
       </label>
-      <label for='display-language'>Definition language
+      <label for='display-language'>Display language
         <select id='display-language'{% if not display_languages %} disabled{% endif %}>
           {% if display_languages %}{% for code in display_languages %}<option value='{{ code }}'>{{ code }}</option>{% endfor %}
           {% else %}<option value=''>No translations</option>{% endif %}
         </select>
       </label>
-      <p>Filter respondents separately from question and choice labels.</p>
+      <p>Respondent language filters counts. Display language changes labels and prepared comments.</p>
     </div>
     {% with pages=navigation_pages %}{% include 'components/navigation.html.jinja' %}{% endwith %}
   </aside>

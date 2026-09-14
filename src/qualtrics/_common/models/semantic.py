@@ -72,25 +72,31 @@ def _language_dimensions(
         str(survey["survey_id"]): entities.survey_manifests.get(str(survey["survey_id"]), {}).get("languages", {})
         for survey in entities.surveys
     }
-    languages = sorted({
-        str(code)
-        for registry in registries.values()
-        if isinstance(registry, dict)
-        for code in registry.get("all_languages", [])
-    })
+    translation_targets: dict[str, set[str]] = {}
+    for row in entities.comment_translations:
+        translation_targets.setdefault(str(row["survey_id"]), set()).add(str(row["target_language"]))
+    languages = sorted(
+        {
+            str(code)
+            for registry in registries.values()
+            if isinstance(registry, dict)
+            for code in registry.get("all_languages", [])
+        }
+        | {code for targets in translation_targets.values() for code in targets}
+    )
+
+    def is_available(survey_id: str, language: str) -> bool:
+        registry = registries[survey_id]
+        return language in translation_targets.get(survey_id, set()) or (
+            isinstance(registry, dict)
+            and (language == registry.get("base_language") or language in registry.get("available_languages", []))
+        )
+
     display_languages = [
         {
             "language_code": language,
-            "is_available": any(
-                isinstance(registry, dict)
-                and (language == registry.get("base_language") or language in registry.get("available_languages", []))
-                for registry in registries.values()
-            ),
-            "available_survey_count": sum(
-                isinstance(registry, dict)
-                and (language == registry.get("base_language") or language in registry.get("available_languages", []))
-                for registry in registries.values()
-            ),
+            "is_available": any(is_available(survey_id, language) for survey_id in registries),
+            "available_survey_count": sum(is_available(survey_id, language) for survey_id in registries),
             "defined_survey_count": sum(
                 isinstance(registry, dict) and language in registry.get("all_languages", [])
                 for registry in registries.values()

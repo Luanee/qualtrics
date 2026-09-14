@@ -28,6 +28,7 @@ def _definition_labels(entities: EntitySet) -> tuple[list[str], dict[str, dict[s
             for code in manifest.get("languages", {}).get("all_languages", [])
         }
         | {str(row["language_code"]) for row in entities.questions if row.get("language_code")}
+        | {str(row["target_language"]) for row in entities.comment_translations if row.get("target_language")}
     )
     if not languages:
         return [], {}
