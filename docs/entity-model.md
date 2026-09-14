@@ -140,18 +140,23 @@ Reparse the original export to recover fields omitted by older versions. An olde
 - `dim_questions`
 - `dim_answer_options`
 - `fact_comments`
+- `dim_display_languages`
+- `dim_question_labels`
+- `dim_answer_option_labels`
 
-The semantic model has six exported tables plus the sibling `manifest.json`. Its diagram shows the six relationships to configure in Power BI; DBML relationship symbols describe cardinality, while Power BI's cross-filter direction is a separate setting.
+The semantic model has nine exported tables plus the sibling `manifest.json`: six base-grain fact-path tables and three display-label tables. Its diagram shows six fact-path and two label-only relationships; DBML symbols describe cardinality, while Power BI's cross-filter direction is a separate setting.
 
-<iframe class="dbml-model" title="Six-table Power BI semantic model" src="{{ dbml_power_bi_url }}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>
+<iframe class="dbml-model" title="Nine-table Power BI semantic model" src="{{ dbml_power_bi_url }}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>
 
 <p><a href="{{ dbml_power_bi_url }}" target="_blank" rel="noopener">Open the Power BI diagram at full size</a></p>
 
-[Download the six-table Power BI DBML schema](power-bi-model.dbml). The interactive viewer requires an internet connection; the relationship instructions below also describe the model.
+[Download the nine-table Power BI DBML schema](power-bi-model.dbml). The interactive viewer requires an internet connection; the relationship instructions below also describe the model.
 
 `dim_questions` has one row per analyzable exported question field and flattens section, question, field, and catalog attributes. Create these active single-direction relationships in Power BI:
 
 The active `dim_questions` and `dim_answer_options` keep only base-language, exported rows. Definition-only and localized entity rows are reserved for the codebook and dedicated localization tables, so adding languages never duplicates measures or creates zero-looking answer categories.
+
+`dim_display_languages` lists each display code across the combined collection; `is_available` marks codes declared available or used as a base by at least one survey. `dim_question_labels` maps each exported base `question_field_id` and display code to its question and field text; `dim_answer_option_labels` maps each base `answer_option_id` and display code to its choice text. Missing translations fall back to that survey's base labels, recorded in the source-language columns. These tables do not duplicate facts or replace the base IDs. Use a single-select display-language slicer separately from `fact_responses.user_language`; only the latter filters respondents. See the [Power BI display-label recipe](guides/power-bi.md#display-language-recipe).
 
 ```text
 dim_surveys[survey_id] 1 -> * fact_responses[survey_id]
@@ -168,7 +173,7 @@ Set cross-filter direction to **Single**, from each one side to its many side. S
 
 `dim_answer_options` has one row per field-specific option. Use `question_field_id` to associate it with `dim_questions`; keep the fact relationship on `answer_option_id`.
 
-Create a model-local Date table and relate it to `fact_responses[recorded_at]`. This optional table is created in Power BI and is not one of the six exported tables. Do not add parallel active paths from surveys, questions, or catalogs to the answer fact.
+Create a model-local Date table and relate it to `fact_responses[recorded_at]`. This optional table is created in Power BI and is not one of the nine exported tables. Do not add parallel active paths from surveys, questions, labels, or catalogs to the answer fact.
 
 ## Baseline DAX
 

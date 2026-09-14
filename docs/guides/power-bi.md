@@ -1,6 +1,6 @@
 # Prepare data for Power BI
 
-Export six analysis tables as Parquet files or one SQLite database, then connect them in Power BI. You can follow the export steps on any supported operating system; the import steps use Power BI Desktop.
+Export nine analysis and display-label tables as Parquet files or one SQLite database, then connect them in Power BI. You can follow the export steps on any supported operating system; the import steps use Power BI Desktop.
 
 You need the [installed project](../getting-started/installation.md) and a complete entity folder. The base package supports Parquet and SQLite output. The commands below use the folder from [your first report](../getting-started/first-report.md). Run them from the project folder; for an isolated CLI installation, replace `uv run --extra cli --extra ui qualtrics` with `qualtrics`.
 
@@ -22,14 +22,17 @@ data/first-report/power-bi/
 ├── dim_questions.parquet
 ├── dim_answer_options.parquet
 ├── fact_comments.parquet
+├── dim_display_languages.parquet
+├── dim_question_labels.parquet
+├── dim_answer_option_labels.parquet
 └── manifest.json
 ```
 
-You should see `Wrote 6 parquet semantic tables to data/first-report/power-bi`.
+You should see `Wrote 9 parquet semantic tables to data/first-report/power-bi`.
 
 ### SQLite database
 
-To keep all six tables in one file, choose SQLite:
+To keep all nine tables in one file, choose SQLite:
 
 ```text
 uv run --extra cli --extra ui qualtrics semantic-model build data/first-report/entities --output data/first-report/power-bi-sqlite --format sqlite
@@ -39,9 +42,9 @@ This creates `data/first-report/power-bi-sqlite/semantic_model.sqlite` and a sib
 
 The command refuses an output folder that already contains recognized semantic table files or `semantic_model.sqlite`. Choose a fresh folder for a later export. SQLite writes complete before the final database appears; a failed build does not leave a partial database. CSV and JSON remain available with `--format csv` or `--format json`.
 
-The input must be a complete entity folder. Current exports contain ten tables plus `manifest.json`; older nine-table folders without `comments` are also accepted and reconstruct that subset from their available metadata. To prepare several surveys, [combine their entities](combine-surveys.md) first and use the combined entity folder as input. The manifest keeps flow and source-column descriptors for each survey ID; it is not a seventh Power BI table.
+The input must be a complete entity folder. Current exports contain ten tables plus `manifest.json`; older nine-table folders without `comments` are also accepted and reconstruct that subset from their available metadata. To prepare several surveys, [combine their entities](combine-surveys.md) first and use the combined entity folder as input. The manifest keeps flow, source-column, and language descriptors for each survey ID; it is not a tenth Power BI table.
 
-## 2. Understand the six tables
+## 2. Understand the nine tables
 
 A **fact table** holds the records you count or measure. A **dimension table** describes those records and supplies labels and filters.
 
@@ -53,10 +56,13 @@ A **fact table** holds the records you count or measure. A **dimension table** d
 | `dim_questions` | One exported base-language question field, with its question and block details. | Label and filter the exact field you want to analyze without multiplying answer facts by language. |
 | `dim_answer_options` | One choice defined for one question field. | Show choice labels and definition order, including unused choices. |
 | `fact_comments` | One nonblank text answer field, derived from all answers. | Read comments or count submissions with a written answer. |
+| `dim_display_languages` | One display-language code across the combined model. | Populate a single-select label-language slicer. |
+| `dim_question_labels` | One exported base question field × display language. | Show translated question and field labels with base fallback. |
+| `dim_answer_option_labels` | One exported base option × display language. | Show translated choice labels without changing option IDs. |
 
 A matrix question can have several fields, so it can have several rows in `dim_questions`. The same label, such as “Yes”, can appear in many option rows because each belongs to a particular field. Use the IDs to relate tables; do not join them by answer text.
 
-`is_definition_only = true` marks QSF questions and fields that did not appear in the CSV. They are useful for inspecting the full survey design, but have no answer facts; do not interpret them as questions that respondents saw and skipped.
+QSF-only questions stay in the entity codebook. They have no answer facts and are excluded from the active `dim_questions` and `dim_answer_options` tables; do not interpret them as questions that respondents saw and skipped. Localized label tables likewise contain only exported base fields and options.
 
 `fact_comments` contains the same text answers already present in `fact_response_answers`. It reuses each `response_answer_id` and keeps `answer_text` and available `raw_value` unchanged. Two matching comments remain two records; multiple text boxes in one response remain separate. Do not append the subset to all answers or add their row counts together.
 
@@ -76,7 +82,7 @@ If you parsed without a QSF, you will have no definition-based option records. R
 
 1. In Power BI Desktop, open **Get data** and choose **Parquet**.
 2. Enter the full local path to `fact_responses.parquet`, then load it or choose **Transform Data** to inspect it.
-3. Repeat for the other five files. Keep the table names shown above so the measure examples work.
+3. Repeat for the other eight files. Keep the table names shown above so the measure examples work.
 
 Microsoft documents the file connection in its [Parquet connector guide](https://learn.microsoft.com/en-us/power-query/connectors/parquet).
 
@@ -86,7 +92,7 @@ Power BI uses an ODBC connection for this workflow. The toolkit creates the SQLi
 
 1. Install a SQLite ODBC driver compatible with your Power BI Desktop installation and configure a data source name (DSN) pointing to the full path of `semantic_model.sqlite`. Follow your driver's instructions in Windows ODBC Data Source Administrator.
 2. In Power BI Desktop, choose **Get data → ODBC** and select that DSN.
-3. In Navigator, select all six tables, then choose **Transform Data** or **Load**.
+3. In Navigator, select all nine tables, then choose **Transform Data** or **Load**.
 
 See Microsoft's [ODBC connector guide](https://learn.microsoft.com/en-us/power-query/connectors/odbc) for the connection and authentication options. If you prefer to avoid installing a database driver, use the Parquet files.
 
@@ -96,9 +102,9 @@ In Power Query, keep IDs as text; use a decimal type for `answer_numeric` and a 
 
 ## 4. Create the relationships
 
-Explore the six exported tables below. The diagram's relationship symbols describe one-to-many cardinality; configure Power BI's cross-filter direction separately as explained below. The viewer needs an internet connection and requires no account or API key.
+Explore the nine exported tables below. The diagram's relationship symbols describe one-to-many cardinality; configure Power BI's cross-filter direction separately as explained below. The viewer needs an internet connection and requires no account or API key.
 
-<iframe class="dbml-model" title="Six-table Power BI semantic model" src="{{ dbml_power_bi_url }}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>
+<iframe class="dbml-model" title="Nine-table Power BI semantic model" src="{{ dbml_power_bi_url }}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>
 
 <p><a href="{{ dbml_power_bi_url }}" target="_blank" rel="noopener">Open the Power BI diagram at full size</a></p>
 
@@ -117,6 +123,8 @@ Create these six **active**, **one-to-many** relationships. Set cross-filter dir
 
 A survey filter reaches responses, then both answer tables. Question filters reach both answer tables; option filters reach only `fact_response_answers`. Keep this single route from surveys to each answer table; additional active routes can make filter behavior ambiguous. Do not join `fact_response_answers` to `fact_comments`, or create a direct active `dim_surveys` → `fact_comments` relationship. See [Microsoft's relationship explanation](https://learn.microsoft.com/en-us/power-bi/transform-model/desktop-relationships-understand) for the Power BI settings.
 
+Create two additional **label-only** relationships: `dim_display_languages[language_code]` → `dim_question_labels[language_code]` and `dim_display_languages[language_code]` → `dim_answer_option_labels[language_code]`. Both are one-to-many, active, and Single direction. Do **not** relate either label table directly to a fact table or to the active question/option dimensions: its ID columns are lookup keys used by measures, not new fact paths.
+
 `dim_answer_options.question_field_id` tells you which field owns an option. Keep the relationship to the answer fact on `answer_option_id`. When presenting a field's full choice list, use `question_field_id` to restrict the option list to that field, including choices with zero answers.
 
 New exports keep `source_choice_id`, `choice_value`, `recode_value`, `variable_name`, and `value` on `dim_answer_options`. Use `choice_value` for the respondent-visible label; `variable_name` records a configured multiple-choice export label when available. `recode_value` contains only explicit definition metadata, while `value` uses that recode or falls back to the choice text. These remain text columns, so `0` and `02` keep their source representation. Convert types deliberately for a particular analysis.
@@ -125,7 +133,42 @@ New exports keep `source_choice_id`, `choice_value`, `recode_value`, `variable_n
 
 Older entity folders can lack these provenance columns. Do not treat `answer_code` as evidence of an explicit recode; it may be a native-ID fallback. Reparse the original CSV/ZIP with the matching QSF and rebuild the semantic model when you need the additional metadata. See [answer value provenance](../entity-model.md#answer-value-provenance) for defaults and matrix scope.
 
-For a date slicer, create a date table in your Power BI model; it is not one of the six exported tables. Convert `recorded_at` to a date for a daily relationship, or derive a separate date-only column from it; relate that column to the date table. Use the original timestamp when you need time-of-day analysis.
+For a date slicer, create a date table in your Power BI model; it is not one of the nine exported tables. Convert `recorded_at` to a date for a daily relationship, or derive a separate date-only column from it; relate that column to the date table. Use the original timestamp when you need time-of-day analysis.
+
+### Display-language recipe
+
+Use **two different slicers**: `fact_responses[user_language]` filters respondents and therefore changes all measures; `dim_display_languages[language_code]` changes labels only. Make the latter single-select and filter `dim_display_languages[is_available]` to True for the default picker. Extra codes found only inside question translations remain in the table and can be exposed deliberately. Every base field and option has a label row for every display code across combined surveys; when a survey lacks that translation, the row uses its base label and records that fallback in `*_source_language`.
+
+For a table or matrix keyed by one base field, this measure returns the selected question label without changing fact relationships:
+
+```dax
+Displayed Question =
+VAR FieldId = SELECTEDVALUE(dim_questions[question_field_id])
+VAR Language = SELECTEDVALUE(dim_display_languages[language_code])
+RETURN COALESCE(
+    LOOKUPVALUE(
+        dim_question_labels[question_text],
+        dim_question_labels[question_field_id], FieldId,
+        dim_question_labels[language_code], Language
+    ),
+    SELECTEDVALUE(dim_questions[question_text])
+)
+```
+
+Use the same pattern for `dim_question_labels[field_text]` and `dim_answer_option_labels[answer_text]`, looking up by base `question_field_id` or `answer_option_id`. For a chart axis built from `dim_answer_option_labels[answer_text]`, apply the axis's base IDs to the existing option dimension inside the measure:
+
+```dax
+Localized Answer Rows =
+CALCULATE(
+    [Answer Rows],
+    TREATAS(
+        VALUES(dim_answer_option_labels[answer_option_id]),
+        dim_answer_options[answer_option_id]
+    )
+)
+```
+
+This is a display measure, not a new relationship. Keep one display language selected so the axis has one label row per option. The respondent-language slicer remains independent: selecting German respondents never rewrites their raw answer text, and switching the display to French never changes answer counts. The [Microsoft DAX references for `SELECTEDVALUE`](https://learn.microsoft.com/en-us/dax/selectedvalue-function-dax) and [`LOOKUPVALUE`](https://learn.microsoft.com/en-us/dax/lookupvalue-function-dax) explain the single-selection and exact-key lookup behavior.
 
 ## 5. Add measures with the right denominator
 
