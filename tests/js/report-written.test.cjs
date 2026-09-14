@@ -16,7 +16,7 @@ function node(dataset = {}, selectors = {}) {
     addEventListener(event, callback) { this.handlers[event] = callback; },
     setAttribute() {}, closest() { return null; }, contains() { return false; }, focus() {}, scrollIntoView() {}};
 }
-function fixture({paginated = false, properties = false, languages = false} = {}) {
+function fixture({paginated = false, properties = false, languages = false, translations = false} = {}) {
   const surveyA = node(), surveyB = node();
   surveyA.value = 'a'; surveyB.value = 'b';
   surveyA.closest = () => ({textContent: 'Survey A'});
@@ -45,8 +45,13 @@ function fixture({paginated = false, properties = false, languages = false} = {}
   });
   const link = {href: '#response-1', getAttribute() { return this.href; }};
   const writtenLabel = node({questionId: 'Q1'}); writtenLabel.textContent = 'Question';
+  const writtenValue = node(); writtenValue.textContent = 'Lee';
+  const translationCue = node(); translationCue.hidden = true;
+  const originalText = node(); originalText.textContent = 'Lee';
+  const originalDisclosure = node({}, {p: [originalText]}); originalDisclosure.hidden = true;
   const a = node({survey: 'a', questionToken: 'a::q', fieldId: 'last', responseTarget: card.id},
-    {'.written-value': [{textContent: 'Lee'}], '.written-question': [writtenLabel], a: [link]});
+    {'.written-value': [writtenValue], '.translation-cue': [translationCue], '.written-original': [originalDisclosure],
+      '.written-question': [writtenLabel], a: [link]});
   const b = node({survey: 'b', questionToken: 'b::q', fieldId: 'last'});
   const optionA = node({survey: 'a', label: 'Name'}); optionA.value = 'a::q'; optionA.textContent = 'Name';
   const optionB = node({survey: 'b', label: 'Name'}); optionB.value = 'b::q'; optionB.textContent = 'Name';
@@ -59,6 +64,7 @@ function fixture({paginated = false, properties = false, languages = false} = {}
     b.dataset.userLanguage = '__missing__';
     cards.push(node({survey: 'b', userLanguage: '__missing__'}));
   }
+  if (translations) a.dataset.answerId = 'A1';
   const responsePagination = node(), writtenPagination = node();
   if (paginated) {
     cards.push(...Array.from({length: 24}, () => node({survey: 'a'})), node({survey: 'b'}));
@@ -74,6 +80,10 @@ function fixture({paginated = false, properties = false, languages = false} = {}
   flowView.contains = item => item === flowCard;
   const reportSearch = node(), responseSearch = node(), searchResults = node(), searchClear = node(), theme = node(), other = node();
   const respondentLanguage = node(), displayLanguage = node(), languageData = node();
+  const translationData = node();
+  translationData.textContent = JSON.stringify({A1: {
+    EN: {text: 'Translated Lee', current: true}, FR: {text: null, current: false},
+  }});
   respondentLanguage.value = 'all'; displayLanguage.value = 'EN';
   languageData.textContent = JSON.stringify({
     labels: {EN: {questions: {Q1: 'Question'}, fields: {first: 'Choice'}, options: {O1: 'Yes'}},
@@ -90,6 +100,7 @@ function fixture({paginated = false, properties = false, languages = false} = {}
     '#search-results': [searchResults], '#search-result-list': [node()], '#search-pagination': [node()],
     '#search-clear': [searchClear], '#theme-choice': [theme], '#overview-other': [other],
     '#report-language-data': languages ? [languageData] : [],
+    '#written-translation-data': translations ? [translationData] : [],
     '#respondent-language': languages ? [respondentLanguage] : [],
     '#display-language': languages ? [displayLanguage] : [],
     '.field-answer[data-field-id]': languages ? [field1] : [],
@@ -123,8 +134,30 @@ function fixture({paginated = false, properties = false, languages = false} = {}
     cards, written, responsePagination, writtenPagination, window, location, document,
     overview, responseView, reportSearch, searchResults, searchClear, theme, other, dashboardSelections, dashboardResizes,
     flowView, flowCard, flowSelections, flowReveals, flowResizes, content, responseSearch, propertyRows, propertyDetails,
-    respondentLanguage, displayLanguage, questionLabel, writtenLabel, choiceLabel, rawChoice, recorded};
+    respondentLanguage, displayLanguage, questionLabel, writtenLabel, choiceLabel, rawChoice, recorded,
+    writtenValue, translationCue, originalDisclosure, originalText};
 }
+
+test('prepared comments switch by display language and keep the original accessible', () => {
+  const f = fixture({languages: true, translations: true});
+  assert.equal(f.writtenValue.textContent, 'Translated Lee');
+  assert.equal(f.originalDisclosure.hidden, false);
+  assert.equal(f.originalText.textContent, 'Lee');
+  assert.equal(f.translationCue.hidden, true);
+  f.displayLanguage.value = 'DE'; f.displayLanguage.handlers.change();
+  assert.equal(f.writtenValue.textContent, 'Lee');
+  assert.equal(f.originalDisclosure.hidden, true);
+  assert.equal(f.translationCue.hidden, true);
+  f.displayLanguage.value = 'FR'; f.displayLanguage.handlers.change();
+  assert.equal(f.writtenValue.textContent, 'Lee');
+  assert.equal(f.translationCue.hidden, false);
+  assert.match(f.translationCue.textContent, /out of date/);
+  f.displayLanguage.value = 'IT'; f.displayLanguage.handlers.change();
+  assert.equal(f.writtenValue.textContent, 'Lee');
+  assert.match(f.translationCue.textContent, /unavailable/);
+  f.respondentLanguage.value = 'DE'; f.respondentLanguage.handlers.change();
+  assert.equal(f.writtenValue.textContent, 'Lee');
+});
 
 test('respondent language changes response, written and summary cohorts without rewriting raw text', () => {
   const f = fixture({languages: true});
