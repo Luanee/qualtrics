@@ -61,7 +61,11 @@ def analyze_entities(entities: EntitySet) -> ReportAnalytics:
         )
         for key, question in questions.items()
     }
-    response_questions = {key: question for key, question in questions.items() if question_roles[key] == "response"}
+    response_questions = {
+        key: question
+        for key, question in questions.items()
+        if question_roles[key] == "response" and not question.get("is_definition_only")
+    }
     question_responses: dict[QuestionKey, set[str]] = {key: set() for key in response_questions}
     question_answers: dict[QuestionKey, list[Row]] = {key: [] for key in response_questions}
     used_fields: set[FieldKey] = set()
@@ -95,12 +99,15 @@ def analyze_entities(entities: EntitySet) -> ReportAnalytics:
     unused_fields = [
         item
         for key, item in fields.items()
-        if question_roles.get(key[:2], "response") == "response" and key not in used_fields
+        if question_roles.get(key[:2], "response") == "response"
+        and not item.get("is_definition_only")
+        and key not in used_fields
     ]
     unused_options = [
         option
         for option in entities.answer_options
         if question_roles.get((str(option["survey_id"]), str(option["question_id"])), "response") == "response"
+        and not option.get("is_definition_only")
         and str(option.get("answer_option_id") or "") not in used_option_ids
         and not {
             str(option.get(alias) or "").casefold()

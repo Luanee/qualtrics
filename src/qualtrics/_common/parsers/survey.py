@@ -364,7 +364,93 @@ def _build_answer_option_domains(entities: EntitySet, definitions: dict[str, dic
                     "answer_order": answer_order,
                     "source_import_id": field.get("source_import_id"),
                     "answer_export_tag": str(export_tag) if export_tag is not None else None,
+                    "is_definition_only": bool(field.get("is_definition_only")),
                 })
+
+
+def _append_definition_only_questions(
+    entities: EntitySet,
+    definitions: dict[str, dict[str, object]],
+    question_blocks: dict[str, dict[str, object]],
+    survey_id: str,
+) -> None:
+    """Expose QSF questions absent from the CSV without inventing export lineage."""
+    exported_ids = {str(question["question_id"]) for question in entities.questions}
+    for question_id, definition in definitions.items():
+        if question_id in exported_ids or not isinstance(definition, dict):
+            continue
+        question_text = _clean(definition.get("QuestionText")) or _clean(definition.get("DataExportTag")) or question_id
+        catalog_id = _hash(question_text.casefold())
+        resolved = resolve_question_type(
+            definition.get("QuestionType"), definition.get("Selector"), definition.get("SubSelector")
+        )
+        entities.questions.append({
+            "survey_id": survey_id,
+            "question_id": question_id,
+            "question_catalog_id": catalog_id,
+            "question_text": question_text,
+            "question_description": definition.get("DataExportTag"),
+            "question_type": definition.get("QuestionType"),
+            "selector": definition.get("Selector"),
+            "sub_selector": definition.get("SubSelector"),
+            "question_role": classify_question_role(definition, []),
+            "semantic_structure": _question_structure(definition, []),
+            "is_definition_only": True,
+            **question_blocks.get(question_id, {}),
+        })
+        if resolved.answer_value_type in {"non_response", "unsupported", "metadata"}:
+            continue
+        choices = _ordered_definition_items(definition, "Choices", "ChoiceOrder")
+        answers = _ordered_definition_items(definition, "Answers", "AnswerOrder")
+        field_specs: list[tuple[str, str, str | None, str | None, bool]] = []
+        canonical = resolved.canonical_question_type
+        if canonical == "multiple_choice_multiple":
+            for choice_id, choice, _ in choices:
+                label = _clean(choice.get("Display") if isinstance(choice, dict) else choice) or question_text
+                field_specs.append((f"choice:{choice_id}", label, choice_id, None, False))
+                if isinstance(choice, dict) and str(choice.get("TextEntry") or "").casefold() in {"true", "1"}:
+                    field_specs.append((f"choice:{choice_id}:text", f"{label} - Text", choice_id, None, True))
+        elif canonical == "matrix":
+            multiple = str(definition.get("SubSelector") or "").casefold() == "multipleanswer"
+            for choice_id, choice, _ in choices:
+                label = _clean(choice.get("Display") if isinstance(choice, dict) else choice) or question_text
+                if multiple:
+                    field_specs.extend(
+                        (f"row:{choice_id}:answer:{answer_id}", label, choice_id, answer_id, False)
+                        for answer_id, _, _ in answers
+                    )
+                else:
+                    field_specs.append((f"row:{choice_id}", label, choice_id, None, False))
+        elif canonical in {"form_field", "slider", "rank_order"} and choices:
+            field_specs.extend(
+                (
+                    f"choice:{choice_id}",
+                    _clean(choice.get("Display") if isinstance(choice, dict) else choice) or question_text,
+                    choice_id,
+                    None,
+                    False,
+                )
+                for choice_id, choice, _ in choices
+            )
+        else:
+            field_specs.append(("answer", question_text, None, None, False))
+        for key, field_text, choice_id, answer_id, is_text in field_specs:
+            entities.question_fields.append({
+                "survey_id": survey_id,
+                "question_id": question_id,
+                "field_id": f"QSF:{question_id}:{key}",
+                "source_import_id": None,
+                "source_field_suffix": "TEXT" if is_text else None,
+                "source_column_index": None,
+                "question_catalog_id": catalog_id,
+                "question_field_catalog_id": _hash(catalog_id, field_text.casefold()),
+                "field_text": field_text,
+                "statement_text": None,
+                "is_text_field": is_text,
+                "choice_external_id": choice_id,
+                "_matrix_answer_external_id": answer_id,
+                "is_definition_only": True,
+            })
 
 
 def _apply_identity_contract(entities: EntitySet) -> None:
@@ -679,6 +765,7 @@ def _parse_survey_file(
                 "sub_selector": definition.get("SubSelector"),
                 "question_role": role,
                 "semantic_structure": _question_structure(definition, []),
+                "is_definition_only": False,
                 **question_blocks.get(question_id, {}),
             })
             seen.add(question_id)
@@ -702,7 +789,9 @@ def _parse_survey_file(
             "is_text_field": bool(suffix and "TEXT" in suffix),
             "choice_external_id": choice_external_id,
             "_matrix_answer_external_id": matrix_answer_external_id,
+            "is_definition_only": False,
         })
+    _append_definition_only_questions(entities, qsf_questions, question_blocks, sid)
     _build_answer_option_domains(entities, qsf_questions)
     entities.question_catalog = list(
         {

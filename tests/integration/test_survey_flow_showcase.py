@@ -13,7 +13,9 @@ def test_flow_showcase_uses_production_parser_and_reproducible_routes(tmp_path):
     assert definition["questions"]["QID1"]["choices"]["1"] == "Sales"
     assert definition["questions"]["QID1"]["choices"]["2"] == "Engineering"
     assert "Welcome to our fictional team survey" in definition["questions"]["QID_INTRO"]["text"]
-    assert not any(question["question_external_id"] == "QID_INTRO" for question in entities.questions)
+    intro = next(question for question in entities.questions if question["question_external_id"] == "QID_INTRO")
+    assert intro["is_definition_only"] is True
+    assert not any(field["question_id"] == intro["question_id"] for field in entities.question_fields)
 
     def node_types(node):
         return {node["type"]} | {kind for child in node["children"] for kind in node_types(child)}

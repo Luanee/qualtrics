@@ -122,10 +122,11 @@ def build_codebook(entities: EntitySet) -> list[dict[str, str]]:
         options = sorted(
             domains.get((survey_id, question_id, field_id), []), key=lambda row: _order(row.get("answer_order"))
         )
+        definition_only = bool(field.get("is_definition_only"))
         entries.append({
             "survey_id": survey_id,
             "survey": _text(surveys.get(survey_id, {}).get("survey_name") or survey_id),
-            "export_column": _text(source.get("source_column") or external_field),
+            "export_column": "" if definition_only else _text(source.get("source_column") or external_field),
             "import_id": _text(
                 source.get("source_import_id") or field.get("import_external_id") or field.get("source_import_id")
             ),
@@ -139,10 +140,12 @@ def build_codebook(entities: EntitySet) -> list[dict[str, str]]:
             "value_type": _text(field.get("answer_value_type") or question.get("answer_value_type") or "Unknown"),
             "choices": "\n".join(_choice(option) for option in options),
             "source_column_index": _text(source.get("source_column_index", field.get("source_column_index"))),
-            "kind": _text(source.get("kind") or "question"),
-            "reason": _text(source.get("reason") or "Exported question field; source classification unavailable"),
-            "storage_table": "response_answers",
-            "storage_column": _text(source.get("storage_column") or external_field),
+            "kind": "definition" if definition_only else _text(source.get("kind") or "question"),
+            "reason": "Defined in QSF; no exported column"
+            if definition_only
+            else _text(source.get("reason") or "Exported question field; source classification unavailable"),
+            "storage_table": "" if definition_only else "response_answers",
+            "storage_column": "" if definition_only else _text(source.get("storage_column") or external_field),
         })
     for survey_id, columns in source_columns.items():
         for source in columns:

@@ -107,14 +107,16 @@ def test_manifest_matches_actual_parser_coverage_and_technical_exclusions(showca
         qid = case["question_id"]
         assert case["field_count"] == len(fields[qid])
         assert case["source_url"].startswith("https://www.qualtrics.com/")
+        question = questions[qid]
+        assert question["canonical_question_type"] == case["canonical_type"]
+        key = question["survey_id"], question["question_id"]
         if case["canonical_type"] in {"descriptive_text", "captcha"}:
-            assert qid not in questions
+            assert question["is_definition_only"] is True
+            assert key not in analysis.response_questions
             assert case["presentation"] == "Definition only"
             assert case["field_count"] == 0
         else:
-            question = questions[qid]
-            assert question["canonical_question_type"] == case["canonical_type"]
-            key = question["survey_id"], question["question_id"]
+            assert question["is_definition_only"] is False
             assert (key in analysis.response_questions) == (question["question_role"] == "response")
     assert len(entities.responses) == 100
     assert all(response["browser"] for response in entities.responses)
