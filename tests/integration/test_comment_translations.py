@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import builtins
 import csv
 import hashlib
 import json
 import sqlite3
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
+from typing import cast
 
 import pytest
 from typer.testing import CliRunner
@@ -19,6 +22,7 @@ from qualtrics._common.models.semantic import build_semantic_model
 from qualtrics._common.serialization.io import load_entities, write_entities
 from qualtrics._common.serialization.semantic import write_semantic_model
 from qualtrics.cli.app import app
+from qualtrics.cli.translations import _read_prepared
 
 
 def _entities() -> EntitySet:
@@ -142,6 +146,11 @@ def test_callback_handles_unknown_response_language_and_rejects_empty_output() -
         qualtrics.prepare_comment_translations(entities, ["EN"], translate)
     assert calls == [(" Grüße <tag> ", None, "EN")]
     assert entities.comment_translations == []
+
+
+def test_callback_rejects_non_string_target_language() -> None:
+    with pytest.raises(ValueError, match="Target languages"):
+        qualtrics.prepare_comment_translations(_entities(), cast(Iterable[str], [42]), lambda *_args: "Translated")
 
 
 @pytest.mark.parametrize(
@@ -412,3 +421,22 @@ def test_cli_rejects_wrong_parquet_input_schema(tmp_path: Path) -> None:
     )
     assert result.exit_code != 0
     assert "Translation Parquet must have columns" in result.output
+
+
+def test_parquet_import_reports_missing_pyarrow(monkeypatch: pytest.MonkeyPatch) -> None:
+    original_import = builtins.__import__
+
+    def missing_pyarrow(
+        name: str,
+        globals: Mapping[str, object] | None = None,
+        locals: Mapping[str, object] | None = None,
+        fromlist: Sequence[str] | None = (),
+        level: int = 0,
+    ):
+        if name == "pyarrow.parquet":
+            raise ImportError("PyArrow not installed")
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", missing_pyarrow)
+    with pytest.raises(RuntimeError, match="PyArrow is required"):
+        _read_prepared(Path("unused.parquet"))
