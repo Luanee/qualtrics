@@ -10,6 +10,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
+from ..models.comment_translations import TRANSLATION_COLUMNS, source_text_hash
 from ..models.comments import COMMENT_COLUMNS, build_comments
 from ..models.entities import EntitySet
 from ..models.response_columns import read_source_columns
@@ -123,6 +124,7 @@ SEMANTIC_COLUMNS = {
         "label_source_language",
     ),
     "fact_comments": COMMENT_COLUMNS,
+    "fact_comment_translations": (*TRANSLATION_COLUMNS, "is_current"),
     "dim_display_languages": (
         "language_code",
         "is_available",
@@ -163,6 +165,7 @@ _BOOL_COLUMNS = {
     "is_definition_only",
     "is_localized",
     "is_available",
+    "is_current",
 }
 _INT_COLUMNS = {
     "source_column_index",
@@ -240,21 +243,33 @@ def _write_sqlite(model: SemanticModel, destination: Path) -> None:
 
 def write_semantic_model(model: SemanticModel, folder: str | Path, format: str = "parquet") -> None:
     validate_manifests({str(row["survey_id"]) for row in model.dim_surveys}, model.survey_manifests)
+    comments = build_comments(
+        EntitySet(
+            # Flattened answer_value_type belongs to each field. A sibling's
+            # type must not become the fallback for a field with missing data.
+            questions=[
+                {key: value for key, value in row.items() if key != "answer_value_type"} for row in model.dim_questions
+            ],
+            question_fields=model.dim_questions,
+            responses=model.fact_responses,
+            response_answers=model.fact_response_answers,
+        )
+    )
+    comments_by_answer = {str(row["response_answer_id"]): row for row in comments}
     model = replace(
         model,
-        fact_comments=build_comments(
-            EntitySet(
-                # Flattened answer_value_type belongs to each field. A sibling's
-                # type must not become the fallback for a field with missing data.
-                questions=[
-                    {key: value for key, value in row.items() if key != "answer_value_type"}
-                    for row in model.dim_questions
-                ],
-                question_fields=model.dim_questions,
-                responses=model.fact_responses,
-                response_answers=model.fact_response_answers,
-            )
-        ),
+        fact_comments=comments,
+        fact_comment_translations=[
+            {
+                **row,
+                "is_current": (
+                    str(row.get("response_answer_id")) in comments_by_answer
+                    and row.get("source_text_hash")
+                    == source_text_hash(str(comments_by_answer[str(row["response_answer_id"])]["answer_text"]))
+                ),
+            }
+            for row in model.fact_comment_translations
+        ],
     )
     destination = Path(folder)
     destination.mkdir(parents=True, exist_ok=True)

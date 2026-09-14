@@ -15,6 +15,8 @@ CORE_ENTITY_NAMES = (
     "response_answers",
 )
 ENTITY_NAMES = (*CORE_ENTITY_NAMES, "comments")
+OPTIONAL_ENTITY_NAMES = ("comment_translations",)
+ALL_ENTITY_NAMES = (*ENTITY_NAMES, *OPTIONAL_ENTITY_NAMES)
 
 
 @dataclass
@@ -32,3 +34,4 @@ class EntitySet:
     responses: list[dict[str, Any]] = field(default_factory=list)
     response_answers: list[dict[str, Any]] = field(default_factory=list)
     comments: list[dict[str, Any]] = field(default_factory=list)
+    comment_translations: list[dict[str, Any]] = field(default_factory=list)

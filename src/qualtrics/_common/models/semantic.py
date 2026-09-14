@@ -4,6 +4,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from typing import Any
 
+from .comment_translations import source_text_hash
 from .comments import COMMENT_COLUMNS, build_comments
 from .entities import EntitySet
 from .entity_set import validate_entity_set
@@ -16,6 +17,7 @@ SEMANTIC_TABLE_NAMES = (
     "dim_questions",
     "dim_answer_options",
     "fact_comments",
+    "fact_comment_translations",
     "dim_display_languages",
     "dim_question_labels",
     "dim_answer_option_labels",
@@ -31,6 +33,7 @@ class SemanticModel:
     dim_questions: list[dict[str, Any]] = field(default_factory=list)
     dim_answer_options: list[dict[str, Any]] = field(default_factory=list)
     fact_comments: list[dict[str, Any]] = field(default_factory=list)
+    fact_comment_translations: list[dict[str, Any]] = field(default_factory=list)
     dim_display_languages: list[dict[str, Any]] = field(default_factory=list)
     dim_question_labels: list[dict[str, Any]] = field(default_factory=list)
     dim_answer_option_labels: list[dict[str, Any]] = field(default_factory=list)
@@ -178,6 +181,15 @@ def build_semantic_model(entities: EntitySet) -> SemanticModel:
         if not row.get("is_definition_only") and not row.get("is_localized")
     ]
     display_languages, question_labels, option_labels = _language_dimensions(entities, dimensions, active_options)
+    current_comments = {str(row["response_answer_id"]): row for row in entities.comments}
+    translations = [
+        {
+            **dict(row),
+            "is_current": row["source_text_hash"]
+            == source_text_hash(str(current_comments[str(row["response_answer_id"])]["answer_text"])),
+        }
+        for row in entities.comment_translations
+    ]
     return SemanticModel(
         survey_manifests=deepcopy(entities.survey_manifests),
         fact_responses=[dict(row) for row in entities.responses],
@@ -186,6 +198,7 @@ def build_semantic_model(entities: EntitySet) -> SemanticModel:
         dim_questions=dimensions,
         dim_answer_options=active_options,
         fact_comments=entities.comments,
+        fact_comment_translations=translations,
         dim_display_languages=display_languages,
         dim_question_labels=question_labels,
         dim_answer_option_labels=option_labels,
