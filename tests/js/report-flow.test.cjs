@@ -83,6 +83,19 @@ test('walkthrough answers, Back edits and branch replay never reuse a skipped qu
   assert.doesNotMatch(f.ids['flow-current'].textContent,/Finish/);
 });
 
+test('display language relabels flow inputs and choices without changing native choice values',()=>{
+  const f=fixture(); f.click('continue');
+  f.controller.setLanguage({s:{Q1:{text:'Abteilung',choices:{1:'Vertrieb',2:'Entwicklung'}}}});
+  assert.match(f.ids['flow-current'].textContent,/Abteilung/);
+  assert.match(f.ids['flow-current'].textContent,/Vertrieb/);
+  f.inputs()[0].value='0'; f.click('continue');
+  assert.match(f.ids['flow-current'].textContent,/Continue to details/);
+  f.controller.setLanguage({});
+  f.click('back');
+  assert.match(f.ids['flow-current'].textContent,/Department/);
+  assert.match(f.ids['flow-current'].textContent,/Sales/);
+});
+
 test('unknown condition and unsupported step require an explicit assumption before proceeding',()=>{
   const f=fixture(definition([n('branch','Branch',{BranchLogic:selected('Q1')}),n('u','WebService'),block('c')]));
   f.click('continue');f.click('continue');
