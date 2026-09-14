@@ -24,6 +24,23 @@ def validate_manifests(survey_ids: set[str], manifests: dict[str, dict[str, Any]
         flow = entry.get("flow_definition_json")
         if flow is not None and not isinstance(flow, dict):
             raise ValueError(f"Manifest flow_definition_json for {survey_id} must be an object or null")
+        languages = entry.get("languages")
+        if languages is None:
+            continue
+        if not isinstance(languages, dict):
+            raise ValueError(f"Manifest languages for {survey_id} must be an object")
+        base = languages.get("base_language")
+        if base is not None and (not isinstance(base, str) or not base.strip()):
+            raise ValueError(f"Manifest languages base_language for {survey_id} must be a code or null")
+        for key in ("available_languages", "all_languages"):
+            codes = languages.get(key)
+            if not isinstance(codes, list) or any(not isinstance(code, str) or not code.strip() for code in codes):
+                raise ValueError(f"Manifest languages {key} for {survey_id} must be a list of codes")
+            if len(set(codes)) != len(codes):
+                raise ValueError(f"Manifest languages {key} for {survey_id} contains duplicate codes")
+        all_codes = set(languages["all_languages"])
+        if (base is not None and base not in all_codes) or not set(languages["available_languages"]) <= all_codes:
+            raise ValueError(f"Manifest languages for {survey_id} has codes missing from all_languages")
 
 
 def write_manifest(folder: Path, surveys: list[dict[str, Any]], manifests: dict[str, dict[str, Any]]) -> None:

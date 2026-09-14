@@ -71,6 +71,34 @@ def _qsf(
     direct_questions = data.get("Questions", {})
     if isinstance(direct_questions, dict):
         questions.update(direct_questions)
+    options = data.get("SurveyOptions")
+    options = options if isinstance(options, dict) else {}
+    base_language = entry.get("SurveyLanguage") or options.get("SurveyLanguage")
+    entry["SurveyLanguage"] = str(base_language) if base_language else None
+    available = options.get("AvailableLanguages") or data.get("AvailableLanguages") or {}
+    available_codes = (
+        available.keys() if isinstance(available, dict) else available if isinstance(available, list) else []
+    )
+    available_languages = list(dict.fromkeys(str(code) for code in available_codes if str(code).strip()))
+    translated_codes = {
+        str(code)
+        for question in questions.values()
+        if isinstance(question, dict)
+        for code in (question.get("Language") or {})
+        if str(code).strip()
+    }
+    all_languages = list(
+        dict.fromkeys([
+            *([str(base_language)] if base_language else []),
+            *available_languages,
+            *sorted(translated_codes),
+        ])
+    )
+    entry["_languages"] = {
+        "base_language": entry["SurveyLanguage"],
+        "available_languages": available_languages,
+        "all_languages": all_languages,
+    }
     question_blocks = {}
     sections = []
     element_blocks = next(
