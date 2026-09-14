@@ -22,6 +22,7 @@ class _Links(HTMLParser):
         super().__init__()
         self.frames: list[dict[str, str | None]] = []
         self.links: list[str] = []
+        self.anchors: list[dict[str, str | None]] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attributes = dict(attrs)
@@ -29,10 +30,11 @@ class _Links(HTMLParser):
             self.frames.append(attributes)
         if tag == "a" and attributes.get("href"):
             self.links.append(str(attributes["href"]))
+            self.anchors.append(attributes)
 
 
 @pytest.mark.parametrize("directory_urls", [True, False])
-def test_built_showcase_embeds_current_report_and_downloads_under_project_url(
+def test_built_showcase_links_current_reports_and_downloads_under_project_url(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, directory_urls: bool
 ) -> None:
     site = tmp_path / "site"
@@ -78,11 +80,16 @@ def test_built_showcase_embeds_current_report_and_downloads_under_project_url(
 
     flow_page_path = "examples/survey-flow/index.html" if directory_urls else "examples/survey-flow.html"
     flow_page_url = urljoin(SITE_URL, "examples/survey-flow/" if directory_urls else flow_page_path)
+    flow_page = (site / flow_page_path).read_text(encoding="utf-8")
     flow_links = _Links()
-    flow_links.feed((site / flow_page_path).read_text(encoding="utf-8"))
-    assert len(flow_links.frames) == 1
-    assert urljoin(flow_page_url, str(flow_links.frames[0]["src"])) == (
-        SITE_URL + "assets/examples/survey-flow/report.html#survey-flow"
+    flow_links.feed(flow_page)
+    assert not flow_links.frames
+    assert 'class="flow-example-preview"' in flow_page
+    assert "Prefer not to say" in flow_page
+    assert any(
+        urljoin(flow_page_url, str(anchor["href"])) == SITE_URL + "assets/examples/survey-flow/report.html#survey-flow"
+        and anchor.get("target") == "_blank"
+        for anchor in flow_links.anchors
     )
     flow_downloads = {urljoin(flow_page_url, link) for link in flow_links.links}
     for filename in ("survey.qsf", "flow.json", "responses.csv", "report.html"):
