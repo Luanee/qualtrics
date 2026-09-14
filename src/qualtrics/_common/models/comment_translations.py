@@ -5,13 +5,10 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import replace
-from typing import TYPE_CHECKING
 
 from .comments import build_comments
+from .entities import EntitySet
 from .identity import entity_id
-
-if TYPE_CHECKING:
-    from .entities import EntitySet
 
 TRANSLATION_COLUMNS = (
     "comment_translation_id",
