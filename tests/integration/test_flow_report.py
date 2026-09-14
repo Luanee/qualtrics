@@ -62,13 +62,10 @@ def definition():
 def render(data=None, targets=None):
     return render_flow(
         EntitySet(
-            surveys=[
-                {
-                    "survey_id": "s",
-                    "survey_name": "Team survey",
-                    "flow_definition_json": json.dumps(data or definition()),
-                }
-            ]
+            surveys=[{"survey_id": "s", "survey_name": "Team survey"}],
+            survey_manifests={
+                "s": {"flow_definition_json": definition() if data is None else data, "source_columns_json": []}
+            },
         ),
         targets or {},
     )
@@ -110,15 +107,20 @@ def test_missing_invalid_and_empty_flow_have_distinct_readable_states():
         EntitySet(
             surveys=[
                 {"survey_id": "legacy", "survey_name": "Old survey"},
-                {"survey_id": "broken", "flow_definition_json": "{invalid"},
-                {
-                    "survey_id": "empty",
-                    "flow_definition_json": json.dumps({
+                {"survey_id": "broken"},
+                {"survey_id": "empty"},
+            ],
+            survey_manifests={
+                "legacy": {"flow_definition_json": None, "source_columns_json": []},
+                "broken": {"flow_definition_json": {"schema_version": 0}, "source_columns_json": []},
+                "empty": {
+                    "flow_definition_json": {
                         "schema_version": 1,
                         "root": {"type": "Root", "node_id": "0", "children": []},
-                    }),
+                    },
+                    "source_columns_json": [],
                 },
-            ]
+            },
         ),
         {},
     )

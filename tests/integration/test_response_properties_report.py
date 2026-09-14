@@ -1,6 +1,5 @@
 """Response properties remain visible without becoming survey answers."""
 
-import json
 from html.parser import HTMLParser
 
 from qualtrics._common.models import EntitySet
@@ -34,9 +33,8 @@ def _entities() -> EntitySet:
         for index, (source, storage, label, kind, reason, table) in enumerate(descriptors)
     ]
     return EntitySet(
-        surveys=[
-            {"survey_id": "s", "survey_name": "Fictional survey", "source_columns_json": json.dumps(source_columns)}
-        ],
+        survey_manifests={"s": {"flow_definition_json": None, "source_columns_json": source_columns}},
+        surveys=[{"survey_id": "s", "survey_name": "Fictional survey"}],
         questions=[
             {
                 "survey_id": "s",
@@ -142,7 +140,7 @@ def test_codebook_includes_property_evidence_and_storage_without_response_values
 
 def test_legacy_response_browser_metadata_still_renders_without_source_dictionary() -> None:
     entities = _entities()
-    del entities.surveys[0]["source_columns_json"]
+    del entities.survey_manifests["s"]
     rendered = render_responses(ReportContext.build(entities))
     assert "<b>Browser</b> ExampleBrowser" in rendered
     assert len(build_codebook(entities)) == 2

@@ -621,19 +621,17 @@ def _parse_survey_file(
                 "survey_name": entry.get("SurveyName") or source_path.stem,
                 "survey_status": entry.get("SurveyStatus"),
                 "default_language": entry.get("SurveyLanguage"),
-                **(
-                    {"flow_definition_json": entry["flow_definition_json"]}
-                    if entry.get("flow_definition_json") is not None
-                    else {}
-                ),
             }
         ]
     )
     entities.sections = [{"survey_id": sid, **section} for section in sections]
     source_columns = classify_columns(columns, headers, metadata, qsf_questions, entry)
-    entities.surveys[0]["source_columns_json"] = json.dumps(
-        [column.descriptor() for column in source_columns], ensure_ascii=False, separators=(",", ":")
-    )
+    entities.survey_manifests[sid] = {
+        "flow_definition_json": json.loads(entry["flow_definition_json"])
+        if entry.get("flow_definition_json") is not None
+        else None,
+        "source_columns_json": [column.descriptor() for column in source_columns],
+    }
     field_specs = [column for column in source_columns if column.question_external_id]
     grouped_headers: dict[str, list[str]] = {}
     for specification in field_specs:

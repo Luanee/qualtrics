@@ -21,6 +21,7 @@ ENTITY_NAMES = (*CORE_ENTITY_NAMES, "comments")
 class EntitySet:
     _present_entities: set[str] = field(default_factory=set, repr=False, compare=False)
     _present_columns: dict[str, set[str]] = field(default_factory=dict, repr=False, compare=False)
+    survey_manifests: dict[str, dict[str, Any]] = field(default_factory=dict)
     surveys: list[dict[str, Any]] = field(default_factory=list)
     sections: list[dict[str, Any]] = field(default_factory=list)
     question_catalog: list[dict[str, Any]] = field(default_factory=list)

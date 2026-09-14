@@ -155,7 +155,7 @@ uv run --extra cli --extra ui qualtrics report --folder data/survey-a/entities -
 For the batch layout made by the [API example](api-access.md), you can pass its shared root:
 
 ```text
-uv run --extra cli --extra ui --extra parquet qualtrics report --folder data/api-export --output data/api-export/report.html
+uv run --extra cli --extra ui qualtrics report --folder data/api-export --output data/api-export/report.html
 ```
 
 The command discovers immediate `<survey-id>/entities/` folders. It also accepts a survey folder containing `entities/`. Inputs must represent different surveys; overlapping survey IDs cause an error. See [combine surveys](combine-surveys.md) if you also want a combined table collection.

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from collections import Counter
 from typing import Any
 
@@ -14,11 +13,15 @@ PropertyIdentity = tuple[str, int]
 
 def merge_response_columns(
     entity_sets: list[EntitySet],
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]], set[str]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], set[str], dict[str, dict[str, Any]]]:
     surveys = [dict(survey) for item in entity_sets for survey in item.surveys]
     source_rows = [row for item in entity_sets for row in item.responses]
     canonical = set(RESPONSE_SYSTEM_COLUMNS)
-    manifests = {str(survey["survey_id"]): read_source_columns(survey) for survey in surveys}
+    manifests = {
+        str(survey["survey_id"]): read_source_columns(item.survey_manifests.get(str(survey["survey_id"]), {}))
+        for item in entity_sets
+        for survey in item.surveys
+    }
     identities: dict[str, dict[str, PropertyIdentity]] = {}
     present_keys: set[str] = set(RESPONSE_SYSTEM_COLUMNS) if entity_sets else set()
     for survey_id, columns in manifests.items():
@@ -74,6 +77,7 @@ def merge_response_columns(
         })
         responses.append(normalized)
 
+    merged_manifests: dict[str, dict[str, Any]] = {}
     for survey in surveys:
         survey_id = str(survey["survey_id"])
         columns = manifests[survey_id]
@@ -81,6 +85,12 @@ def merge_response_columns(
             key = str(column.get("storage_column") or "")
             if column.get("storage_table") == "responses" and key in identities[survey_id]:
                 column["storage_column"] = names[identities[survey_id][key]]
-        if columns:
-            survey["source_columns_json"] = json.dumps(columns, ensure_ascii=False)
-    return surveys, responses, set(keys)
+        original = next(
+            (item.survey_manifests[survey_id] for item in entity_sets if survey_id in item.survey_manifests),
+            {},
+        )
+        merged_manifests[survey_id] = {
+            "flow_definition_json": original.get("flow_definition_json"),
+            "source_columns_json": columns,
+        }
+    return surveys, responses, set(keys), merged_manifests

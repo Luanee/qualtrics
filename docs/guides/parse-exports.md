@@ -20,13 +20,13 @@ A QSF describes the survey. It supplies question types, blocks, and the complete
 
 ## 2. Choose an output format
 
-| Format | Choose it when you want to… | Extra dependency |
-| --- | --- | --- |
-| `csv` | Open the tables in a spreadsheet or inspect them as text. | None |
-| `json` | Read structured records or pass them to another program. This is the `build` default. | None |
-| `parquet` | Store typed tables for an analysis tool or data platform. | Install with `--extra parquet` as in the setup guide. |
+| Format | Choose it when you want to… |
+| --- | --- |
+| `csv` | Open the tables in a spreadsheet or inspect them as text. |
+| `json` | Read structured records or pass them to another program. This is the `build` default. |
+| `parquet` | Store typed tables for an analysis tool or data platform. |
 
-The report command reads all three formats. Use one format per entity folder.
+The base package includes PyArrow, and the report command reads all three formats. Use one format per entity folder.
 
 CSV entity files can contain source-column and survey-flow metadata cells larger than 128 KiB. The loader reads these cells without truncating them. It raises Python's process-wide CSV field limit before reading, first trying `sys.maxsize` and halving the candidate if the platform rejects it. It keeps any larger limit already configured by the caller. A field beyond the resulting `csv.field_size_limit()` still raises a CSV error; JSON or Parquet are alternatives for data that exceeds that platform limit.
 

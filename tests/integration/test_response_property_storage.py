@@ -28,7 +28,8 @@ def _properties(survey_id: str, properties: list[tuple[str, str, str]]) -> Entit
         for index, (source, storage, _) in enumerate(properties)
     ]
     return EntitySet(
-        surveys=[{"survey_id": survey_id, "survey_name": survey_id, "source_columns_json": json.dumps(columns)}],
+        survey_manifests={survey_id: {"flow_definition_json": None, "source_columns_json": columns}},
+        surveys=[{"survey_id": survey_id, "survey_name": survey_id}],
         responses=[
             {
                 "response_id": f"response-{survey_id}",
@@ -50,10 +51,30 @@ def test_merge_response_property_union_has_nulls_and_does_not_mutate_inputs() ->
     assert merged.responses[0]["Country"] is None
     assert merged.responses[1]["Region"] is None
     assert set(merged.responses[0]) == set(merged.responses[1])
+    assert set(merged.survey_manifests) == {"SV_A", "SV_B"}
+    assert all("source_columns_json" not in survey for survey in merged.surveys)
     merged.responses[0]["Region"] = "Changed"
     assert [first, second] == original
 
     assert merge_entity_sets([merged]).responses == merged.responses
+    assert merge_entity_sets([merged]).survey_manifests == merged.survey_manifests
+
+
+@pytest.mark.parametrize("format", ["json", "csv", "parquet"])
+def test_merged_properties_round_trip_with_one_manifest_and_nullable_union(tmp_path: Path, format: str) -> None:
+    first = _properties("SV_A", [("Region", "Region", "North")])
+    second = _properties("SV_B", [("Country", "Country", "DE")])
+    merged = merge_entity_sets([first, second])
+
+    folder = tmp_path / format
+    write_entities(merged, folder, format)
+    payload = json.loads((folder / "manifest.json").read_text())
+    loaded = load_entities(folder)
+
+    assert payload == {"schema_version": 1, "surveys": merged.survey_manifests}
+    assert loaded.survey_manifests == merged.survey_manifests
+    assert all("source_columns_json" not in survey for survey in loaded.surveys)
+    assert [(row["Region"], row["Country"]) for row in loaded.responses] == [("North", None), (None, "DE")]
 
 
 def test_merge_preserves_source_identity_when_storage_names_collide() -> None:
@@ -65,7 +86,7 @@ def test_merge_preserves_source_identity_when_storage_names_collide() -> None:
     reverse = merge_entity_sets([second, first])
     mappings = {}
     for survey, response in zip(merged.surveys, merged.responses, strict=True):
-        columns = json.loads(survey["source_columns_json"])
+        columns = merged.survey_manifests[survey["survey_id"]]["source_columns_json"]
         mappings[survey["survey_id"]] = {column["source_column"]: column["storage_column"] for column in columns}
         assert len({key.casefold() for key in response}) == len(response)
     assert mappings["SV_A"]["status"] != mappings["SV_B"]["property_status"]
@@ -84,7 +105,10 @@ def test_empty_source_name_is_distinct_from_literal_property_name() -> None:
     first = _properties("SV_A", [("", "property", "first")])
     second = _properties("SV_B", [("property", "property", "second")])
     merged = merge_entity_sets([first, second])
-    keys = [json.loads(survey["source_columns_json"])[0]["storage_column"] for survey in merged.surveys]
+    keys = [
+        merged.survey_manifests[survey["survey_id"]]["source_columns_json"][0]["storage_column"]
+        for survey in merged.surveys
+    ]
     assert keys[0] != keys[1]
     assert merged.responses[0][keys[0]] == "first"
     assert merged.responses[0][keys[1]] is None
@@ -97,9 +121,9 @@ def test_merge_empty_survey_preserves_required_schema_and_property_dictionary(
     entities = parse_survey(*survey_files)
     entities.responses.clear()
     entities.response_answers.clear()
-    columns = json.loads(entities.surveys[0]["source_columns_json"])
-    columns.extend(json.loads(_properties("SV_A", [("Region", "Region", "North")]).surveys[0]["source_columns_json"]))
-    entities.surveys[0]["source_columns_json"] = json.dumps(columns)
+    survey_id = entities.surveys[0]["survey_id"]
+    columns = entities.survey_manifests[survey_id]["source_columns_json"]
+    columns.extend(_properties("SV_A", [("Region", "Region", "North")]).survey_manifests["SV_A"]["source_columns_json"])
     entities._present_columns["responses"] = {"response_id", "response_external_id", "survey_id", "LegacyEmpty"}
     validate_entity_set(entities, strict=True)
 
@@ -119,15 +143,18 @@ def test_properties_and_source_dictionary_survive_entity_round_trip(
     tmp_path: Path, survey_files: tuple[Path, Path], format: str
 ) -> None:
     entities = parse_survey(*survey_files)
-    manifest = _properties("SV_A", [("Region", "Region", "North")]).surveys[0]["source_columns_json"]
-    entities.surveys[0]["source_columns_json"] = manifest
+    survey_id = entities.surveys[0]["survey_id"]
+    manifest = _properties("SV_A", [("Region", "Region", "North")]).survey_manifests["SV_A"]
+    entities.survey_manifests[survey_id] = manifest
     entities.responses[0].update({"Region": "North", "Country": "001", "Permissions": "false"})
     entities.responses[1].update({"Region": None, "Country": "002", "Permissions": "0"})
     write_entities(entities, tmp_path / format, format)
 
     loaded = load_entities(tmp_path / format)
 
-    assert loaded.surveys[0]["source_columns_json"] == manifest
+    assert loaded.survey_manifests[survey_id] == manifest
+    assert json.loads((tmp_path / format / "manifest.json").read_text())["surveys"] == {survey_id: manifest}
+    assert "source_columns_json" not in loaded.surveys[0]
     for before, after in zip(entities.responses, loaded.responses, strict=True):
         for key in ("Region", "Country", "Permissions"):
             assert after[key] == before[key]
@@ -139,7 +166,7 @@ def test_properties_and_source_dictionary_survive_entity_round_trip(
 @pytest.mark.parametrize("format", ["sqlite", "parquet"])
 def test_empty_semantic_response_table_retains_declared_properties(tmp_path: Path, format: str) -> None:
     entities = _properties("SV_EMPTY", [("Region", "Region", "North")])
-    model = SemanticModel(dim_surveys=entities.surveys)
+    model = SemanticModel(dim_surveys=entities.surveys, survey_manifests=entities.survey_manifests)
     write_semantic_model(model, tmp_path, format)
     if format == "sqlite":
         with sqlite3.connect(tmp_path / "semantic_model.sqlite") as connection:

@@ -25,6 +25,7 @@ def test_semantic_model_cli_writes_six_json_tables(tmp_path: Path, survey_files:
         "dim_surveys.json",
         "dim_questions.json",
         "dim_answer_options.json",
+        "manifest.json",
     }
 
 
@@ -61,7 +62,7 @@ def test_semantic_model_cli_writes_one_sqlite_database(tmp_path: Path, survey_fi
     )
 
     assert result.exit_code == 0, result.output
-    assert [path.name for path in output.iterdir()] == ["semantic_model.sqlite"]
+    assert {path.name for path in output.iterdir()} == {"semantic_model.sqlite", "manifest.json"}
     assert str(output / "semantic_model.sqlite") in result.output
     with sqlite3.connect(output / "semantic_model.sqlite") as connection:
         assert connection.execute("SELECT count(*) FROM fact_responses").fetchone() == (2,)

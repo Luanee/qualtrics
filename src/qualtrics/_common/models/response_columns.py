@@ -45,13 +45,16 @@ def allocate_response_column(name: str, used: set[str]) -> str:
     return candidate
 
 
-def read_source_columns(survey: dict[str, Any]) -> list[dict[str, Any]]:
-    """Return independent descriptors, or an empty list for older/malformed rows."""
-    raw = survey.get("source_columns_json")
-    if not isinstance(raw, str):
-        return []
-    try:
-        value = json.loads(raw)
-    except (ValueError, TypeError):
+def read_source_columns(manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return independent descriptors from a survey manifest entry."""
+    raw = manifest.get("source_columns_json")
+    if isinstance(raw, list):
+        value = raw
+    elif isinstance(raw, str):
+        try:
+            value = json.loads(raw)
+        except (ValueError, TypeError):
+            return []
+    else:
         return []
     return [dict(item) for item in value if isinstance(item, dict)] if isinstance(value, list) else []

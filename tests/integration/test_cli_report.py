@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from copy import deepcopy
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -11,11 +10,7 @@ from qualtrics.cli import app
 
 def _write_survey_folders(root: Path, survey_files: tuple[Path, Path]) -> tuple[Path, Path]:
     first = parse_survey(*survey_files)
-    second = deepcopy(first)
-    for rows in vars(second).values():
-        for row in rows:
-            if "survey_id" in row:
-                row["survey_id"] = "SV_SECOND"
+    second = parse_survey(*survey_files, survey_id="SV_SECOND")
     second.surveys[0]["survey_name"] = "Second survey"
 
     first_folder = root / "SV_SAMPLE"

@@ -111,7 +111,7 @@ Use this command for distinct surveys. It does not append successive exports fro
 ## `semantic-model build`
 
 ```bash
-uv run --extra cli --extra ui --extra parquet qualtrics semantic-model build output/combined/entities \
+uv run --extra cli --extra ui qualtrics semantic-model build output/combined/entities \
   --output output/combined/semantic --format parquet
 ```
 
@@ -125,8 +125,8 @@ The command validates the entity collection and writes `fact_responses`, `fact_r
 
 For SQLite, use `--format sqlite`; the command writes `semantic_model.sqlite` inside the output directory. It preserves IDs as text, represents booleans as `0`/`1`, and includes typed columns even for empty tables. The database becomes available only after all six tables have been written successfully. Existing output is never replaced.
 
-!!! note "Parquet requires an extra dependency"
-    `entities combine` and `semantic-model build` default to Parquet. Install the extra with `uv sync --extra cli --extra ui --extra parquet`, or select `--format json` or `--format csv`. The semantic-model command also supports `--format sqlite` without an extra dependency. See [installation](../getting-started/installation.md).
+!!! note "Parquet is the default"
+    `entities combine` and `semantic-model build` default to Parquet, which the base package supports. Select `--format json` or `--format csv` for text files. The semantic-model command also supports `--format sqlite`. See [installation](../getting-started/installation.md).
 
 ## API commands
 

@@ -19,6 +19,7 @@ SEMANTIC_TABLE_NAMES = (
 
 @dataclass
 class SemanticModel:
+    survey_manifests: dict[str, dict[str, Any]] = field(default_factory=dict)
     fact_responses: list[dict[str, Any]] = field(default_factory=list)
     fact_response_answers: list[dict[str, Any]] = field(default_factory=list)
     dim_surveys: list[dict[str, Any]] = field(default_factory=list)
@@ -46,6 +47,7 @@ def build_semantic_model(entities: EntitySet) -> SemanticModel:
         field_definition = field_catalog.get(str(field_row["question_field_catalog_id"]), {})
         dimensions.append({**catalog, **field_definition, **section, **question, **field_row})
     return SemanticModel(
+        survey_manifests={key: dict(value) for key, value in entities.survey_manifests.items()},
         fact_responses=[dict(row) for row in entities.responses],
         fact_response_answers=[dict(row) for row in entities.response_answers],
         dim_surveys=[dict(row) for row in entities.surveys],

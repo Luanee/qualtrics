@@ -44,7 +44,7 @@ The package layout now has four implementation packages: `api`, `cli`, `ui`, and
 | `from qualtrics.reporting import render_report` | `from qualtrics.ui import render_report` or `from qualtrics import render_report` |
 | `from qualtrics.services import merge_entity_sets` | `from qualtrics import merge_entity_sets` |
 
-Use the root imports for shared data operations. Treat `_common` and its submodules as private implementation details; they are not supported application imports. Existing root imports and the `cli`, `ui`, and `parquet` dependency extras retain their behavior. The base installation still includes the API SDK dependencies.
+Use the root imports for shared data operations. Treat `_common` and its submodules as private implementation details; they are not supported application imports. Existing root imports and the `cli` and `ui` extras retain their behavior. The base installation includes the API SDK and PyArrow dependencies.
 
 ## Offline functions
 
@@ -95,7 +95,7 @@ write_semantic_model(
 | `build_semantic_model` | Requires a complete, valid entity collection. Returns six tables in a `SemanticModel`. |
 | `write_semantic_model` | Writes all six tables as `json`, `csv`, or `parquet`. Creates the folder and overwrites matching files. |
 
-The Python writers do not apply the CLI combine and semantic commands' occupied-output checks. Choose a fresh output directory for each run or format. Both reading and writing Parquet require the `parquet` extra.
+The Python writers do not apply the CLI combine and semantic commands' occupied-output checks. Choose a fresh output directory for each run or format. The base package supports reading and writing Parquet.
 
 ### Parse, save, and report
 
@@ -223,7 +223,7 @@ update_metadata(survey_id: str, metadata: dict[str, Any]) -> None
 
 `get` returns a wrapper with `survey_id`, `survey_name`, and the raw definition in `payload`. You can save `.model_dump_json()` as a `.json` definition and pass it to `parse_survey`. `create`, `delete`, and `update_metadata` change remote data.
 
-`get_flow` reads the configured flow root with its ordered children through the existing retry transport. Save it as JSON and pass its path as `parse_survey(..., flow_path=...)` for one input. Flows already included in a QSF or API definition are preserved automatically. The parser stores report-safe flow metadata as optional `surveys.flow_definition_json`, retaining the existing entity-table contract. See [survey flow](../guides/survey-flow.md) for a complete example and supported walkthrough behavior.
+`get_flow` reads the configured flow root with its ordered children through the existing retry transport. Save it as JSON and pass its path as `parse_survey(..., flow_path=...)` for one input. Flows already included in a QSF or API definition are preserved automatically. The parser stores report-safe flow metadata in the export folder's `manifest.json`, keyed by survey ID; `surveys` stays scalar. See [survey flow](../guides/survey-flow.md) for a complete example and supported walkthrough behavior.
 
 ### `client.survey_quotas`
 
@@ -382,7 +382,6 @@ The client keeps these flat methods as delegates to the service API. They accept
 | --- | --- |
 | `ValueError` | Invalid settings, a malformed input, or an invalid entity contract. Read the message for the missing field or conflict. |
 | `FileNotFoundError` | Missing file, an unmatched wildcard, or a report destination whose parent does not exist. |
-| `RuntimeError("Install qualtrics[parquet]")` | A Parquet operation needs the optional dependency. |
 | `QualtricsAPIError` | Qualtrics returned an HTTP error. Inspect `status_code` and `request_id`. |
 | `QualtricsExportError` | An import or export failed, timed out, or omitted a required job/file ID. |
 | `httpx.HTTPError` | An HTTP transport failure, including timeouts. |
