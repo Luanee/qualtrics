@@ -47,6 +47,8 @@ When there is no native choice suffix, the supported legacy prefix convention re
 
 Choice matching gives explicit `RecodeValues` priority within the answer's question field. If native choice `1` has recode `2`, an exported `2` links to that choice even when native choice `2` also exists. This also applies to categorical matrix answer domains. Without an explicit recode match, the parser uses an unambiguous match against the native ID, cleaned `Display` label, or export tag. Two choices sharing the same recode remain unresolved; a lower-priority alias does not break the tie. Raw answer text and option identities are preserved.
 
+When `UserLanguage` identifies a QSF language, a translated choice or matrix-scale label can also resolve a categorical answer. An unambiguous translated label points to the **base** `answer_option_id`; it never creates another fact or rewrites `answer_text`/`raw_value`. Explicit recodes and native IDs retain priority over labels. A translated label can disambiguate a collision with a different base-language display label, but duplicate labels within the respondent's language remain unlinked. Null or unknown `UserLanguage` provides no translated alias; text and continuous numeric answers are never promoted to options.
+
 For example, choice `1` with `Display: "Yes"` and recode `2` receives answers exported as either `2` or `Yes`, provided the selected matching level identifies one choice. A numeric display label can itself collide with another choice's recode; the explicit recode takes priority under this rule. Rebuild existing entities from the original CSV and matching QSF to apply the corrected links, then regenerate the report or semantic model.
 
 ## Comments

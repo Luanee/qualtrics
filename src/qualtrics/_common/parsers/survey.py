@@ -17,7 +17,7 @@ from ..models.question_types import classify_question_role, field_value_type, re
 from ..models.response_columns import RESPONSE_SYSTEM_COLUMNS
 from .columns import classify_columns, field_source_parts, parse_column_metadata
 from .identity import _clean, _field_text, _hash
-from .localization import append_localized_entities
+from .localization import append_localized_entities, link_translated_answers
 from .paths import _expand_paths
 from .qsf import _matching_definition, _qsf
 
@@ -847,6 +847,7 @@ def _parse_survey_file(
         definition = qsf_questions.get(str(field["question_external_id"]), {})
         field["is_comment_field"] = _comment_field_evidence(definition, field)
     append_localized_entities(entities, qsf_questions, entities.survey_manifests[sid]["languages"])
+    link_translated_answers(entities)
     entities.comments = build_comments(entities)
     entities._present_columns["comments"] = set(COMMENT_COLUMNS)
     return entities
