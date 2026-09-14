@@ -50,11 +50,13 @@ A **fact table** holds the records you count or measure. A **dimension table** d
 | `fact_responses` | One survey response, including its available response metadata. | Count responses; filter by survey, date, or language. |
 | `fact_response_answers` | One non-empty exported answer field. | Count answer rows or average a numeric answer. |
 | `dim_surveys` | One survey. | Display survey names. |
-| `dim_questions` | One exported question field, with its question and block details. | Label and filter the exact field you want to analyze. |
+| `dim_questions` | One exported or QSF-only question field, with its question and block details. | Label and filter the exact field you want to analyze. |
 | `dim_answer_options` | One choice defined for one question field. | Show choice labels and definition order, including unused choices. |
 | `fact_comments` | One nonblank text answer field, derived from all answers. | Read comments or count submissions with a written answer. |
 
 A matrix question can have several fields, so it can have several rows in `dim_questions`. The same label, such as “Yes”, can appear in many option rows because each belongs to a particular field. Use the IDs to relate tables; do not join them by answer text.
+
+`is_definition_only = true` marks QSF questions and fields that did not appear in the CSV. They are useful for inspecting the full survey design, but have no answer facts; do not interpret them as questions that respondents saw and skipped.
 
 `fact_comments` contains the same text answers already present in `fact_response_answers`. It reuses each `response_answer_id` and keeps `answer_text` and available `raw_value` unchanged. Two matching comments remain two records; multiple text boxes in one response remain separate. Do not append the subset to all answers or add their row counts together.
 
