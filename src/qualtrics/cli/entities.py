@@ -5,6 +5,7 @@ import typer
 
 from .._common.models import merge_entity_sets
 from .._common.models.entities import ENTITY_NAMES
+from .._common.models.survey_manifest import MANIFEST_FILENAME
 from .._common.serialization import load_entities, write_entities
 from .entity_folders import ENTITY_EXTENSIONS, resolve_entity_folders, validate_entity_collection
 
@@ -31,7 +32,8 @@ def combine(
         for extension in ENTITY_EXTENSIONS
         if (output / f"{name}.{extension}").is_file()
     ]
-    if existing_output_files:
+    manifest = output / MANIFEST_FILENAME
+    if existing_output_files or manifest.exists() or manifest.is_symlink():
         raise typer.BadParameter(f"output already contains entity files: {output}")
     try:
         entities = merge_entity_sets([load_entities(folder) for folder in entity_folders])

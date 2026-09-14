@@ -65,7 +65,8 @@ def test_build_and_sqlite_cli_export_comments_with_response_language(
         ("  Grüße, bitte schneller.  ", "  Grüße, bitte schneller.  ", "DE"),
         ("00123", "00123", None),
     ]
-    assert len(list(entities.glob("*.json"))) == 10
+    assert len(list(entities.glob("*.json"))) == 11
+    assert (entities / "manifest.json").is_file()
     answers = json.loads((entities / "response_answers.json").read_text())
     assert len(answers) == 4
     output = tmp_path / "power-bi"

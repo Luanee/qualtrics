@@ -8,6 +8,7 @@ from pathlib import Path
 from ..models.comments import COMMENT_COLUMNS, build_comments
 from ..models.entities import ENTITY_NAMES, EntitySet
 from ..models.response_columns import read_source_columns
+from ..models.survey_manifest import MANIFEST_FILENAME, load_manifest, validate_manifests, write_manifest
 
 CSV_FIELD_TYPES: dict[str, dict[str, type[int] | type[float] | type[bool]]] = {
     "sections": {"section_order": int},
@@ -231,8 +232,8 @@ def _column_names(entities: EntitySet, name: str) -> list[str]:
         keys.update(
             dict.fromkeys(
                 str(column["storage_column"])
-                for survey in entities.surveys
-                for column in read_source_columns(survey)
+                for survey_id, manifest in entities.survey_manifests.items()
+                for column in read_source_columns(manifest)
                 if column.get("storage_table") == "responses" and column.get("storage_column")
             )
         )
@@ -240,6 +241,7 @@ def _column_names(entities: EntitySet, name: str) -> list[str]:
 
 
 def write_entities(entities: EntitySet, folder: str | Path, format: str = "json") -> None:
+    validate_manifests({str(row["survey_id"]) for row in entities.surveys}, entities.survey_manifests)
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
     for name in ENTITY_NAMES:
@@ -258,7 +260,7 @@ def write_entities(entities: EntitySet, folder: str | Path, format: str = "json"
                 import pyarrow as pa
                 import pyarrow.parquet as pq
             except ImportError as exc:
-                raise RuntimeError("Install qualtrics[parquet]") from exc
+                raise RuntimeError("PyArrow is required for Parquet output") from exc
             keys = _column_names(entities, name)
             normalized_records = _normalize_parquet_records(records)
             fields = []
@@ -285,6 +287,7 @@ def write_entities(entities: EntitySet, folder: str | Path, format: str = "json"
             pq.write_table(pa.Table.from_pylist(normalized, schema=pa.schema(fields)), path)
         else:
             raise ValueError(f"Unsupported format: {format}")
+    write_manifest(folder, entities.surveys, entities.survey_manifests)
 
 
 def load_entities(folder: str | Path | None = None, **paths: str | Path) -> EntitySet:
@@ -322,12 +325,23 @@ def load_entities(folder: str | Path | None = None, **paths: str | Path) -> Enti
             try:
                 import pyarrow.parquet as pq
             except ImportError as exc:
-                raise RuntimeError("Install qualtrics[parquet]") from exc
+                raise RuntimeError("PyArrow is required for Parquet input") from exc
             table = pq.read_table(path)
             records = table.to_pylist()
             result._present_columns[name] = set(table.schema.names)
         setattr(result, name, records)
         result._present_entities.add(name)
+    if "manifest" in paths:
+        manifest_path = Path(paths["manifest"])
+        if not manifest_path.is_file():
+            raise ValueError(f"Survey manifest does not exist: {manifest_path}")
+    elif folder:
+        manifest_path = folder / MANIFEST_FILENAME
+    else:
+        parent_folders = {Path(path).resolve().parent for name, path in paths.items() if name in ENTITY_NAMES}
+        manifest_path = next(iter(parent_folders)) / MANIFEST_FILENAME if len(parent_folders) == 1 else None
+    if manifest_path is not None:
+        result.survey_manifests = load_manifest(manifest_path, result.surveys)
     validate_entity_set(result, strict=folder is not None)
     result.comments = build_comments(result)
     result._present_columns["comments"] = set(COMMENT_COLUMNS)

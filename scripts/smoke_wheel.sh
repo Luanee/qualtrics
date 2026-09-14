@@ -61,10 +61,15 @@ for comment in entities.comments:
 smoke_output = Path(os.environ["QUALTRICS_WHEEL_SMOKE_OUTPUT"])
 write_entities(entities, smoke_output / "base-entities", "json")
 assert load_entities(smoke_output / "base-entities").comments == entities.comments
+assert (smoke_output / "base-entities/manifest.json").is_file()
+write_entities(entities, smoke_output / "base-parquet", "parquet")
+assert load_entities(smoke_output / "base-parquet").survey_manifests == entities.survey_manifests
 write_semantic_model(semantic, smoke_output / "base-model", "sqlite")
 with sqlite3.connect(smoke_output / "base-model/semantic_model.sqlite") as connection:
     assert connection.execute("SELECT count(*) FROM fact_comments").fetchone() == (2,)
-for dependency in ("typer", "rich", "jinja2", "markupsafe", "pyarrow"):
+assert (smoke_output / "base-model/manifest.json").is_file()
+assert importlib.util.find_spec("pyarrow") is not None
+for dependency in ("typer", "rich", "jinja2", "markupsafe"):
     assert importlib.util.find_spec(dependency) is None, dependency
 PYTHON
 uv venv --clear .wheel-cli-venv

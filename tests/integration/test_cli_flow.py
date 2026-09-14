@@ -78,7 +78,12 @@ def test_build_accepts_flow_download_alongside_qsf(tmp_path: Path, survey_files)
     )
     assert result.exit_code == 0, result.output
     surveys = json.loads((output / "surveys.json").read_text())
-    assert json.loads(surveys[0]["flow_definition_json"])["root"]["children"][0]["config"]["ID"] == "BL_1"
+    manifest = json.loads((output / "manifest.json").read_text())
+    survey_id = surveys[0]["survey_id"]
+    assert "flow_definition_json" not in surveys[0]
+    assert manifest["schema_version"] == 1
+    assert set(manifest["surveys"]) == {survey_id}
+    assert manifest["surveys"][survey_id]["flow_definition_json"]["root"]["children"][0]["config"]["ID"] == "BL_1"
 
 
 @pytest.mark.parametrize("force_terminal", [False, True], ids=["plain", "styled"])

@@ -10,7 +10,7 @@ Explore the ten exported entities and their relationships in the diagram below. 
 
 [Download the ten-entity DBML schema](entity-model.dbml) to inspect the full column and relationship contract in a compatible schema tool.
 
-Parsing produces nine authoritative entities plus the derived `comments` table, for ten exported tables. Occurrence IDs are survey-safe hashes; `*_external_id` columns preserve Qualtrics lineage. Catalog IDs identify normalized semantics across surveys. Catalog merging compares the complete stored normalized content, including the parent question catalog ID for fields, while retaining the [first input’s representative display labels](guides/combine-surveys.md#representative-catalog-labels). Concrete question, field, and answer-option rows remain survey-specific.
+Parsing produces nine authoritative entities plus the derived `comments` table, for ten exported tables. A sibling `manifest.json` carries survey-specific flow and source-column descriptors; it is metadata, not an eleventh entity. Occurrence IDs are survey-safe hashes; `*_external_id` columns preserve Qualtrics lineage. Catalog IDs identify normalized semantics across surveys. Catalog merging compares the complete stored normalized content, including the parent question catalog ID for fields, while retaining the [first input’s representative display labels](guides/combine-surveys.md#representative-catalog-labels). Concrete question, field, and answer-option rows remain survey-specific.
 
 | Entity | Grain | Primary ID | Main parents |
 |---|---|---|---|
@@ -94,7 +94,9 @@ These columns also travel to `dim_answer_options` and `fact_response_answers`. O
 
 `responses` has one row per submission, including the existing normalized system columns and additional columns for embedded data, technical metadata, and unclassified source values. Custom columns contain the original text or null. No additional entity table is created.
 
-`surveys.source_columns_json` is a JSON-encoded list of column descriptors. It travels with JSON, CSV, and Parquet entity files and with `dim_surveys` in the semantic model. Each descriptor contains:
+Every entity and semantic export folder contains one `manifest.json`. Its `surveys` object is keyed by `survey_id`, so a combined export keeps metadata for every survey in the same file. Each entry has `flow_definition_json` (a JSON object or null) and `source_columns_json` (a JSON array). These are native JSON values, not JSON strings inside `surveys` or `dim_surveys` rows. The top-level `schema_version` is currently `1`.
+
+Each `source_columns_json` descriptor contains:
 
 | Key | Meaning |
 | --- | --- |
@@ -110,7 +112,7 @@ These columns also travel to `dim_answer_options` and `fact_response_answers`. O
 
 Explicit question metadata and matching QSF definitions identify answer fields. Standard export identifiers identify system fields; embedded declarations are read recursively from the configured survey flow. Unique question export tags can supply a fallback. Missing or ambiguous evidence preserves the column as an unclassified response property. Business names alone do not identify question answers, and flow defaults never populate observed responses.
 
-Standard columns retain existing normalized keys; `ResponseId` maps to `response_external_id` while `response_id` remains the internal stable identifier. Other property names normally retain their source spelling. The parser disambiguates duplicate headers and names that collide case-insensitively with normalized response columns. Combining surveys reconciles these mappings, preserves different source properties, and fills absent columns with null. Read the dictionary for the actual column name rather than depending on a generated suffix.
+Standard columns retain existing normalized keys; `ResponseId` maps to `response_external_id` while `response_id` remains the internal stable identifier. Other property names normally retain their source spelling. The parser disambiguates duplicate headers and names that collide case-insensitively with normalized response columns. Combining surveys reconciles these mappings, preserves different source properties, and fills absent columns with null. Read the relevant survey's manifest entry for the actual column name rather than depending on a generated suffix.
 
 Technical browser and timing values are stored on responses. Existing question-field definitions can still describe those exported fields. Derived question outputs retain their question relationship and existing answer identities; their dictionary classification distinguishes them from direct answers. The established entity and catalog hash algorithms are unchanged.
 
@@ -118,7 +120,7 @@ Technical browser and timing values are stored on responses. Existing question-f
 
 When an older `comments` file contains text that the corrected question-wide role excludes, strict loading rejects that stale projection. Remove the stale `comments` file, load the nine authoritative entity tables, and write a new entity folder to regenerate comments. Rebuild the semantic model from that folder to refresh `fact_comments`; the original `response_answers` and response language remain authoritative.
 
-Reparse the original export to recover fields omitted by older versions. An older entity folder without `source_columns_json` remains readable, but it cannot provide source evidence or values it never retained.
+Reparse the original export to recover fields omitted by older versions. An older entity folder without `manifest.json` remains readable, but it cannot provide source evidence or values it never retained. New exports write the manifest for every survey, including combined folders.
 
 ## Semantic projection
 
@@ -131,7 +133,7 @@ Reparse the original export to recover fields omitted by older versions. An olde
 - `dim_answer_options`
 - `fact_comments`
 
-The semantic model has six exported tables. Its diagram shows the six relationships to configure in Power BI; DBML relationship symbols describe cardinality, while Power BI's cross-filter direction is a separate setting.
+The semantic model has six exported tables plus the sibling `manifest.json`. Its diagram shows the six relationships to configure in Power BI; DBML relationship symbols describe cardinality, while Power BI's cross-filter direction is a separate setting.
 
 <iframe class="dbml-model" title="Six-table Power BI semantic model" src="{{ dbml_power_bi_url }}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>
 

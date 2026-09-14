@@ -53,7 +53,7 @@ In your own project, install the base package:
 uv add qualtrics
 ```
 
-The base package includes the SDK, parsing, analytics, and JSON/CSV data functions. Add `cli` for commands, `ui` for HTML reports, or `parquet` for Parquet files. Command-line reports need `qualtrics[cli,ui]`; SQLite output needs no extra dependency.
+The base package includes the SDK, parsing, analytics, and JSON, CSV, and Parquet data functions. Add `cli` for commands or `ui` for HTML reports. Command-line reports need `qualtrics[cli,ui]`; SQLite output needs no extra dependency.
 
 See [installation options](https://luanee.github.io/qualtrics/getting-started/installation/#choose-dependencies-for-python-projects) and the [Python reference](https://luanee.github.io/qualtrics/reference/python/) for examples, including `QualtricsClient`, `parse_survey`, and `render_report`.
 

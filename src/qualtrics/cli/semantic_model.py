@@ -5,6 +5,7 @@ from typing import Annotated
 import typer
 
 from .._common.models.semantic import SEMANTIC_TABLE_NAMES, build_semantic_model
+from .._common.models.survey_manifest import MANIFEST_FILENAME
 from .._common.serialization import load_entities
 from .._common.serialization.semantic import SEMANTIC_SQLITE_FILENAME, write_semantic_model
 from .entity_folders import validate_entity_collection
@@ -28,7 +29,8 @@ def build_semantic(
         if (output / f"{name}.{extension}").exists()
     ]
     database = output / SEMANTIC_SQLITE_FILENAME
-    if existing or database.exists() or database.is_symlink():
+    manifest = output / MANIFEST_FILENAME
+    if existing or database.exists() or database.is_symlink() or manifest.exists() or manifest.is_symlink():
         raise typer.BadParameter(f"output already contains semantic tables: {output}")
     try:
         model = build_semantic_model(load_entities(folder))

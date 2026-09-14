@@ -70,52 +70,65 @@ def _survey_files(tmp_path: Path, *, include_flow: bool = True) -> tuple[Path, P
     return csv_path, qsf_path
 
 
-def test_parse_stores_optional_flow_as_json_scalar_and_keeps_definition_only_question(tmp_path: Path) -> None:
+def test_parse_stores_optional_flow_in_manifest_and_keeps_definition_only_question(tmp_path: Path) -> None:
     entities = parse_survey(*_survey_files(tmp_path))
-    scalar = entities.surveys[0]["flow_definition_json"]
-    definition = json.loads(scalar)
+    definition = entities.survey_manifests["SV_FLOW"]["flow_definition_json"]
 
-    assert isinstance(scalar, str)
+    assert "flow_definition_json" not in entities.surveys[0]
+    assert isinstance(definition, dict)
     assert definition["questions"]["QID2"]["text"] == "Definition only"
     assert {question["question_external_id"] for question in entities.questions} == {"QID1"}
 
 
 @pytest.mark.parametrize("format", ["json", "csv", "parquet"])
-def test_flow_scalar_round_trips_entity_formats(tmp_path: Path, format: str) -> None:
+def test_flow_manifest_round_trips_entity_formats(tmp_path: Path, format: str) -> None:
     entities = parse_survey(*_survey_files(tmp_path / "input"))
     destination = tmp_path / format
     write_entities(entities, destination, format)
 
+    manifest = json.loads((destination / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["schema_version"] == 1
+    assert set(manifest["surveys"]) == {"SV_FLOW"}
+    assert (
+        manifest["surveys"]["SV_FLOW"]["flow_definition_json"]
+        == entities.survey_manifests["SV_FLOW"]["flow_definition_json"]
+    )
     loaded = load_entities(destination)
-    assert loaded.surveys[0]["flow_definition_json"] == entities.surveys[0]["flow_definition_json"]
+    assert loaded.survey_manifests == entities.survey_manifests
+    assert "flow_definition_json" not in loaded.surveys[0]
 
 
-def test_large_flow_scalar_round_trips_csv_with_unicode_quotes_and_newlines(tmp_path: Path) -> None:
+def test_large_flow_manifest_round_trips_csv_with_unicode_quotes_and_newlines(tmp_path: Path) -> None:
     entities = parse_survey(*_survey_files(tmp_path / "input"))
-    flow = json.loads(entities.surveys[0]["flow_definition_json"])
-    flow["blocks"]["BL_1"]["name"] = 'Café — "Questions"\n' + "long description " * 9_000
-    scalar = json.dumps(flow, ensure_ascii=False, indent=2)
-    assert len(scalar) > 131_072
-    assert "\n" in scalar
-    entities.surveys[0]["flow_definition_json"] = scalar
+    flow = entities.survey_manifests["SV_FLOW"]["flow_definition_json"]
+    long_name = 'Café — "Questions"\n' + "long description " * 9_000
+    assert len(long_name) > 131_072
+    flow["blocks"]["BL_1"]["name"] = long_name
     write_entities(entities, tmp_path / "csv", "csv")
 
+    manifest = json.loads((tmp_path / "csv" / "manifest.json").read_text(encoding="utf-8"))
     loaded = load_entities(tmp_path / "csv")
 
-    assert loaded.surveys[0]["flow_definition_json"] == scalar
-    assert json.loads(loaded.surveys[0]["flow_definition_json"]) == flow
+    assert manifest["surveys"]["SV_FLOW"]["flow_definition_json"]["blocks"]["BL_1"]["name"] == long_name
+    assert loaded.survey_manifests["SV_FLOW"]["flow_definition_json"] == flow
+    assert "flow_definition_json" not in loaded.surveys[0]
     assert loaded.response_answers == entities.response_answers
 
 
-def test_flow_scalar_reaches_semantic_sqlite(tmp_path: Path) -> None:
+def test_flow_manifest_accompanies_semantic_sqlite_without_becoming_a_column(tmp_path: Path) -> None:
     entities = parse_survey(*_survey_files(tmp_path / "input"))
     destination = tmp_path / "semantic"
     destination.mkdir()
     write_semantic_model(build_semantic_model(entities), destination, "sqlite")
 
     with sqlite3.connect(destination / "semantic_model.sqlite") as connection:
-        value = connection.execute("SELECT flow_definition_json FROM dim_surveys").fetchone()[0]
-    assert value == entities.surveys[0]["flow_definition_json"]
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(dim_surveys)")}
+    manifest = json.loads((destination / "manifest.json").read_text(encoding="utf-8"))
+    assert "flow_definition_json" not in columns
+    assert (
+        manifest["surveys"]["SV_FLOW"]["flow_definition_json"]
+        == entities.survey_manifests["SV_FLOW"]["flow_definition_json"]
+    )
 
 
 def test_legacy_absent_flow_remains_absent_when_combined_with_flow_survey(tmp_path: Path) -> None:
@@ -124,9 +137,10 @@ def test_legacy_absent_flow_remains_absent_when_combined_with_flow_survey(tmp_pa
     legacy = parse_survey(legacy_csv, legacy_qsf, survey_id="SV_LEGACY")
 
     combined = merge_entity_sets([with_flow, legacy])
-    surveys = {row["survey_id"]: row for row in combined.surveys}
-    assert "flow_definition_json" in surveys["SV_FLOW"]
-    assert "flow_definition_json" not in surveys["SV_LEGACY"]
+    assert set(combined.survey_manifests) == {"SV_FLOW", "SV_LEGACY"}
+    assert isinstance(combined.survey_manifests["SV_FLOW"]["flow_definition_json"], dict)
+    assert combined.survey_manifests["SV_LEGACY"]["flow_definition_json"] is None
+    assert all("flow_definition_json" not in survey for survey in combined.surveys)
 
 
 def test_explicit_flow_file_is_used_with_definition_metadata(tmp_path: Path) -> None:
@@ -135,7 +149,7 @@ def test_explicit_flow_file_is_used_with_definition_metadata(tmp_path: Path) -> 
     flow_path.write_text(json.dumps({"result": {"Flow": [{"Type": "Block", "ID": "BL_1"}]}}), encoding="utf-8")
 
     entities = parse_survey(csv_path, qsf_path, flow_path=flow_path)
-    definition = json.loads(entities.surveys[0]["flow_definition_json"])
+    definition = entities.survey_manifests["SV_FLOW"]["flow_definition_json"]
     assert definition["root"]["children"][0]["config"]["ID"] == "BL_1"
     assert definition["blocks"]["BL_1"]["name"] == "Questions"
     assert definition["questions"]["QID2"]["text"] == "Definition only"
@@ -163,7 +177,7 @@ def test_standalone_flow_definition_keeps_its_own_metadata(tmp_path: Path) -> No
     )
 
     entities = parse_survey(standalone_csv, flow_path=flow_path)
-    definition = json.loads(entities.surveys[0]["flow_definition_json"])
+    definition = entities.survey_manifests["responses"]["flow_definition_json"]
     assert definition["blocks"]["BL_API"]["name"] == "API questions"
     assert definition["questions"]["QID_API"]["text"] == "API label"
 
@@ -191,7 +205,7 @@ def test_separate_wrapped_definition_supplies_metadata_for_raw_flow(
     flow_path.write_text(json.dumps({"Flow": [{"Type": "Block", "ID": "BL_1"}]}), encoding="utf-8")
 
     entities = parse_survey(csv_path, qsf_path, flow_path=flow_path)
-    flow = json.loads(entities.surveys[0]["flow_definition_json"])
+    flow = entities.survey_manifests["SV_FLOW"]["flow_definition_json"]
     assert flow["blocks"]["BL_1"]["name"] == "Questions"
     assert flow["questions"]["QID2"]["text"] == "Definition only"
 
@@ -299,11 +313,12 @@ def _assert_lineage(entities: EntitySet, *, has_flow: bool) -> None:
         assert dimension[qid]["section_name"] == sections[block_id]["section_name"]
         assert dimension[qid]["block_order"] == questions[qid]["block_order"]
     if has_flow:
-        flow = json.loads(entities.surveys[0]["flow_definition_json"])
+        flow = entities.survey_manifests["SV_LINEAGE"]["flow_definition_json"]
         assert [node["config"]["ID"] for node in flow["root"]["children"]] == ["BL_FIRST", "BL_SECOND", "BL_FIRST"]
         assert set(sections) <= set(flow["blocks"])
     else:
-        assert "flow_definition_json" not in entities.surveys[0]
+        assert entities.survey_manifests["SV_LINEAGE"]["flow_definition_json"] is None
+    assert "flow_definition_json" not in entities.surveys[0]
 
 
 @pytest.mark.parametrize(
@@ -364,7 +379,7 @@ def test_block_ids_use_explicit_value_then_dictionary_key_and_never_list_positio
     assert [section["section_external_id"] for section in entities.sections] == ["BL_FIRST", "BL_SECOND"]
     assert [question["section_external_id"] for question in entities.questions] == ["BL_FIRST", "BL_SECOND"]
     if flow_path:
-        flow = json.loads(entities.surveys[0]["flow_definition_json"])
+        flow = entities.survey_manifests["SV_LINEAGE"]["flow_definition_json"]
         assert set(flow["blocks"]) == {"BL_FIRST", "BL_TRASH", "BL_SECOND"}
 
     definition["Blocks"] = [{"Type": "Standard", "Description": "No ID", "BlockElements": []}, *blocks.values()]
@@ -374,7 +389,7 @@ def test_block_ids_use_explicit_value_then_dictionary_key_and_never_list_positio
     assert list_entities.sections[0]["section_order"] == 4
     assert all(section["section_external_id"] not in {"0", "1", "section-1"} for section in list_entities.sections)
     if flow_path:
-        flow = json.loads(list_entities.surveys[0]["flow_definition_json"])
+        flow = list_entities.survey_manifests["SV_LINEAGE"]["flow_definition_json"]
         assert set(flow["blocks"]) == {"BL_TRASH", "BL_SECOND"}
 
 

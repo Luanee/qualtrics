@@ -69,10 +69,10 @@ Then run these commands on either operating system:
 ```text
 git clone https://github.com/Luanee/qualtrics.git
 cd qualtrics
-uv sync --extra cli --extra ui --extra parquet
+uv sync --extra cli --extra ui
 ```
 
-Git creates the `qualtrics` folder. uv installs the project and its dependencies into a `.venv` folder inside it. The `cli` extra installs the command-line tools, `ui` enables HTML reports, and `parquet` adds support for the table format used in the Power BI guide.
+Git creates the `qualtrics` folder. uv installs the project and its dependencies into a `.venv` folder inside it. The `cli` extra installs the command-line tools, and `ui` enables HTML reports. The base package includes Parquet support for the Power BI guide.
 
 Keep this terminal in the `qualtrics` folder when following the guides. The `uv run --extra cli --extra ui` prefix selects the command-line and report dependencies when running a command; you do not need to activate `.venv` yourself.
 
@@ -104,7 +104,7 @@ Commands in the guides use single lines so you can paste them into PowerShell or
 If you want the published command-line tool without a repository copy, install it in an isolated environment:
 
 ```text
-uv tool install 'qualtrics[cli,ui,parquet]'
+uv tool install 'qualtrics[cli,ui]'
 qualtrics --help
 ```
 
@@ -125,12 +125,21 @@ Choose extras for the interfaces you use:
 
 | Installation | Includes |
 | --- | --- |
-| `qualtrics` | API SDK, parsing, analytics, JSON/CSV data functions. |
+| `qualtrics` | API SDK, parsing, analytics, JSON/CSV/Parquet data functions. |
 | `qualtrics[cli]` | Typer/Rich command-line API and data commands. |
 | `qualtrics[ui]` | Jinja HTML reports from Python, without CLI dependencies. |
 | `qualtrics[cli,ui]` | Command-line tools including report generation. |
-| `qualtrics[cli,ui,parquet]` | Complete command-line/report workflow with Parquet. |
 
-For example, install Python report support with `python -m pip install 'qualtrics[ui]'` and import `render_report` from `qualtrics.ui`. The existing `from qualtrics import render_report` import remains supported. Parquet is independent of both interfaces; add it only when reading or writing Parquet tables.
+For example, install Python report support with `python -m pip install 'qualtrics[ui]'` and import `render_report` from `qualtrics.ui`. The existing `from qualtrics import render_report` import remains supported. PyArrow comes with the base package, so all four installation choices can read and write Parquet tables.
 
-The `_common` package layout keeps these dependency choices unchanged. The base installation still includes the remote API SDK dependencies. For shared data functions, use the public root imports in the [Python reference](../reference/python.md#public-imports); update earlier deep imports with the [migration table](../reference/python.md#migrate-earlier-deep-imports).
+The base installation also includes the remote API SDK dependencies. For shared data functions, use the public root imports in the [Python reference](../reference/python.md#public-imports); update earlier deep imports with the [migration table](../reference/python.md#migrate-earlier-deep-imports).
+
+### Use Jupyter in the repository
+
+If you want notebooks while working in this repository, install its `jupyter` dependency group:
+
+```bash
+uv sync --group jupyter
+```
+
+The group installs Jupyter, IPython, an IPython kernel, and pandas. It is a repository development group, not a published `qualtrics` extra; you do not need it for the SDK or Parquet files.

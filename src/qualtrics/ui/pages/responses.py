@@ -63,7 +63,10 @@ class ResponseCard:
 
 def render_responses(context: ReportContext) -> str:
     analysis = context.analysis
-    source_columns = {str(row["survey_id"]): read_source_columns(row) for row in context.entities.surveys}
+    source_columns = {
+        str(row["survey_id"]): read_source_columns(context.entities.survey_manifests.get(str(row["survey_id"]), {}))
+        for row in context.entities.surveys
+    }
     cards = []
     for index, response in enumerate(context.entities.responses):
         key = (response["survey_id"], response["response_id"])

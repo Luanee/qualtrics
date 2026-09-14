@@ -2,14 +2,14 @@
 
 Export six analysis tables as Parquet files or one SQLite database, then connect them in Power BI. You can follow the export steps on any supported operating system; the import steps use Power BI Desktop.
 
-You need the [installed project](../getting-started/installation.md) and a complete entity folder. Install the Parquet extra if you choose Parquet output; SQLite output needs no extra Python dependency. The commands below use the folder from [your first report](../getting-started/first-report.md). Run them from the project folder; for an isolated CLI installation, replace `uv run --extra cli --extra ui qualtrics` with `qualtrics`.
+You need the [installed project](../getting-started/installation.md) and a complete entity folder. The base package supports Parquet and SQLite output. The commands below use the folder from [your first report](../getting-started/first-report.md). Run them from the project folder; for an isolated CLI installation, replace `uv run --extra cli --extra ui qualtrics` with `qualtrics`.
 
 ## 1. Export the analysis tables
 
 ### Parquet files (default)
 
 ```text
-uv run --extra cli --extra ui --extra parquet qualtrics semantic-model build data/first-report/entities --output data/first-report/power-bi --format parquet
+uv run --extra cli --extra ui qualtrics semantic-model build data/first-report/entities --output data/first-report/power-bi --format parquet
 ```
 
 The command checks the input collection and creates these files:
@@ -21,7 +21,8 @@ data/first-report/power-bi/
 ├── dim_surveys.parquet
 ├── dim_questions.parquet
 ├── dim_answer_options.parquet
-└── fact_comments.parquet
+├── fact_comments.parquet
+└── manifest.json
 ```
 
 You should see `Wrote 6 parquet semantic tables to data/first-report/power-bi`.
@@ -34,11 +35,11 @@ To keep all six tables in one file, choose SQLite:
 uv run --extra cli --extra ui qualtrics semantic-model build data/first-report/entities --output data/first-report/power-bi-sqlite --format sqlite
 ```
 
-This creates `data/first-report/power-bi-sqlite/semantic_model.sqlite`. The `--output` value is a directory for both formats. The database contains the same tables, columns, and identifiers as the Parquet export, including the schema for tables with no rows. Numeric answers use `REAL`, booleans use `INTEGER` values `0` and `1`, and IDs and timestamps remain text. Missing values are SQL `NULL`.
+This creates `data/first-report/power-bi-sqlite/semantic_model.sqlite` and a sibling `manifest.json`. The `--output` value is a directory for both formats. The database contains the same tables, columns, and identifiers as the Parquet export, including the schema for tables with no rows. Numeric answers use `REAL`, booleans use `INTEGER` values `0` and `1`, and IDs and timestamps remain text. Missing values are SQL `NULL`.
 
 The command refuses an output folder that already contains recognized semantic table files or `semantic_model.sqlite`. Choose a fresh folder for a later export. SQLite writes complete before the final database appears; a failed build does not leave a partial database. CSV and JSON remain available with `--format csv` or `--format json`.
 
-The input must be a complete entity folder. Current exports contain ten files; older nine-table folders without `comments` are also accepted and reconstruct that subset from their available metadata. To prepare several surveys, [combine their entities](combine-surveys.md) first and use the combined entity folder as input.
+The input must be a complete entity folder. Current exports contain ten tables plus `manifest.json`; older nine-table folders without `comments` are also accepted and reconstruct that subset from their available metadata. To prepare several surveys, [combine their entities](combine-surveys.md) first and use the combined entity folder as input. The manifest keeps flow and source-column descriptors for each survey ID; it is not a seventh Power BI table.
 
 ## 2. Understand the six tables
 
