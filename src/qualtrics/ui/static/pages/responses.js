@@ -6,13 +6,22 @@
     const {$, all, text, on} = root.ReportComponents.dom(document);
     const {normalize, terms, matches} = searchTools;
     const cards = all('.respondent'), choices = all('.question-choice');
-    const eligible = node => Boolean(node && selectedSurveys().has(node.dataset.survey));
+    const eligible = node => Boolean(node && selectedSurveys().has(node.dataset.survey)
+      && ((root.ReportUI?.respondentLanguage?.() || 'all') === 'all'
+        || node.dataset.userLanguage === root.ReportUI.respondentLanguage()));
     const responsePager = createPager(cards, $('#response-pagination'), 20, 'responses');
   const cardCache = new Map(cards.map(card => [card, {
     metadata: [card.querySelector('.identity')?.textContent, card.querySelector('.response-meta')?.textContent,
       card.querySelector('.response-properties')?.textContent].join(' '),
     answers: [...card.querySelectorAll('.answer')].map(row => ({row, content: normalize(row.textContent)})),
   }]));
+  function refreshCache() {
+    cards.forEach(card => cardCache.set(card, {
+      metadata: [card.querySelector('.identity')?.textContent, card.querySelector('.response-meta')?.textContent,
+        card.querySelector('.response-properties')?.textContent].join(' '),
+      answers: [...card.querySelectorAll('.answer')].map(row => ({row, content: normalize(row.textContent)})),
+    }));
+  }
   function updateResponses(reset = true) {
     const selected = new Set(choices.filter(choice => choice.checked).map(choice => choice.value));
     const query = terms($('#search')?.value || '');
@@ -37,6 +46,6 @@
   }
 
 
-    return {update: updateResponses, pager: responsePager, cards, choices, cache: cardCache};
+    return {update: updateResponses, pager: responsePager, cards, choices, cache: cardCache, refreshCache};
   };
 })(window);

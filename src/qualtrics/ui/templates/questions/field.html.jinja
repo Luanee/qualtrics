@@ -1,4 +1,4 @@
-<div class='field-analysis{% if style %} {{ style }}{% endif %}'>
+<div class='field-analysis{% if style %} {{ style }}{% endif %}'{% if field_id %} data-field-id='{{ field_id }}'{% endif %}>
   {% if heading %}<h4>{{ heading }}</h4>{% endif %}
   {{- content }}
   {% if note %}<p class='meta'>{{ note }}</p>{% endif %}

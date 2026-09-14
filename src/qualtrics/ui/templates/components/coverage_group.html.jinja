@@ -1,16 +1,16 @@
 <details class='coverage-question catalog-group' data-catalog='{{ group.id }}'>
   <summary>
-    <span class='analysis-title'>{{ group.label }}{{ ui.occurrence_count(group.rows|length) }}</span>
+    <span class='analysis-title'><span class='question-label' data-question-id='{{ group.rows[0].question_id }}'>{{ group.label }}</span>{{ ui.occurrence_count(group.rows|length) }}</span>
   </summary>
   <div class='catalog-body'>
     <table>
       <thead><tr><th>Survey occurrence</th><th>Responses</th><th>Coverage</th></tr></thead>
       <tbody>
         {% for row in group.rows %}
-        <tr class='coverage-survey-row survey-occurrence' data-survey='{{ row.survey_id }}'>
+        <tr class='coverage-survey-row survey-occurrence' data-survey='{{ row.survey_id }}' data-question-id='{{ row.question_id }}' data-target='{{ row.target }}'>
           <td><strong>{{ row.label }}</strong><small>{{ row.metadata }}</small></td>
-          <td>{{ '{:,}'.format(row.count) }}</td>
-          <td><div class='meter'><i style='width:{{ row.rate }}%'></i></div>{{ row.rate }}%</td>
+          <td class='coverage-count'>{{ '{:,}'.format(row.count) }}</td>
+          <td><div class='meter'><i style='width:{{ row.rate }}%'></i></div><span class='coverage-rate'>{{ row.rate }}%</span></td>
         </tr>
         {% endfor %}
       </tbody>

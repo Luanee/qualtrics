@@ -9,6 +9,7 @@
     const $ = id => document.getElementById('flow-' + id);
     const all = selector => [...document.querySelectorAll(selector)];
     const surveys = payload.surveys || [];
+    const baseDefinitions = new Map(surveys.map(survey => [survey.id, clone(survey.definition)]));
     let lastPending = null, selectedSurveyIds = [], currentSurvey = null, started = false, scenario = fresh(), history = [], result = null, readInputs = [];
     const canvas = canvasApi && graphApi ? canvasApi.create(document, graphApi,()=>showPanel('details'),engine) : null;
     const node = (tag, className, text) => {
@@ -267,6 +268,21 @@
       }
       return rows;
     }
+    function setLanguage(bySurvey) {
+      surveys.forEach(survey => {
+        survey.definition = clone(baseDefinitions.get(survey.id));
+        const localized = bySurvey?.[survey.id] || {};
+        for (const [external, labels] of Object.entries(localized)) {
+          const question = survey.definition.questions?.[external];
+          if (!question) continue;
+          question.text = labels.text || question.text;
+          for (const [native, label] of Object.entries(labels.choices || {})) {
+            if (Object.hasOwn(question.choices || {}, native)) question.choices[native] = label;
+          }
+        }
+      });
+      render();
+    }
     if(canvas && $('outline')) {
       $('outline').hidden=true;
       $('panel-controls').hidden=false;
@@ -288,7 +304,7 @@
     $('expand').addEventListener('click',()=>all('.flow-survey').filter(map=>!map.hidden).forEach(map=>map.querySelectorAll('details').forEach(detail=>{detail.open=true;})));
     $('collapse').addEventListener('click',()=>all('.flow-survey').filter(map=>!map.hidden).forEach(map=>map.querySelectorAll('.flow-node').forEach(detail=>{detail.open=false;})));
     render();
-    return {update,reveal,records,resize:()=>canvas?.resize()};
+    return {update,reveal,records,setLanguage,resize:()=>canvas?.resize()};
   }
   let controller;
   const api={createController,
@@ -303,6 +319,7 @@
     },
     resize() { api.init()?.resize(); },
     update(ids) { api.init()?.update(ids); },reveal(id) { return api.init()?.reveal(id) || false; },records() { return api.init()?.records() || []; },
+    setLanguage(labels) { api.init()?.setLanguage(labels); },
   };
   if(typeof module === 'object' && module.exports) module.exports=api;
   else { root.ReportFlow=api;api.init(); }

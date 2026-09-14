@@ -82,6 +82,7 @@ class DistributionRow:
     percentage: str
     width: str
     choice: bool = False
+    option_id: str = ""
 
 
 def _distribution_rows(
@@ -95,10 +96,20 @@ def _distribution_rows(
 
 
 def _option_distribution(answers: list[Row], options: list[Row], denominator: int) -> str:
-    counts = [(item.label, item.count) for item in option_counts(answers, options)]
+    counts = option_counts(answers, options)
     return render_template(
         "questions/distribution.html.jinja",
-        rows=_distribution_rows(counts, denominator, choice=True),
+        rows=[
+            DistributionRow(
+                item.label,
+                item.count,
+                f"{item.count / denominator * 100 if denominator else 0:.0f}%",
+                f"{min(item.count / denominator * 100 if denominator else 0, 100):.1f}%",
+                True,
+                item.option_id,
+            )
+            for item in counts
+        ],
         empty_message="No answer options defined or observed.",
         other_count=0,
     )
@@ -217,9 +228,15 @@ def _matrix_summary(fields: list[Row], answers: list[Row], options: list[Row], l
     for field in fields:
         row_id = str(field.get("choice_external_id") or field["field_id"])
         groups.setdefault(row_id, []).append(field)
-    columns: dict[tuple[str | None, str], str] = {}
+    columns: dict[tuple[str | None, str], dict[str, str]] = {}
     for option in _ordered_options(options):
-        columns.setdefault((str(option["answer_id"]), str(option["answer_text"])), str(option["answer_text"]))
+        columns.setdefault(
+            (str(option["answer_id"]), str(option["answer_text"])),
+            {
+                "label": str(option["answer_text"]),
+                "option_id": _option_id(option),
+            },
+        )
     rows = []
     for row_fields in groups.values():
         field_ids = {str(field["field_id"]) for field in row_fields}
@@ -231,18 +248,18 @@ def _matrix_summary(fields: list[Row], answers: list[Row], options: list[Row], l
         ]
         counts = {(item.answer_id, item.label): item.count for item in option_counts(row_answers, row_options)}
         for key in counts:
-            columns.setdefault(key, key[1])
+            columns.setdefault(key, {"label": key[1], "option_id": ""})
         denominator = len({str(answer["response_id"]) for answer in row_answers})
         label = _matrix_row_label(row_fields, row_options, labels)
-        rows.append((label, counts, denominator))
+        rows.append((label, counts, denominator, str(row_fields[0]["field_id"])))
     matrix_rows = []
-    for label, counts, denominator in rows:
+    for label, counts, denominator, field_id in rows:
         cells = []
         for key in columns:
             count = counts.get(key)
             rate = count / denominator * 100 if denominator and count is not None else 0
             cells.append(MatrixCell(count, f"{rate:.0f}%" if denominator else "—", f"{min(rate, 100):.1f}%"))
-        matrix_rows.append(MatrixRow(label, denominator, cells))
+        matrix_rows.append(MatrixRow(label, denominator, cells, field_id))
     return render_template("questions/matrix.html.jinja", columns=list(columns.values()), rows=matrix_rows)
 
 
@@ -258,11 +275,17 @@ class MatrixRow:
     label: str
     denominator: int
     cells: list[MatrixCell]
+    field_id: str
 
 
-def _field_analysis(content: str, *, heading: str = "", style: str = "", note: str = "") -> str:
+def _field_analysis(content: str, *, heading: str = "", style: str = "", note: str = "", field_id: str = "") -> str:
     return render_template(
-        "questions/field.html.jinja", content=trusted_html(content), heading=heading, style=style, note=note
+        "questions/field.html.jinja",
+        content=trusted_html(content),
+        heading=heading,
+        style=style,
+        note=note,
+        field_id=field_id,
     )
 
 
@@ -323,6 +346,7 @@ def render_question_analysis(
                         heading=heading,
                         style="option-analysis",
                         note=note,
+                        field_id=field_id,
                     )
                 )
         handled.update(choice_ids)
@@ -354,7 +378,7 @@ def render_question_analysis(
             values = [str(answer["answer_text"]) for answer in observed]
             content = _text_distribution(values, written=kind == "text")
             style = "text-analysis" if kind == "text" else ""
-        bodies.append(_field_analysis(content, heading=label, style=style, note=note))
+        bodies.append(_field_analysis(content, heading=label, style=style, note=note, field_id=field_id))
     return (
         render_template("questions/analysis.html.jinja", bodies=[trusted_html(body) for body in bodies]),
         value_count,

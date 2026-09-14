@@ -23,7 +23,7 @@
         </thead>
         <tbody>
         {% for row in rows %}{% set entry = row.entry %}
-          <tr class='codebook-row' data-survey='{{ entry.survey_id }}' data-search='{{ row.search }}' data-csv='{{ row.csv }}'>
+          <tr class='codebook-row' data-survey='{{ entry.survey_id }}' data-language='{{ entry.language_code }}' data-search='{{ row.search }}' data-csv='{{ row.csv }}'>
             <td>{{ entry.survey }}</td>
             <td>{{ entry.language_code or '—' }}{% if entry.label_source_language and entry.label_source_language != entry.language_code %}<small>Label from {{ entry.label_source_language }}</small>{% endif %}</td>
             <td><code>{{ entry.export_column }}</code><small>ImportId: {{ entry.import_id or 'Unavailable' }}</small></td>

@@ -79,6 +79,17 @@
     margin: 0 0 4px;
   }
 
+  .language-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: end;
+  }
+
+  .language-controls p {
+    flex-basis: 100%;
+  }
+
   .report-nav {
     position: static;
     flex-direction: row;

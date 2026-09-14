@@ -2,18 +2,29 @@
 
 from __future__ import annotations
 
+import json
+
 from ..assets import load_scripts, load_styles
 from ..components.controls import render_survey_choices
 from ..components.navigation import REPORT_PAGES
 from ..context import ReportContext
+from ..report_languages import MISSING_LANGUAGE, build_report_languages
 from ..templating import render_template, trusted_html
 
 
 def render_document(context: ReportContext, pages: tuple[str, ...]) -> str:
+    languages = build_report_languages(context.entities)
+    payload = (
+        json.dumps(languages, ensure_ascii=True, separators=(",", ":")).replace("<", "\\u003c").replace("'", "\\u0027")
+    )
     return render_template(
         "layouts/report.html.jinja",
         survey_name=context.analysis.survey_name,
         survey_options=trusted_html(render_survey_choices(context)),
+        respondent_languages=languages["respondent_languages"],
+        display_languages=languages["display_languages"],
+        missing_language=MISSING_LANGUAGE,
+        language_payload=trusted_html(payload),
         navigation_pages=REPORT_PAGES,
         pages=tuple(trusted_html(page) for page in pages),
         styles=trusted_html(load_styles()),

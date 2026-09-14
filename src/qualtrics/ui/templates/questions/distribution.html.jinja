@@ -1,6 +1,6 @@
 {% for row in rows %}
-  <div class='distribution-row{% if row.choice %} option-row{% if not row.count %} option-zero{% endif %}{% endif %}'>
-    <span title='{{ row.label }}'>{{ row.label }}</span>
+  <div class='distribution-row{% if row.choice %} option-row{% if not row.count %} option-zero{% endif %}{% endif %}'{% if row.option_id %} data-option-id='{{ row.option_id }}'{% endif %}>
+    <span class='option-label' title='{{ row.label }}'>{{ row.label }}</span>
     <div class='distribution-bar'><i style='width:{{ row.width }}'></i></div><b>{{ "{:,}".format(row.count) }}</b><small>{{ row.percentage }}</small>
   </div>
 {% else %}

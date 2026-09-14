@@ -6,9 +6,12 @@
     const {$, all, text, on} = root.ReportComponents.dom(document);
     const {normalize, terms, matches} = searchTools;
     const written = all('.written-answer');
-    const eligible = node => Boolean(node && selectedSurveys().has(node.dataset.survey));
+    const eligible = node => Boolean(node && selectedSurveys().has(node.dataset.survey)
+      && ((root.ReportUI?.respondentLanguage?.() || 'all') === 'all'
+        || node.dataset.userLanguage === root.ReportUI.respondentLanguage()));
     const writtenPager = createPager(written, $('#written-pagination'), 20, 'written answers');
   const writtenCache = new Map(written.map(node => [node, normalize(node.textContent)]));
+  function refreshCache() { written.forEach(node => writtenCache.set(node, normalize(node.textContent))); }
 
   function updateWritten(reset = true) {
     const query = terms($('#written-search')?.value || '');
@@ -32,6 +35,6 @@
   }
 
 
-    return {update: updateWritten, pager: writtenPager, items: written};
+    return {update: updateWritten, pager: writtenPager, items: written, refreshCache};
   };
 })(window);

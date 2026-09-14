@@ -7,18 +7,18 @@
     <select id='written-question'>
       <option value=''>All questions</option>
       {% for question in questions %}
-      <option value='{{ question.token }}' data-survey='{{ question.survey_id }}' data-label='{{ question.label }}'>{{ question.label }}</option>
+      <option value='{{ question.token }}' data-survey='{{ question.survey_id }}' data-label='{{ question.label }}' data-question-id='{{ question.question_id }}'>{{ question.label }}</option>
       {% endfor %}
     </select>
     <span id='written-count' role='status'>{{ '{:,}'.format(answers|length) }} written answers</span>
   </div>
   <div id='written-list'>
     {% for answer in answers %}
-    <article class='written-answer' id='{{ answer.id }}' data-survey='{{ answer.survey_id }}'
+    <article class='written-answer' id='{{ answer.id }}' data-survey='{{ answer.survey_id }}' data-user-language='{{ answer.user_language }}'
              data-question-token='{{ answer.token }}' data-response-target='{{ answer.response_target }}'
              data-field-id='{{ answer.field_id }}'>
-      <h3 class='written-question'>{{ answer.label }}</h3>
-      <small>{{ answer.metadata }}</small>
+      <h3 class='written-question' data-question-id='{{ answer.question_id }}'>{{ answer.label }}</h3>
+      <small>{{ answer.survey_label }}{% if answer.field_label %} · <span class='written-field'>{{ answer.field_label }}</span>{% endif %}</small>
       <p class='written-value'>{{ answer.value }}</p>
       <a href='#{{ answer.response_target }}'>Response {{ answer.response_label }}</a>
     </article>

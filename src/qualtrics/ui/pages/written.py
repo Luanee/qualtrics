@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from ..._common.models.comments import is_comment_answer
 from ..components.field_labels import display_field_label
 from ..context import ReportContext
+from ..report_languages import response_language
 from ..templating import render_template
 
 
@@ -14,11 +15,15 @@ from ..templating import render_template
 class WrittenAnswer:
     id: str
     survey_id: str
+    user_language: str
+    question_id: str
     token: str
     response_target: str
     field_id: str
     label: str
     metadata: str
+    survey_label: str
+    field_label: str
     value: str
     response_label: str
 
@@ -28,6 +33,7 @@ class WrittenQuestion:
     token: str
     label: str
     survey_id: str
+    question_id: str
 
 
 def render_written_answers(context: ReportContext) -> str:
@@ -46,7 +52,7 @@ def render_written_answers(context: ReportContext) -> str:
             survey_id = str(response["survey_id"])
             label = str(question.get("question_text") or answer["question_id"])
             token = f"{survey_id}::{question.get('question_external_id') or answer['question_id']}"
-            written_questions[token] = WrittenQuestion(token, label, survey_id)
+            written_questions[token] = WrittenQuestion(token, label, survey_id, str(answer["question_id"]))
             field_label = display_field_label(field, question, context.answer_options)
             metadata = " · ".join(
                 item
@@ -60,11 +66,15 @@ def render_written_answers(context: ReportContext) -> str:
                 WrittenAnswer(
                     id=f"written-{len(written_answers) + 1}",
                     survey_id=survey_id,
+                    user_language=response_language(response),
+                    question_id=str(answer["question_id"]),
                     token=token,
                     response_target=f"response-{response_index}",
                     field_id=str(answer["field_id"]),
                     label=label,
                     metadata=metadata,
+                    survey_label=str(analysis.survey_lookup.get(survey_id, {}).get("survey_name") or survey_id),
+                    field_label=field_label,
                     value=str(answer["answer_text"]),
                     response_label=str(response.get("response_external_id") or response["response_id"]),
                 )

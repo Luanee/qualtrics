@@ -16,11 +16,13 @@ class QuestionPageResult:
     markup: str
     findings: tuple[str, ...]
     flow_question_targets: dict[tuple[str, str], str]
+    metrics: dict[str, dict[str, object]]
 
 
 @dataclass(frozen=True)
 class QuestionOccurrence:
     id: str
+    question_id: str
     survey_id: str
     external_id: str
     label: str
@@ -47,6 +49,7 @@ def render_questions(context: ReportContext) -> QuestionPageResult:
     groups: dict[str, QuestionGroup] = {}
     flow_question_targets: dict[tuple[str, str], str] = {}
     findings = []
+    metrics: dict[str, dict[str, object]] = {}
     for occurrence_index, (key, question) in enumerate(analysis.response_questions.items(), 1):
         qid = str(question["question_id"])
         external_id = str(question.get("question_external_id") or qid)
@@ -71,6 +74,13 @@ def render_questions(context: ReportContext) -> QuestionPageResult:
         block_label = str(question.get("block_name") or "")
         sid = str(key[0])
         anchor = f"question-detail-{occurrence_index}"
+        metrics[anchor] = {
+            "respondents": respondents,
+            "coverage": round(coverage),
+            "value_count": value_count,
+            "value_label": value_label,
+            "body": body,
+        }
         flow_question_targets[(sid, external_id)] = anchor
         survey_label = str(analysis.survey_lookup.get(sid, {}).get("survey_name") or sid)
         catalog_id = str(question.get("question_catalog_id") or f"{sid}::{qid}")
@@ -89,6 +99,7 @@ def render_questions(context: ReportContext) -> QuestionPageResult:
                     "components/finding.html.jinja",
                     survey_id=sid,
                     target=anchor,
+                    question_id=qid,
                     label=label,
                     survey_label=survey_label,
                     highlight=highlight,
@@ -98,6 +109,7 @@ def render_questions(context: ReportContext) -> QuestionPageResult:
         group.occurrences.append(
             QuestionOccurrence(
                 id=anchor,
+                question_id=qid,
                 survey_id=sid,
                 external_id=external_id,
                 label=label,
@@ -116,4 +128,5 @@ def render_questions(context: ReportContext) -> QuestionPageResult:
         render_template("pages/questions.html.jinja", groups=tuple(groups.values())),
         tuple(findings),
         flow_question_targets,
+        metrics,
     )

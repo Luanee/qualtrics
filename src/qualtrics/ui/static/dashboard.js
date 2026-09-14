@@ -35,7 +35,9 @@
     return {points, undated, step};
   }
 
-  function createDashboard(document, payload) {
+  function createDashboard(document, initialPayload) {
+    let payload = initialPayload;
+    let labels = null;
     const $ = id => document.getElementById('dashboard-' + id);
     const surveyNames = new Map(payload.surveys.map(s => [s.id, s.label]));
     let selected = new Set(), available = [];
@@ -136,8 +138,8 @@
       const item = available.find(s => s.id === select.value);
       if (!item) { empty(target, available.length ? 'No question selected.' : 'No numeric or choice answers in the selected surveys.'); return; }
       target.replaceChildren();
-      const title = node('h4'); title.append(link(item.label, item.target));
-      target.append(title, node('p', 'meta', [surveyNames.get(item.survey), item.field, item.kind === 'nps' ? 'NPS score distribution' : item.kind === 'numeric' ? 'Numeric distribution' : 'Answer choices'].filter(Boolean).join(' · ')));
+      const title = node('h4'); title.append(link(labels?.questions?.[item.question_id] || item.label, item.target));
+      target.append(title, node('p', 'meta', [surveyNames.get(item.survey), labels?.fields?.[item.field_id] || item.field, item.kind === 'nps' ? 'NPS score distribution' : item.kind === 'numeric' ? 'Numeric distribution' : 'Answer choices'].filter(Boolean).join(' · ')));
       if (item.metric) {
         const metric = node('p', 'dashboard-metric');
         metric.append(node('strong', '', item.metric.value), node('span', '', item.metric.label)); target.append(metric);
@@ -145,7 +147,8 @@
       const bins = item.bins.length > 12 ? [...item.bins].sort((a, b) => b.count - a.count).slice(0, 12) : item.bins;
       for (const bin of bins) {
         const row = node('div', 'distribution-row');
-        const label = node('span', '', bin.label); label.setAttribute('title', bin.label);
+        const display = labels?.options?.[bin.option_id] || bin.label;
+        const label = node('span', '', display); label.setAttribute('title', display);
         const bar = node('div', 'distribution-bar'); bar.setAttribute('aria-hidden', 'true');
         const fill = node('i'); fill.style.width = `${Math.min(100, item.denominator ? bin.count / item.denominator * 100 : 0)}%`; bar.append(fill);
         row.append(label, bar, node('b', '', format(bin.count)), node('small', '', `${percent(bin.count, item.denominator)}%`));
@@ -168,7 +171,7 @@
         select.replaceChildren();
         const placeholder = node('option', '', 'Choose a question'); placeholder.value = ''; select.append(placeholder);
         for (const item of available) {
-          const option = node('option', '', [surveyNames.get(item.survey), item.label, item.field].filter(Boolean).join(' · '));
+          const option = node('option', '', [surveyNames.get(item.survey), labels?.questions?.[item.question_id] || item.label, labels?.fields?.[item.field_id] || item.field].filter(Boolean).join(' · '));
           option.value = item.id; select.append(option);
         }
         select.value = choice?.id || ''; select.disabled = !available.length;
@@ -183,7 +186,7 @@
       if (!rows.length) { empty(target, 'No recorded responses for question coverage.'); return; }
       for (const item of rows.slice(0, 8)) {
         const row = node('div', 'dashboard-bar-row');
-        const label = link(item.label, item.target);
+        const label = link(labels?.questions?.[item.question_id] || item.label, item.target);
         const track = node('div', 'dashboard-bar-track'); track.setAttribute('aria-hidden', 'true');
         const fill = node('span', 'dashboard-bar-finished'); fill.style.width = `${item.answered / item.total * 100}%`; track.append(fill);
         row.append(label, track, node('span', 'dashboard-bar-value', `${format(item.answered)} / ${format(item.total)} · ${percent(item.answered, item.total)}%`),
@@ -199,6 +202,8 @@
     for (const index of [1, 2]) $('question-' + index).addEventListener('change', () => renderSpotlight(index));
     return {
       update(surveyIds) { selected = new Set(surveyIds); renderTimeline(); renderSurveys(); updateSpotlights(); renderCoverage(); },
+      setData(nextPayload) { payload = nextPayload; },
+      setLabels(nextLabels) { labels = nextLabels; },
       resize: renderTimeline,
     };
   }
