@@ -77,7 +77,10 @@ def test_parse_stores_optional_flow_in_manifest_and_keeps_definition_only_questi
     assert "flow_definition_json" not in entities.surveys[0]
     assert isinstance(definition, dict)
     assert definition["questions"]["QID2"]["text"] == "Definition only"
-    assert {question["question_external_id"] for question in entities.questions} == {"QID1"}
+    assert {question["question_external_id"] for question in entities.questions} == {"QID1", "QID2"}
+    assert next(question for question in entities.questions if question["question_external_id"] == "QID2")[
+        "is_definition_only"
+    ]
 
 
 @pytest.mark.parametrize("format", ["json", "csv", "parquet"])

@@ -43,6 +43,7 @@ Table dim_questions [headercolor: #386CB0] {
   answer_value_type varchar [not null]
   is_text_field boolean
   is_comment_field boolean [note: 'Nullable source-backed eligibility for comments; older exports fall back to available question and field types']
+  is_definition_only boolean [note: 'True for a QSF-derived field without a CSV column or answer facts']
   import_external_id varchar
   source_field_suffix varchar
   source_column_index integer
@@ -56,7 +57,7 @@ Table dim_questions [headercolor: #386CB0] {
   question_order_in_block varchar [note: 'Optional flattened column; exported as text when present']
   statement_text text [note: 'Optional flattened column; exported as text when present']
   choice_external_id varchar [note: 'Optional flattened column; exported as text when present']
-  Note: 'One exported question field with flattened question, section and catalog metadata. question_field_id is unique; question_id can repeat. survey_id and other lineage IDs do not define additional active relationships. The optional flattened columns are exported when present; all serialize as text.'
+  Note: 'One exported or QSF-only question field with flattened question, section and catalog metadata. Definition-only fields have no answer facts. question_field_id is unique; question_id can repeat. survey_id and other lineage IDs do not define additional active relationships. The optional flattened columns are exported when present; all serialize as text.'
 }
 
 Table dim_answer_options [headercolor: #386CB0] {
@@ -78,6 +79,7 @@ Table dim_answer_options [headercolor: #386CB0] {
   question_field_id varchar [not null]
   field_id varchar [not null, note: 'Compatibility alias; equals question_field_id']
   survey_id varchar [not null]
+  is_definition_only boolean [note: 'True when its field exists only in the QSF']
   Note: 'One option belonging to a specific question field. Use answer_option_id to relate the answer fact. question_field_id identifies the owning field and can restrict its full choice list, including unused choices; it is not another active relationship. Provenance columns are nullable for legacy exports.'
 }
 

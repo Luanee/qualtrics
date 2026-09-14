@@ -20,9 +20,9 @@ When a QSF supplies `SurveyLanguage`, including under `SurveyOptions`, that code
 | `sections` | survey block | `section_id` | `survey_id` |
 | `question_catalog` | semantic question | `question_catalog_id` | none |
 | `question_field_catalog` | semantic field | `question_field_catalog_id` | `question_catalog_id` |
-| `questions` | survey question | `question_id` | survey, section, question catalog |
-| `answer_options` | definition option for one exported question field | `answer_option_id` | survey, question, question field |
-| `question_fields` | exported question field | `question_field_id` | question, both catalogs |
+| `questions` | survey question, exported or QSF-only | `question_id` | survey, section, question catalog |
+| `answer_options` | definition option for one question field | `answer_option_id` | survey, question, question field |
+| `question_fields` | exported or QSF-only question field | `question_field_id` | question, both catalogs |
 | `responses` | submitted response | `response_id` | survey |
 | `response_answers` | non-empty response field | `response_answer_id` | response, question, field, optional option |
 | `comments` | derived nonblank text answer field | original `response_answer_id` | original answer, response, survey, question, field |
@@ -32,6 +32,8 @@ Each `sections` row represents one configured survey block, identified internall
 When a definition supplies both QSF `BL.Payload` and direct `Blocks`, direct entries take precedence. Matching dictionary keys retain their existing merge behavior and position. If one container is a dictionary and the other is a list, matching native block IDs also reconcile into one section at the first occurrence's position, even when dictionary keys differ. Two dictionaries with different keys remain separate under the established key-based behavior; reconcile conflicting definitions at the source.
 
 Questions retain `question_type`, `selector`, and `sub_selector` exactly and add `canonical_question_type`. Fields and answers add `answer_value_type`. Unknown combinations remain available with `unsupported` classification.
+
+Questions found only in the QSF also appear in `questions`. Answerable QSF-only definitions produce deterministic `question_fields` and, for discrete choices, `answer_options`; display-only questions do not get invented answer fields. All such rows carry `is_definition_only = true`. Their fields have null `source_column_index` and `import_external_id`, and their synthetic `field_external_id` begins with `QSF:` rather than naming an exported column. The codebook lists them as definition-only. They have no response facts and are excluded from response-rate, unanswered, and unused-field metrics; a missing CSV field is not a zero response.
 
 `answer_options` is built exclusively from the QSF definition, never from observed response values. Its identity is the hash of `question_field_id` and the native Qualtrics `answer_id`. `answer_code` contains the configured recode or falls back to `answer_id`; `answer_order` is the 1-based definition order. Single-choice questions publish every choice, multiple-choice questions publish one choice per concrete selection field, and matrix questions publish every answer for each matrix-row field. Text, form, slider, and `*_TEXT` fields publish no options. The additive provenance fields below leave these identities and table grains unchanged.
 
