@@ -12,6 +12,8 @@ Explore the ten exported entities and their relationships in the diagram below. 
 
 Parsing produces nine authoritative entities plus the derived `comments` table, for ten exported tables. A sibling `manifest.json` carries survey-specific flow and source-column descriptors; it is metadata, not an eleventh entity. Occurrence IDs are survey-safe hashes; `*_external_id` columns preserve Qualtrics lineage. Catalog IDs identify normalized semantics across surveys. Catalog merging compares the complete stored normalized content, including the parent question catalog ID for fields, while retaining the [first input’s representative display labels](guides/combine-surveys.md#representative-catalog-labels). Concrete question, field, and answer-option rows remain survey-specific.
 
+When a QSF supplies `SurveyLanguage`, including under `SurveyOptions`, that code becomes `surveys.default_language` and identifies the language of the base question text used for catalog identity. The per-survey `manifest.json` entry also records `languages.base_language`, declared `languages.available_languages`, and `languages.all_languages` (the base, available, and every code found under a question's `Language` object). An absent QSF leaves these values empty or null; response `UserLanguage` is never inferred from them.
+
 | Entity | Grain | Primary ID | Main parents |
 |---|---|---|---|
 | `surveys` | survey | `survey_id` | none |

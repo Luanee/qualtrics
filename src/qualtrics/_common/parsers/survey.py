@@ -631,6 +631,14 @@ def _parse_survey_file(
         if entry.get("flow_definition_json") is not None
         else None,
         "source_columns_json": [column.descriptor() for column in source_columns],
+        "languages": entry.get(
+            "_languages",
+            {
+                "base_language": None,
+                "available_languages": [],
+                "all_languages": [],
+            },
+        ),
     }
     field_specs = [column for column in source_columns if column.question_external_id]
     grouped_headers: dict[str, list[str]] = {}
