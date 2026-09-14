@@ -35,7 +35,9 @@ Use the side navigation to move between six views. On a narrow screen, navigatio
 | **Responses** | Review individual response records and choose which questions to display. |
 | **Codebook** | Look up export columns, field types, and answer codes; download the filtered dictionary. |
 
-The **Surveys** selector filters every view. For a walk through branches and conditions, [launch the flow example](../examples/survey-flow.md). Its hypothetical answers do not affect the response charts.
+Use **Surveys** to choose the survey scope. **Respondent language** selects a `responses.user_language` cohort, including **Missing / unknown** for blank values. Summary totals, charts, question coverage, written answers, and response lists follow that cohort.
+
+**Definition language** changes QSF question, field, and choice labels without changing counts. The report uses the base label where a translation is absent. Written answers keep their recorded text; a translated choice in a response shows its original under **Recorded**. The codebook shows the selected definition language and response properties. The [flow example](../examples/survey-flow.md) lets you try hypothetical routes; its answers do not affect response charts.
 
 ??? info "Navigation, theme, and flow controls"
 
@@ -102,7 +104,7 @@ Treat these highlights as a starting point for reading the charts. They do not i
 
 Use **Search this report** in the header to find questions, written answers, responses, flow steps, and codebook fields. Enter several words or an identifier. Results show their type and a highlighted excerpt; select a result to open the matching question, comment, response answer, flow card, or dictionary row.
 
-Search matches are case-insensitive and accent-insensitive. Searching changes what you can find, not the population used for statistics. Totals and charts continue to describe the selected surveys.
+Search matches are case-insensitive and accent-insensitive. It searches the selected surveys and respondent cohort; the definition-language choice controls which codebook translation rows appear. Search itself does not recalculate statistics.
 
 Results replace the current view while you search. **Clear** restores that view; selecting a view in the sidebar clears the global search and opens it.
 
@@ -160,7 +162,7 @@ Under **Responses**:
 
 Expand **Response properties** inside a response to see available system metadata, embedded fields, and unclassified source columns. Both local and global search include property labels and values. Blank properties stay blank; the report does not infer a department or country from other answers. The codebook explains how each column was classified.
 
-The survey selector updates the summary totals. Local search and the question selector do not recalculate summary totals or question analytics. A global search result points to the matching answer and reveals that question when you open it.
+Survey and respondent-language selectors update summary totals. Local search and the question selector leave those totals unchanged. A global search result opens the matching answer.
 
 ## Include several surveys
 
