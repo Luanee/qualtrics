@@ -164,7 +164,7 @@ Table fact_comment_translations [headercolor: #6A5ACD] {
 
 Table dim_display_languages [headercolor: #6A5ACD] {
   language_code varchar [pk]
-  is_available boolean [note: 'Declared available or base in at least one survey']
+  is_available boolean [note: 'Declared available/base or has prepared comments in at least one survey']
   available_survey_count integer
   defined_survey_count integer
   Note: 'One language code across the combined model. Use as a display-only slicer; filter is_available for the default picker. It does not filter answer facts.'

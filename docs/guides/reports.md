@@ -37,7 +37,7 @@ Use the side navigation to move between six views. On a narrow screen, navigatio
 
 Use **Surveys** to choose the survey scope. **Respondent language** selects a `responses.user_language` cohort, including **Missing / unknown** for blank values. Summary totals, charts, question coverage, written answers, and response lists follow that cohort.
 
-**Definition language** changes QSF question, field, and choice labels without changing counts. The report uses the base label where a translation is absent. Written answers keep their recorded text; a translated choice in a response shows its original under **Recorded**. The codebook shows the selected definition language and response properties. The [flow example](../examples/survey-flow.md) lets you try hypothetical routes; its answers do not affect response charts.
+**Display language** changes QSF question, field, and choice labels without changing counts. The report uses the base label where a translation is absent. If you imported prepared written-answer translations, the same control shows current text for that target language in **Written answers**, with the original one click away. Missing or stale translations show the original and a visible cue. Raw answers remain unchanged; a translated choice in a response shows its original under **Recorded**. The codebook shows the selected definition language and response properties. The [flow example](../examples/survey-flow.md) lets you try hypothetical routes; its answers do not affect response charts.
 
 ??? info "Navigation, theme, and flow controls"
 
@@ -113,6 +113,8 @@ Written answers, responses, search results, and codebook rows use page controls.
 ### Work with written answers
 
 **Written answers** uses the same membership rule as the exported `comments` table and Power BI's `fact_comments`: one nonblank answer in a supported text field. It includes form and matrix text and attached “Other” text fields. Choice labels, numeric fields, technical data, and response properties are excluded. Whitespace-only cells remain in the original answer table but do not appear in this view.
+
+Prepared comment translations are optional. Import them with [`translations import`](../reference/cli.md#translations-import) or the Python callback. Display language selects the target; it never changes response counts or the original answer. If the respondent's language matches the display code, the report shows the original without an unavailable cue. If a prepared target is missing or its source hash is stale, the original remains visible with an explanation. The report makes no translation-service request.
 
 The view preserves separate responses and separate fields even when their text matches. Comments remain included in all-answer totals; exporting the subset does not add new answers. `comments.user_language` and `fact_comments.user_language` come only from the linked response, preserving missing language as null. For source-metadata limitations and older folders, see [the comments contract](../entity-model.md#comments).
 

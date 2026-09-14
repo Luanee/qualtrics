@@ -141,7 +141,7 @@ For a date slicer, create a date table in your Power BI model; it is not one of 
 
 ### Display-language recipe
 
-Use **two different slicers**: `fact_responses[user_language]` filters respondents and therefore changes all measures; `dim_display_languages[language_code]` changes labels only. Make the latter single-select and filter `dim_display_languages[is_available]` to True for the default picker. Extra codes found only inside question translations remain in the table and can be exposed deliberately. Every base field and option has a label row for every display code across combined surveys; when a survey lacks that translation, the row uses its base label and records that fallback in `*_source_language`.
+Use **two different slicers**: `fact_responses[user_language]` filters respondents and therefore changes all measures; `dim_display_languages[language_code]` changes labels only. Make the latter single-select and filter `dim_display_languages[is_available]` to True for the default picker. This includes codes with prepared comment translations even when the QSF has no labels for that code; those labels fall back to the survey's base language. Extra codes found only inside question translations remain in the table and can be exposed deliberately. Every base field and option has a label row for every display code across combined surveys; when a survey lacks that translation, the row uses its base label and records that fallback in `*_source_language`.
 
 For a table or matrix keyed by one base field, this measure returns the selected question label without changing fact relationships:
 
@@ -173,6 +173,50 @@ CALCULATE(
 ```
 
 This is a display measure, not a new relationship. Keep one display language selected so the axis has one label row per option. The respondent-language slicer remains independent: selecting German respondents never rewrites their raw answer text, and switching the display to French never changes answer counts. The [Microsoft DAX references for `SELECTEDVALUE`](https://learn.microsoft.com/en-us/dax/selectedvalue-function-dax) and [`LOOKUPVALUE`](https://learn.microsoft.com/en-us/dax/lookupvalue-function-dax) explain the single-selection and exact-key lookup behavior.
+
+### Prepared written-answer translations
+
+`fact_comment_translations` is an optional lookup, not another answer fact. Do not add an active relationship from it to `fact_comments` or `fact_response_answers`. In a table visual with one `fact_comments[response_answer_id]` per row, these measures use the same display-language slicer while retaining the original as fallback. Convert `is_current` to a Boolean when loading SQLite's `0`/`1` values.
+
+```dax
+Displayed Comment =
+VAR AnswerId = SELECTEDVALUE(fact_comments[response_answer_id])
+VAR Original = SELECTEDVALUE(fact_comments[answer_text])
+VAR Source = SELECTEDVALUE(fact_comments[user_language])
+VAR Target = SELECTEDVALUE(dim_display_languages[language_code])
+VAR Current = LOOKUPVALUE(
+    fact_comment_translations[is_current],
+    fact_comment_translations[response_answer_id], AnswerId,
+    fact_comment_translations[target_language], Target
+)
+VAR Prepared = LOOKUPVALUE(
+    fact_comment_translations[translated_text],
+    fact_comment_translations[response_answer_id], AnswerId,
+    fact_comment_translations[target_language], Target
+)
+RETURN IF(NOT ISBLANK(Target) && Target <> Source && Current = TRUE(), COALESCE(Prepared, Original), Original)
+```
+
+```dax
+Comment Translation Status =
+VAR AnswerId = SELECTEDVALUE(fact_comments[response_answer_id])
+VAR Source = SELECTEDVALUE(fact_comments[user_language])
+VAR Target = SELECTEDVALUE(dim_display_languages[language_code])
+VAR Current = LOOKUPVALUE(
+    fact_comment_translations[is_current],
+    fact_comment_translations[response_answer_id], AnswerId,
+    fact_comment_translations[target_language], Target
+)
+RETURN SWITCH(
+    TRUE(),
+    ISBLANK(Target) || Target = Source, "Original",
+    ISBLANK(Current), "Translation unavailable · showing original",
+    Current = FALSE(), "Translation out of date · showing original",
+    "Translated · original available in fact_comments[answer_text]"
+)
+```
+
+Use `Displayed Comment` and `Comment Translation Status` together. Keep `fact_comments[answer_text]` available for audit or drill-through; no measure should overwrite it. Empty translation tables are valid and simply produce the original with an unavailable cue when a different display language is selected.
 
 ## 5. Add measures with the right denominator
 
