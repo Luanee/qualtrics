@@ -32,12 +32,16 @@ With [uv and Git installed](https://luanee.github.io/qualtrics/getting-started/i
 
 ```bash
 git clone https://github.com/Luanee/qualtrics.git
+
 cd qualtrics
+
 uv sync --locked --extra cli --extra ui
+
 uv run --extra cli --extra ui qualtrics build docs/assets/examples/feedback.csv \
   --qsf docs/assets/examples/feedback.qsf \
   --output data/first-report/entities \
   --format csv
+
 uv run --extra cli --extra ui qualtrics report \
   --folder data/first-report/entities \
   --output data/first-report/report.html

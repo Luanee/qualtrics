@@ -11,5 +11,8 @@
   },
   "cSpell.words": [
     "Qualtrics"
-  ]
+  ],
+  "files.associations": {
+    "*.qsf": "json"
+  }
 }

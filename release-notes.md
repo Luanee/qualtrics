@@ -2,135 +2,150 @@
 
 ## 0.4.2 (2026-09-14)
 
-### Other changes
+### Features
 
-* 🔖 Move survey metadata to a multi-survey manifest. PR [#57](https://github.com/Luanee/qualtrics/pull/57) by [@Luanee](https://github.com/Luanee).
-* 🔖 Make the MkDocs survey flow example usable. PR [#58](https://github.com/Luanee/qualtrics/pull/58) by [@Luanee](https://github.com/Luanee).
-
-## 0.4.1 (2026-09-13)
+- ✨ Move survey metadata to a multi-survey manifest. PR [#57](https://github.com/Luanee/qualtrics/pull/57) by [@Luanee](https://github.com/Luanee).
 
 ### Documentation
 
-* 📝 docs: simplify README and highlight key features. PR [#47](https://github.com/Luanee/qualtrics/pull/47) by [@Luanee](https://github.com/Luanee).
+- 📝 Make the MkDocs survey flow example usable. PR [#58](https://github.com/Luanee/qualtrics/pull/58) by [@Luanee](https://github.com/Luanee).
+
+## 0.4.1 (2026-09-13)
+
+### Fixes
+
+- 🐛 Map looped fields to the correct answer choices. PR [#51](https://github.com/Luanee/qualtrics/pull/51) by [@Luanee](https://github.com/Luanee).
+- 🐛 Reload CSV entities with large metadata fields. PR [#52](https://github.com/Luanee/qualtrics/pull/52) by [@Luanee](https://github.com/Luanee).
+- 🐛 Merge equivalent canonical catalogs safely. PR [#53](https://github.com/Luanee/qualtrics/pull/53) by [@Luanee](https://github.com/Luanee).
+- 🐛 Preserve section lineage from list block definitions. PR [#54](https://github.com/Luanee/qualtrics/pull/54) by [@Luanee](https://github.com/Luanee).
+- 🐛 Infer missing question roles for reports and comments. PR [#55](https://github.com/Luanee/qualtrics/pull/55) by [@Luanee](https://github.com/Luanee).
+
+### Documentation
+
+- 📝 docs: simplify README and highlight key features. PR [#47](https://github.com/Luanee/qualtrics/pull/47) by [@Luanee](https://github.com/Luanee).
 
 ### Internal
 
-* 🔧 chore: add pull request template. PR [#46](https://github.com/Luanee/qualtrics/pull/46) by [@Luanee](https://github.com/Luanee).
-* 🔧 chore: standardize the pull request template filename. PR [#48](https://github.com/Luanee/qualtrics/pull/48) by [@Luanee](https://github.com/Luanee).
-* 👷 build(deps): bump codecov/codecov-action from 5 to 7. PR [#49](https://github.com/Luanee/qualtrics/pull/49) by [@dependabot[bot]](https://github.com/dependabot[bot]).
-* 👷 build(deps): bump astral-sh/setup-uv from 10.0.1 to 10.1.0. PR [#50](https://github.com/Luanee/qualtrics/pull/50) by [@dependabot[bot]](https://github.com/dependabot[bot]).
-
-### Other changes
-
-* 🔖 Map looped fields to the correct answer choices. PR [#51](https://github.com/Luanee/qualtrics/pull/51) by [@Luanee](https://github.com/Luanee).
-* 🔖 Reload CSV entities with large metadata fields. PR [#52](https://github.com/Luanee/qualtrics/pull/52) by [@Luanee](https://github.com/Luanee).
-* 🔖 Merge equivalent canonical catalogs safely. PR [#53](https://github.com/Luanee/qualtrics/pull/53) by [@Luanee](https://github.com/Luanee).
-* 🔖 Preserve section lineage from list block definitions. PR [#54](https://github.com/Luanee/qualtrics/pull/54) by [@Luanee](https://github.com/Luanee).
-* 🔖 Infer missing question roles for reports and comments. PR [#55](https://github.com/Luanee/qualtrics/pull/55) by [@Luanee](https://github.com/Luanee).
+- 🔧 chore: add pull request template. PR [#46](https://github.com/Luanee/qualtrics/pull/46) by [@Luanee](https://github.com/Luanee).
+- 🔧 chore: standardize the pull request template filename. PR [#48](https://github.com/Luanee/qualtrics/pull/48) by [@Luanee](https://github.com/Luanee).
+- 🔧 build(deps): bump codecov/codecov-action from 5 to 7. PR [#49](https://github.com/Luanee/qualtrics/pull/49) by [@dependabot[bot]](https://github.com/dependabot[bot]).
+- 🔧 build(deps): bump astral-sh/setup-uv from 10.0.1 to 10.1.0. PR [#50](https://github.com/Luanee/qualtrics/pull/50) by [@dependabot[bot]](https://github.com/dependabot[bot]).
 
 ## 0.4.0 (2026-09-12)
 
-### Other changes
+### Features
 
-* 🔖 Upload test coverage to Codecov. PR [#29](https://github.com/Luanee/qualtrics/pull/29) by [@Luanee](https://github.com/Luanee).
-* 🔖 Refactor reports into compact views with unified search. PR [#30](https://github.com/Luanee/qualtrics/pull/30) by [@Luanee](https://github.com/Luanee).
-* 🔖 Add interactive charts to the report Summary dashboard. PR [#31](https://github.com/Luanee/qualtrics/pull/31) by [@Luanee](https://github.com/Luanee).
-* 🔖 Embed a synthetic question-type report showcase in MkDocs. PR [#32](https://github.com/Luanee/qualtrics/pull/32) by [@Luanee](https://github.com/Luanee).
-* 🔖 Add yearly grouping and cumulative response timelines. PR [#33](https://github.com/Luanee/qualtrics/pull/33) by [@Luanee](https://github.com/Luanee).
-* 🔖 Add survey flow maps and interactive what-if walkthroughs. PR [#34](https://github.com/Luanee/qualtrics/pull/34) by [@Luanee](https://github.com/Luanee).
-* 🔖 Split report components and add an interactive flow canvas. PR [#35](https://github.com/Luanee/qualtrics/pull/35) by [@Luanee](https://github.com/Luanee).
-* 🔖 Separate API, CLI, and Jinja report UI with optional dependencies. PR [#36](https://github.com/Luanee/qualtrics/pull/36) by [@Luanee](https://github.com/Luanee).
-* 🔖 Consolidate shared functionality under _common. PR [#37](https://github.com/Luanee/qualtrics/pull/37) by [@Luanee](https://github.com/Luanee).
-* 🔖 Fix Pylance type errors in CSV record coercion. PR [#38](https://github.com/Luanee/qualtrics/pull/38) by [@Luanee](https://github.com/Luanee).
-* 🔖 Fix response property classification and preserve exported metadata. PR [#39](https://github.com/Luanee/qualtrics/pull/39) by [@Luanee](https://github.com/Luanee).
-* 🔖 Fix answer-option matching when recodes conflict with choice IDs. PR [#40](https://github.com/Luanee/qualtrics/pull/40) by [@Luanee](https://github.com/Luanee).
-* 🔖 Preserve choice values and raw answer provenance. PR [#41](https://github.com/Luanee/qualtrics/pull/41) by [@Luanee](https://github.com/Luanee).
-* 🔖 Embed entity and Power BI model diagrams in MkDocs. PR [#42](https://github.com/Luanee/qualtrics/pull/42) by [@Luanee](https://github.com/Luanee).
-* 🔖 Add comments exports with response language. PR [#43](https://github.com/Luanee/qualtrics/pull/43) by [@Luanee](https://github.com/Luanee).
-* 🔖 Install required extras for release workflows. PR [#44](https://github.com/Luanee/qualtrics/pull/44) by [@Luanee](https://github.com/Luanee).
+- ✨ Refactor reports into compact views with unified search. PR [#30](https://github.com/Luanee/qualtrics/pull/30) by [@Luanee](https://github.com/Luanee).
+- ✨ Add interactive charts to the report Summary dashboard. PR [#31](https://github.com/Luanee/qualtrics/pull/31) by [@Luanee](https://github.com/Luanee).
+- ✨ Add yearly grouping and cumulative response timelines. PR [#33](https://github.com/Luanee/qualtrics/pull/33) by [@Luanee](https://github.com/Luanee).
+- ✨ Add survey flow maps and interactive what-if walkthroughs. PR [#34](https://github.com/Luanee/qualtrics/pull/34) by [@Luanee](https://github.com/Luanee).
+- ✨ Split report components and add an interactive flow canvas. PR [#35](https://github.com/Luanee/qualtrics/pull/35) by [@Luanee](https://github.com/Luanee).
+- ✨ Preserve choice values and raw answer provenance. PR [#41](https://github.com/Luanee/qualtrics/pull/41) by [@Luanee](https://github.com/Luanee).
+- ✨ Add comments exports with response language. PR [#43](https://github.com/Luanee/qualtrics/pull/43) by [@Luanee](https://github.com/Luanee).
+
+### Fixes
+
+- 🐛 Fix Pylance type errors in CSV record coercion. PR [#38](https://github.com/Luanee/qualtrics/pull/38) by [@Luanee](https://github.com/Luanee).
+- 🐛 Fix response property classification and preserve exported metadata. PR [#39](https://github.com/Luanee/qualtrics/pull/39) by [@Luanee](https://github.com/Luanee).
+- 🐛 Fix answer-option matching when recodes conflict with choice IDs. PR [#40](https://github.com/Luanee/qualtrics/pull/40) by [@Luanee](https://github.com/Luanee).
+- 🐛 Install required extras for release workflows. PR [#44](https://github.com/Luanee/qualtrics/pull/44) by [@Luanee](https://github.com/Luanee).
+
+### Refactors
+
+- ♻️ Separate API, CLI, and Jinja report UI with optional dependencies. PR [#36](https://github.com/Luanee/qualtrics/pull/36) by [@Luanee](https://github.com/Luanee).
+- ♻️ Consolidate shared functionality under _common. PR [#37](https://github.com/Luanee/qualtrics/pull/37) by [@Luanee](https://github.com/Luanee).
+
+### Documentation
+
+- 📝 Embed a synthetic question-type report showcase in MkDocs. PR [#32](https://github.com/Luanee/qualtrics/pull/32) by [@Luanee](https://github.com/Luanee).
+- 📝 Embed entity and Power BI model diagrams in MkDocs. PR [#42](https://github.com/Luanee/qualtrics/pull/42) by [@Luanee](https://github.com/Luanee).
+
+### Internal
+
+- 🔧 Upload test coverage to Codecov. PR [#29](https://github.com/Luanee/qualtrics/pull/29) by [@Luanee](https://github.com/Luanee).
 
 ## 0.3.0 (2026-09-08)
 
-### Other changes
+### Features
 
-* 🔖 PR title feat: build field-scoped answer options from survey definitions. PR [#22](https://github.com/Luanee/qualtrics/pull/22) by [@Luanee](https://github.com/Luanee).
-* 🔖 Add MkDocs documentation site and GitHub Pages deployment. PR [#23](https://github.com/Luanee/qualtrics/pull/23) by [@Luanee](https://github.com/Luanee).
-* 🔖 Add SQLite exports for Power BI semantic models. PR [#24](https://github.com/Luanee/qualtrics/pull/24) by [@Luanee](https://github.com/Luanee).
-* 🔖 Add concurrent survey exports, retries, and progress. PR [#25](https://github.com/Luanee/qualtrics/pull/25) by [@Luanee](https://github.com/Luanee).
-* 🔖 Improve question-specific report summaries. PR [#26](https://github.com/Luanee/qualtrics/pull/26) by [@Luanee](https://github.com/Luanee).
-* 🔖 Add a searchable report codebook with CSV download. PR [#27](https://github.com/Luanee/qualtrics/pull/27) by [@Luanee](https://github.com/Luanee).
+- ✨ PR title feat: build field-scoped answer options from survey definitions. PR [#22](https://github.com/Luanee/qualtrics/pull/22) by [@Luanee](https://github.com/Luanee).
+- ✨ Add SQLite exports for Power BI semantic models. PR [#24](https://github.com/Luanee/qualtrics/pull/24) by [@Luanee](https://github.com/Luanee).
+- ✨ Add concurrent survey exports, retries, and progress. PR [#25](https://github.com/Luanee/qualtrics/pull/25) by [@Luanee](https://github.com/Luanee).
+- ✨ Improve question-specific report summaries. PR [#26](https://github.com/Luanee/qualtrics/pull/26) by [@Luanee](https://github.com/Luanee).
+- ✨ Add a searchable report codebook with CSV download. PR [#27](https://github.com/Luanee/qualtrics/pull/27) by [@Luanee](https://github.com/Luanee).
+
+### Documentation
+
+- 📝 Add MkDocs documentation site and GitHub Pages deployment. PR [#23](https://github.com/Luanee/qualtrics/pull/23) by [@Luanee](https://github.com/Luanee).
 
 ## 0.2.0 (2026-09-03)
 
 ### Features
 
-* ✨ feat: add multi-survey entity workflows. PR [#14](https://github.com/Luanee/qualtrics/pull/14) by [@Luanee](https://github.com/Luanee).
+- ✨ feat: add multi-survey entity workflows. PR [#14](https://github.com/Luanee/qualtrics/pull/14) by [@Luanee](https://github.com/Luanee).
+- ✨ Improve multi-survey report analytics and filtering. PR [#15](https://github.com/Luanee/qualtrics/pull/15) by [@Luanee](https://github.com/Luanee).
+- ✨ Add multi-survey entity workflows. PR [#16](https://github.com/Luanee/qualtrics/pull/16) by [@Luanee](https://github.com/Luanee).
+- ✨ Establish stable Qualtrics entity and question identity. PR [#17](https://github.com/Luanee/qualtrics/pull/17) by [@Luanee](https://github.com/Luanee).
+- ✨ Add analysis-ready Qualtrics response-answer facts. PR [#18](https://github.com/Luanee/qualtrics/pull/18) by [@Luanee](https://github.com/Luanee).
+- ✨ Enforce and serialize the normalized Qualtrics entity contract. PR [#19](https://github.com/Luanee/qualtrics/pull/19) by [@Luanee](https://github.com/Luanee).
+- ✨ Add Power BI-ready Qualtrics semantic model exports. PR [#20](https://github.com/Luanee/qualtrics/pull/20) by [@Luanee](https://github.com/Luanee).
 
 ### Fixes
 
-* 🐛 fix: dispatch standalone publication workflow. PR [#13](https://github.com/Luanee/qualtrics/pull/13) by [@Luanee](https://github.com/Luanee).
-
-### Other changes
-
-* 🔖 Fix PyPI trusted publishing workflow identity. PR [#12](https://github.com/Luanee/qualtrics/pull/12) by [@Luanee](https://github.com/Luanee).
-* 🔖 Improve multi-survey report analytics and filtering. PR [#15](https://github.com/Luanee/qualtrics/pull/15) by [@Luanee](https://github.com/Luanee).
-* 🔖 Add multi-survey entity workflows. PR [#16](https://github.com/Luanee/qualtrics/pull/16) by [@Luanee](https://github.com/Luanee).
-* 🔖 Establish stable Qualtrics entity and question identity. PR [#17](https://github.com/Luanee/qualtrics/pull/17) by [@Luanee](https://github.com/Luanee).
-* 🔖 Add analysis-ready Qualtrics response-answer facts. PR [#18](https://github.com/Luanee/qualtrics/pull/18) by [@Luanee](https://github.com/Luanee).
-* 🔖 Enforce and serialize the normalized Qualtrics entity contract. PR [#19](https://github.com/Luanee/qualtrics/pull/19) by [@Luanee](https://github.com/Luanee).
-* 🔖 Add Power BI-ready Qualtrics semantic model exports. PR [#20](https://github.com/Luanee/qualtrics/pull/20) by [@Luanee](https://github.com/Luanee).
+- 🐛 Fix PyPI trusted publishing workflow identity. PR [#12](https://github.com/Luanee/qualtrics/pull/12) by [@Luanee](https://github.com/Luanee).
+- 🐛 fix: dispatch standalone publication workflow. PR [#13](https://github.com/Luanee/qualtrics/pull/13) by [@Luanee](https://github.com/Luanee).
 
 ## 0.1.2 (2026-08-31)
 
+### Features
+
+- ✨ Parse Qualtrics exports and improve question analytics. PR [#9](https://github.com/Luanee/qualtrics/pull/9) by [@Luanee](https://github.com/Luanee).
+- ✨ Add end-to-end survey export workflow and simplify documentation. PR [#10](https://github.com/Luanee/qualtrics/pull/10) by [@Luanee](https://github.com/Luanee).
+
+### Fixes
+
+- 🐛 Load dotenv configuration and preserve survey definition metadata. PR [#8](https://github.com/Luanee/qualtrics/pull/8) by [@Luanee](https://github.com/Luanee).
+
 ### Internal
 
-* 👷 ci: automate pull request based releases. PR [#7](https://github.com/Luanee/qualtrics/pull/7) by [@Luanee](https://github.com/Luanee).
-
-### Other changes
-
-* 🔖 Load dotenv configuration and preserve survey definition metadata. PR [#8](https://github.com/Luanee/qualtrics/pull/8) by [@Luanee](https://github.com/Luanee).
-* 🔖 Parse Qualtrics exports and improve question analytics. PR [#9](https://github.com/Luanee/qualtrics/pull/9) by [@Luanee](https://github.com/Luanee).
-* 🔖 Add end-to-end survey export workflow and simplify documentation. PR [#10](https://github.com/Luanee/qualtrics/pull/10) by [@Luanee](https://github.com/Luanee).
+- 🔧 ci: automate pull request based releases. PR [#7](https://github.com/Luanee/qualtrics/pull/7) by [@Luanee](https://github.com/Luanee).
 
 ## 0.1.1 (2026-08-30)
 
 ### Features
 
-* ✨ initialize qualtrics toolkit. [38c6af7](https://github.com/Luanee/qualtrics/commit/38c6af711a13ae53a2cc8544bb3e9e1bdeafd64b)
+- ✨ initialize qualtrics toolkit. [38c6af7](https://github.com/Luanee/qualtrics/commit/38c6af711a13ae53a2cc8544bb3e9e1bdeafd64b)
 
 ### Refactors
 
-* ♻️ split toolkit into domain modules. [fb6f7d5](https://github.com/Luanee/qualtrics/commit/fb6f7d5718d6028367ca95db47026b2fb5e657a6)
-* ♻️ simplify response export formats. [a09f509](https://github.com/Luanee/qualtrics/commit/a09f5095a126797aa16137f7f72309cbcbbafea0)
-* ♻️ rename package to qualtrics. [d579fc9](https://github.com/Luanee/qualtrics/commit/d579fc9d4e69dfa9cb969521f1deea60d0ca99ed)
+- ♻️ split toolkit into domain modules. [fb6f7d5](https://github.com/Luanee/qualtrics/commit/fb6f7d5718d6028367ca95db47026b2fb5e657a6)
+- ♻️ simplify response export formats. [a09f509](https://github.com/Luanee/qualtrics/commit/a09f5095a126797aa16137f7f72309cbcbbafea0)
+- ♻️ rename package to qualtrics. [d579fc9](https://github.com/Luanee/qualtrics/commit/d579fc9d4e69dfa9cb969521f1deea60d0ca99ed)
 
 ### Documentation
 
-* 📝 add typer usage examples. [21c691d](https://github.com/Luanee/qualtrics/commit/21c691da0a9f87961ab1cf7b08d5c37f0aa2621c)
-* 📝 update package branding. [1283363](https://github.com/Luanee/qualtrics/commit/1283363958f0ed3e056e9289aaa962c35b8f0392)
+- 📝 add typer usage examples. [21c691d](https://github.com/Luanee/qualtrics/commit/21c691da0a9f87961ab1cf7b08d5c37f0aa2621c)
+- 📝 update package branding. [1283363](https://github.com/Luanee/qualtrics/commit/1283363958f0ed3e056e9289aaa962c35b8f0392)
+- 📝 Merge pull request #5 from Luanee/update-readme-branding. [6ca8a0c](https://github.com/Luanee/qualtrics/commit/6ca8a0c8d23b3e294516c8ca96a91565448c5b87)
 
 ### Internal
 
-* ✅ cover parsing reporting and api domains. [ccf1a27](https://github.com/Luanee/qualtrics/commit/ccf1a2741edff210fd1c5e4d910252f36d287317)
-* 🔧 configure vscode workspace. [6975231](https://github.com/Luanee/qualtrics/commit/6975231eb6144ef464e79a8a843d886744a569d2)
-* 👷 modernize project tooling. [938fc31](https://github.com/Luanee/qualtrics/commit/938fc31e8406dcac53cf49dd1b26f1faa0d9d8dd)
-* 👷 add pre-commit quality gates. [14a5594](https://github.com/Luanee/qualtrics/commit/14a5594b817490cc7745535c19529ca17110b613)
-* 👷 add github automation. [b9a56be](https://github.com/Luanee/qualtrics/commit/b9a56be075ef9682cacd3b2f82c7f5bb83969969)
-* 👷 harden build and release workflows. [23202a5](https://github.com/Luanee/qualtrics/commit/23202a55e0c7b1449cff4de5e1729b89243e54dc)
-* 👷 automate release preparation. [7acac84](https://github.com/Luanee/qualtrics/commit/7acac84975be9d5b82c8fbc79da63ea8576bd898)
-* 👷 bump actions/attest-build-provenance from 3 to 4. [d8aba82](https://github.com/Luanee/qualtrics/commit/d8aba82e29278c6910236f3d699dabd7a276c35c)
-* 👷 bump pypa/gh-action-pypi-publish from 1.13.0 to 1.14.2. [2b7d969](https://github.com/Luanee/qualtrics/commit/2b7d96945e4a0fe152ee1220b465c4ed016b91af)
-* 👷 bump actions/download-artifact from 5 to 8. [64fb5aa](https://github.com/Luanee/qualtrics/commit/64fb5aa0421733825636563fd1d9d81a8bbae5ec)
-* 👷 bump actions/upload-artifact from 4 to 7. [09c1e95](https://github.com/Luanee/qualtrics/commit/09c1e9521c0dc5fd59435e55a425c031cad0f627)
-* 🔧 define repository code owner. [d64f825](https://github.com/Luanee/qualtrics/commit/d64f825dd239b2ef2d171d462a8411c7bd1e0ece)
-
-### Other changes
-
-* 🔖 Merge pull request #1 from Luanee/dependabot/github_actions/actions/attest-build-provenance-4. [45d8c5f](https://github.com/Luanee/qualtrics/commit/45d8c5f6b4b3ae89243383085ff81bf9c9703d59)
-* 🔖 Merge pull request #2 from Luanee/dependabot/github_actions/pypa/gh-action-pypi-publish-1.14.2. [e0871c2](https://github.com/Luanee/qualtrics/commit/e0871c23181f4c8ee3af1f867996de644d265213)
-* 🔖 Merge pull request #3 from Luanee/dependabot/github_actions/actions/download-artifact-8. [d3bb937](https://github.com/Luanee/qualtrics/commit/d3bb9371fce74030b13fd83990b7758982ef0a35)
-* 🔖 Merge pull request #4 from Luanee/dependabot/github_actions/actions/upload-artifact-7. [bbce4b2](https://github.com/Luanee/qualtrics/commit/bbce4b23bac5ed2d5df82b752822a0fb4468e1c5)
-* 🔖 Merge pull request #5 from Luanee/update-readme-branding. [6ca8a0c](https://github.com/Luanee/qualtrics/commit/6ca8a0c8d23b3e294516c8ca96a91565448c5b87)
+- ✅ cover parsing reporting and api domains. [ccf1a27](https://github.com/Luanee/qualtrics/commit/ccf1a2741edff210fd1c5e4d910252f36d287317)
+- 🔧 configure vscode workspace. [6975231](https://github.com/Luanee/qualtrics/commit/6975231eb6144ef464e79a8a843d886744a569d2)
+- 👷 modernize project tooling. [938fc31](https://github.com/Luanee/qualtrics/commit/938fc31e8406dcac53cf49dd1b26f1faa0d9d8dd)
+- 👷 add pre-commit quality gates. [14a5594](https://github.com/Luanee/qualtrics/commit/14a5594b817490cc7745535c19529ca17110b613)
+- 👷 add github automation. [b9a56be](https://github.com/Luanee/qualtrics/commit/b9a56be075ef9682cacd3b2f82c7f5bb83969969)
+- 👷 harden build and release workflows. [23202a5](https://github.com/Luanee/qualtrics/commit/23202a55e0c7b1449cff4de5e1729b89243e54dc)
+- 👷 automate release preparation. [7acac84](https://github.com/Luanee/qualtrics/commit/7acac84975be9d5b82c8fbc79da63ea8576bd898)
+- 👷 bump actions/attest-build-provenance from 3 to 4. [d8aba82](https://github.com/Luanee/qualtrics/commit/d8aba82e29278c6910236f3d699dabd7a276c35c)
+- 👷 bump pypa/gh-action-pypi-publish from 1.13.0 to 1.14.2. [2b7d969](https://github.com/Luanee/qualtrics/commit/2b7d96945e4a0fe152ee1220b465c4ed016b91af)
+- 👷 bump actions/download-artifact from 5 to 8. [64fb5aa](https://github.com/Luanee/qualtrics/commit/64fb5aa0421733825636563fd1d9d81a8bbae5ec)
+- 👷 bump actions/upload-artifact from 4 to 7. [09c1e95](https://github.com/Luanee/qualtrics/commit/09c1e9521c0dc5fd59435e55a425c031cad0f627)
+- 🔧 define repository code owner. [d64f825](https://github.com/Luanee/qualtrics/commit/d64f825dd239b2ef2d171d462a8411c7bd1e0ece)
+- 🔧 Merge pull request #1 from Luanee/dependabot/github_actions/actions/attest-build-provenance-4. [45d8c5f](https://github.com/Luanee/qualtrics/commit/45d8c5f6b4b3ae89243383085ff81bf9c9703d59)
+- 🔧 Merge pull request #2 from Luanee/dependabot/github_actions/pypa/gh-action-pypi-publish-1.14.2. [e0871c2](https://github.com/Luanee/qualtrics/commit/e0871c23181f4c8ee3af1f867996de644d265213)
+- 🔧 Merge pull request #3 from Luanee/dependabot/github_actions/actions/download-artifact-8. [d3bb937](https://github.com/Luanee/qualtrics/commit/d3bb9371fce74030b13fd83990b7758982ef0a35)
+- 🔧 Merge pull request #4 from Luanee/dependabot/github_actions/actions/upload-artifact-7. [bbce4b2](https://github.com/Luanee/qualtrics/commit/bbce4b23bac5ed2d5df82b752822a0fb4468e1c5)
 
 ## 0.1.0 (2026-08-30)
 

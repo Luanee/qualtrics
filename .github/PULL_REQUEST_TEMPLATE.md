@@ -12,6 +12,10 @@
 - [ ] CI, build, or dependencies
 - [ ] Tests
 
+## Release category
+
+Use one release category label: `enhancement`, `bug`, `performance`, `refactor`, `documentation`, or `internal`. The labeler adds one from a conventional title, branch name, or docs-only change. Replace it if the category is wrong. Existing `dependencies` and `github_actions` labels group under Internal when no category is set.
+
 ## 📝 Description
 
 <!-- Explain what changed, why it was needed, and the resulting behavior. Include technical details that help reviewers assess the change. -->
