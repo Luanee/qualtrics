@@ -84,6 +84,16 @@ def test_report_without_prepared_translations_stays_offline_and_shows_original(t
     assert _translation_payload(document) == {}
 
 
+def test_report_ignores_translation_rows_without_a_rendered_written_answer(tmp_path: Path) -> None:
+    entities = _entities(tmp_path)
+    entities.comment_translations.append({"response_answer_id": "not-in-report", "target_language": "EN"})
+    report = tmp_path / "unrelated.html"
+    render_report(entities, report)
+    document = report.read_text(encoding="utf-8")
+    assert _translation_payload(document) == {}
+    assert "class='written-value'>&lt;source&gt; &amp; text</p>" in document
+
+
 def test_semantic_display_languages_include_prepared_target_without_qsf_labels(tmp_path: Path) -> None:
     prepared = prepare_comment_translations(_entities(tmp_path), ["EN"], lambda *_args: "Translation")
     model = build_semantic_model(prepared)
