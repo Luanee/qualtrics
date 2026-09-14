@@ -1,5 +1,5 @@
 Project qualtrics_entities {
-  Note: '''Ten exported entity tables: nine authoritative entities and the derived comments projection, with all fixed export columns and known optional metadata.
+  Note: '''Nine authoritative entity tables, the derived comments projection, and an optional prepared-comment translation table, with all fixed export columns and known optional metadata.
     Keys, references and not-null settings describe the validated logical model; exported files do not themselves enforce these constraints.
     Text includes IDs, timestamps, recodes and response metadata that may look numeric.
     Writers also preserve additional record columns, so a survey can extend this schema.
@@ -181,6 +181,17 @@ Table comments [headercolor: #C57622] {
   Note: 'Derived subset of response_answers: one nonblank text answer field per response, retaining the original key and unchanged text. Identical text in different answers remains separate. Eligibility follows response-question role and effective field type; whitespace-only cells and numeric, categorical, technical, structured, file and unsupported fields are excluded. Rebuilt from the nine authoritative entities, including when a legacy folder has no comments file.'
 }
 
+Table comment_translations [headercolor: #6A5ACD] {
+  comment_translation_id varchar [pk]
+  response_answer_id varchar [not null, ref: > response_answers.response_answer_id]
+  survey_id varchar [not null, ref: > surveys.survey_id]
+  source_language varchar [note: 'Nullable UserLanguage copied from the linked response when prepared']
+  target_language varchar [not null]
+  source_text_hash varchar [not null, note: 'SHA-256 of the exact original answer_text']
+  translated_text text [not null]
+  Note: 'Optional prepared text, one row per written answer and target language. The source hash is checked on import; a later source edit makes the row stale without overwriting the original answer. No translation provider is bundled.'
+}
+
 TableGroup canonical_catalogs {
   question_catalog
   question_field_catalog
@@ -198,4 +209,5 @@ TableGroup collected_responses {
   responses
   response_answers
   comments
+  comment_translations
 }

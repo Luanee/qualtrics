@@ -1,6 +1,6 @@
 # Prepare data for Power BI
 
-Export nine analysis and display-label tables as Parquet files or one SQLite database, then connect them in Power BI. You can follow the export steps on any supported operating system; the import steps use Power BI Desktop.
+Export ten analysis and display-label tables as Parquet files or one SQLite database, then connect the tables you need in Power BI. You can follow the export steps on any supported operating system; the import steps use Power BI Desktop.
 
 You need the [installed project](../getting-started/installation.md) and a complete entity folder. The base package supports Parquet and SQLite output. The commands below use the folder from [your first report](../getting-started/first-report.md). Run them from the project folder; for an isolated CLI installation, replace `uv run --extra cli --extra ui qualtrics` with `qualtrics`.
 
@@ -22,17 +22,18 @@ data/first-report/power-bi/
 ├── dim_questions.parquet
 ├── dim_answer_options.parquet
 ├── fact_comments.parquet
+├── fact_comment_translations.parquet
 ├── dim_display_languages.parquet
 ├── dim_question_labels.parquet
 ├── dim_answer_option_labels.parquet
 └── manifest.json
 ```
 
-You should see `Wrote 9 parquet semantic tables to data/first-report/power-bi`.
+You should see `Wrote 10 parquet semantic tables to data/first-report/power-bi`.
 
 ### SQLite database
 
-To keep all nine tables in one file, choose SQLite:
+To keep all ten tables in one file, choose SQLite:
 
 ```text
 uv run --extra cli --extra ui qualtrics semantic-model build data/first-report/entities --output data/first-report/power-bi-sqlite --format sqlite
@@ -42,9 +43,9 @@ This creates `data/first-report/power-bi-sqlite/semantic_model.sqlite` and a sib
 
 The command refuses an output folder that already contains recognized semantic table files or `semantic_model.sqlite`. Choose a fresh folder for a later export. SQLite writes complete before the final database appears; a failed build does not leave a partial database. CSV and JSON remain available with `--format csv` or `--format json`.
 
-The input must be a complete entity folder. Current exports contain ten tables plus `manifest.json`; older nine-table folders without `comments` are also accepted and reconstruct that subset from their available metadata. To prepare several surveys, [combine their entities](combine-surveys.md) first and use the combined entity folder as input. The manifest keeps flow, source-column, and language descriptors for each survey ID; it is not a tenth Power BI table.
+The input must be a complete entity folder. Current parses contain nine core tables, derived `comments`, and `manifest.json`; optional `comment_translations` appears only after prepared text is imported. Older nine-table folders without `comments` remain valid. To prepare several surveys, [combine their entities](combine-surveys.md) first. The manifest keeps flow, source-column, and language descriptors for each survey ID; it is not a semantic table.
 
-## 2. Understand the nine tables
+## 2. Understand the ten tables
 
 A **fact table** holds the records you count or measure. A **dimension table** describes those records and supplies labels and filters.
 
@@ -56,6 +57,7 @@ A **fact table** holds the records you count or measure. A **dimension table** d
 | `dim_questions` | One exported base-language question field, with its question and block details. | Label and filter the exact field you want to analyze without multiplying answer facts by language. |
 | `dim_answer_options` | One choice defined for one question field. | Show choice labels and definition order, including unused choices. |
 | `fact_comments` | One nonblank text answer field, derived from all answers. | Read comments or count submissions with a written answer. |
+| `fact_comment_translations` | One prepared written answer × target language, or no rows if none were imported. | Look up current translated text; fall back when missing or stale. |
 | `dim_display_languages` | One display-language code across the combined model. | Populate a single-select label-language slicer. |
 | `dim_question_labels` | One exported base question field × display language. | Show translated question and field labels with base fallback. |
 | `dim_answer_option_labels` | One exported base option × display language. | Show translated choice labels without changing option IDs. |
@@ -65,6 +67,8 @@ A matrix question can have several fields, so it can have several rows in `dim_q
 QSF-only questions stay in the entity codebook. They have no answer facts and are excluded from the active `dim_questions` and `dim_answer_options` tables; do not interpret them as questions that respondents saw and skipped. Localized label tables likewise contain only exported base fields and options.
 
 `fact_comments` contains the same text answers already present in `fact_response_answers`. It reuses each `response_answer_id` and keeps `answer_text` and available `raw_value` unchanged. Two matching comments remain two records; multiple text boxes in one response remain separate. Do not append the subset to all answers or add their row counts together.
+
+`fact_comment_translations` is a separate lookup keyed by `response_answer_id` and `target_language`. Its `is_current` flag compares the stored source hash with the present comment text. Do not use a stale translation or add a second active path to the answer facts. Prepared text is optional; the original comment remains the fallback.
 
 Comment membership follows the report's **Written answers** view. Supported text-entry, form, matrix-text, and attached “Other” text fields qualify; choice labels, numeric fields, response properties, and whitespace-only cells do not. `dim_questions.is_comment_field` records nullable classification evidence on new exports. Older folders fall back to their available types; incomplete side-by-side metadata is not guessed from labels. See [the comments contract](../entity-model.md#comments) for scope and compatibility.
 
@@ -82,7 +86,7 @@ If you parsed without a QSF, you will have no definition-based option records. R
 
 1. In Power BI Desktop, open **Get data** and choose **Parquet**.
 2. Enter the full local path to `fact_responses.parquet`, then load it or choose **Transform Data** to inspect it.
-3. Repeat for the other eight files. Keep the table names shown above so the measure examples work.
+3. Repeat for the other nine files. Keep the table names shown above so the measure examples work.
 
 Microsoft documents the file connection in its [Parquet connector guide](https://learn.microsoft.com/en-us/power-query/connectors/parquet).
 
@@ -92,7 +96,7 @@ Power BI uses an ODBC connection for this workflow. The toolkit creates the SQLi
 
 1. Install a SQLite ODBC driver compatible with your Power BI Desktop installation and configure a data source name (DSN) pointing to the full path of `semantic_model.sqlite`. Follow your driver's instructions in Windows ODBC Data Source Administrator.
 2. In Power BI Desktop, choose **Get data → ODBC** and select that DSN.
-3. In Navigator, select all nine tables, then choose **Transform Data** or **Load**.
+3. In Navigator, select the tables you need, then choose **Transform Data** or **Load**.
 
 See Microsoft's [ODBC connector guide](https://learn.microsoft.com/en-us/power-query/connectors/odbc) for the connection and authentication options. If you prefer to avoid installing a database driver, use the Parquet files.
 
@@ -102,7 +106,7 @@ In Power Query, keep IDs as text; use a decimal type for `answer_numeric` and a 
 
 ## 4. Create the relationships
 
-Explore the nine exported tables below. The diagram's relationship symbols describe one-to-many cardinality; configure Power BI's cross-filter direction separately as explained below. The viewer needs an internet connection and requires no account or API key.
+Explore the ten exported tables below. The diagram's relationship symbols describe one-to-many cardinality; configure Power BI's cross-filter direction separately as explained below. The viewer needs an internet connection and requires no account or API key.
 
 <iframe class="dbml-model" title="Nine-table Power BI semantic model" src="{{ dbml_power_bi_url }}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>
 
@@ -133,7 +137,7 @@ New exports keep `source_choice_id`, `choice_value`, `recode_value`, `variable_n
 
 Older entity folders can lack these provenance columns. Do not treat `answer_code` as evidence of an explicit recode; it may be a native-ID fallback. Reparse the original CSV/ZIP with the matching QSF and rebuild the semantic model when you need the additional metadata. See [answer value provenance](../entity-model.md#answer-value-provenance) for defaults and matrix scope.
 
-For a date slicer, create a date table in your Power BI model; it is not one of the nine exported tables. Convert `recorded_at` to a date for a daily relationship, or derive a separate date-only column from it; relate that column to the date table. Use the original timestamp when you need time-of-day analysis.
+For a date slicer, create a date table in your Power BI model; it is not one of the exported tables. Convert `recorded_at` to a date for a daily relationship, or derive a separate date-only column from it; relate that column to the date table. Use the original timestamp when you need time-of-day analysis.
 
 ### Display-language recipe
 
