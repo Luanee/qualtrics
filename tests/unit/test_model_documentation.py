@@ -76,6 +76,7 @@ def test_power_bi_dbml_keeps_six_fact_relationships_and_two_display_only_relatio
         "language_code",
         "question_field_label_id",
         "answer_option_label_id",
+        "comment_translation_id",
     ])
 
 

@@ -18,6 +18,7 @@ def test_sqlite_empty_model_has_all_tables_with_useful_types(tmp_path: Path) -> 
             "dim_questions",
             "dim_answer_options",
             "fact_comments",
+            "fact_comment_translations",
             "dim_display_languages",
             "dim_question_labels",
             "dim_answer_option_labels",
