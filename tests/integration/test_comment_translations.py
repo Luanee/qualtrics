@@ -203,6 +203,40 @@ def test_translation_validation_rejects_wrong_lineage_and_duplicate_target(tmp_p
         validate_entity_set(entities, strict=True)
 
 
+@pytest.mark.parametrize(
+    "field, bad_value, expected",
+    [
+        ("target_language", "", "target_language"),
+        ("source_text_hash", "invalid", "source_text_hash"),
+        ("translated_text", " ", "translated_text"),
+        ("comment_translation_id", "wrong-id", "ID must derive"),
+        ("survey_id", "other", "survey must match"),
+    ],
+)
+def test_translation_validation_checks_each_sidecar_field(
+    tmp_path: Path, field: str, bad_value: str, expected: str
+) -> None:
+    entities = _prepared(tmp_path)
+    if field == "survey_id":
+        entities.surveys.append({"survey_id": "other", "survey_name": "Other"})
+    entities.comment_translations[0][field] = bad_value
+    with pytest.raises(ValueError, match=expected):
+        validate_entity_set(entities, strict=False)
+
+
+def test_translation_validation_rejects_non_comment_and_extra_schema_column(tmp_path: Path) -> None:
+    entities = _prepared(tmp_path)
+    entities._present_columns["comment_translations"] = {"unexpected"}
+    with pytest.raises(ValueError, match="schema must contain exactly"):
+        validate_entity_set(entities, strict=False)
+    entities._present_columns.pop("comment_translations")
+    entities.question_fields[0]["is_comment_field"] = False
+    entities.comments = []
+    entities._present_entities.discard("comments")
+    with pytest.raises(ValueError, match="must reference a written answer"):
+        validate_entity_set(entities, strict=False)
+
+
 @pytest.mark.parametrize("format", ["json", "csv", "parquet", "sqlite"])
 def test_semantic_export_keeps_current_and_stale_translations_visible(tmp_path: Path, format: str) -> None:
     entities = _prepared(tmp_path)
@@ -339,3 +373,42 @@ def test_cli_rejects_occupied_output_and_unsupported_format(tmp_path: Path) -> N
     )
     assert invalid.exit_code != 0
     assert "format must be" in invalid.output
+
+
+@pytest.mark.parametrize(
+    "corruption, expected",
+    [
+        ("object", "JSON list"),
+        ("extra_column", "schema must contain exactly"),
+        ("duplicate_format", "Multiple formats"),
+    ],
+)
+def test_load_rejects_malformed_optional_translation_sidecar(tmp_path: Path, corruption: str, expected: str) -> None:
+    folder = tmp_path / "entities"
+    write_entities(_prepared(tmp_path), folder)
+    path = folder / "comment_translations.json"
+    if corruption == "object":
+        path.write_text("{}", encoding="utf-8")
+    elif corruption == "extra_column":
+        rows = json.loads(path.read_text(encoding="utf-8"))
+        rows[0]["unexpected"] = "value"
+        path.write_text(json.dumps(rows), encoding="utf-8")
+    else:
+        (folder / "comment_translations.csv").write_text("comment_translation_id\n", encoding="utf-8")
+    with pytest.raises(ValueError, match=expected):
+        load_entities(folder)
+
+
+def test_cli_rejects_wrong_parquet_input_schema(tmp_path: Path) -> None:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    folder = tmp_path / "entities"
+    write_entities(_parsed(tmp_path), folder)
+    source = tmp_path / "prepared.parquet"
+    pq.write_table(pa.Table.from_pylist([{"wrong": "column"}]), source)
+    result = CliRunner().invoke(
+        app, ["translations", "import", str(folder), str(source), "--output", str(tmp_path / "out")]
+    )
+    assert result.exit_code != 0
+    assert "Translation Parquet must have columns" in result.output

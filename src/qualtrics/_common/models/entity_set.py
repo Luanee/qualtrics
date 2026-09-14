@@ -250,7 +250,6 @@ def validate_entity_set(entities: EntitySet, *, strict: bool = False) -> None:
         if columns is not None and columns != set(TRANSLATION_COLUMNS):
             raise ValueError("comment_translations schema must contain exactly the fixed translation columns")
         comments = {str(row["response_answer_id"]): row for row in build_comments(entities)}
-        keys: set[tuple[str, str]] = set()
         for row in entities.comment_translations:
             answer_id = str(row.get("response_answer_id") or "")
             target = row.get("target_language")
@@ -272,10 +271,6 @@ def validate_entity_set(entities: EntitySet, *, strict: bool = False) -> None:
                 raise ValueError("comment_translations ID must derive from answer and target language")
             if str(row.get("survey_id")) != str(comments[answer_id]["survey_id"]):
                 raise ValueError("comment_translations survey must match the written answer")
-            key = answer_id, target
-            if key in keys:
-                raise ValueError("comment_translations duplicate answer and target language")
-            keys.add(key)
 
 
 def _catalog_comparison_row(name: str, row: dict[str, object]) -> dict[str, object]:
