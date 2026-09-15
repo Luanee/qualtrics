@@ -147,19 +147,7 @@ Table fact_comments [headercolor: #C57622] {
   answer_text text [not null]
   raw_value text [note: 'Exact original CSV cell when available; null for legacy answers without raw_value']
   user_language varchar [note: 'Copied only from the linked response; null when absent; no survey default or language detection']
-  Note: 'One nonblank text answer field per response, derived from the original answer rows and keyed by their response_answer_id. Same-text answers remain separate; text is unchanged. Relate only responses and question fields to this table. Do not join fact_response_answers, raw text, or dim_surveys directly to it; comments already contribute to the all-answer fact.'
-}
-
-Table fact_comment_translations [headercolor: #6A5ACD] {
-  comment_translation_id varchar [pk]
-  response_answer_id varchar [not null, note: 'Lookup key to fact_comments; do not add another active fact path']
-  survey_id varchar [not null]
-  source_language varchar
-  target_language varchar [not null]
-  source_text_hash varchar [not null]
-  translated_text text [not null]
-  is_current boolean [not null, note: 'True only when the hash still matches the source comment']
-  Note: 'Optional written-answer translation lookup. One row per response_answer_id and target_language. Use only is_current rows; missing or stale targets fall back to the original comment.'
+  Note: 'One nonblank text answer field per response. Optional prepared targets add translated_text__CODE, translation_source_hash__CODE, translation_source_language__CODE and translation_is_current__CODE columns; their absence/null means use answer_text. Relate only responses and question fields to this table. Do not add fact_response_answers counts to comment counts.'
 }
 
 Table dim_display_languages [headercolor: #6A5ACD] {
@@ -218,7 +206,6 @@ TableGroup facts {
   fact_responses
   fact_response_answers
   fact_comments
-  fact_comment_translations
 }
 
 TableGroup display_labels {

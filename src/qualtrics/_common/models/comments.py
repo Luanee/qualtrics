@@ -54,17 +54,6 @@ def build_comments(entities: EntitySet) -> list[dict[str, Any]]:
         for row in entities.comments
         if row.get("response_answer_id") is not None
     }
-    for row in entities.comment_translations:
-        answer_id = str(row.get("response_answer_id"))
-        target = row.get("target_language")
-        if not isinstance(target, str) or not target.strip():
-            continue
-        text_key, hash_key, language_key = translation_columns(target)
-        prepared.setdefault(answer_id, {}).update({
-            text_key: row.get("translated_text"),
-            hash_key: row.get("source_text_hash"),
-            language_key: row.get("source_language"),
-        })
     targets = prepared_targets(
         [key for values in prepared.values() for key in values] + list(entities._present_columns.get("comments", set()))
     )

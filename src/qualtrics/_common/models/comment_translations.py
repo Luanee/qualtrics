@@ -1,33 +1,20 @@
-"""Optional prepared text indexed by comment answer and target language."""
+"""Convenience APIs for adding prepared text to wide comment rows."""
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import replace
+from copy import deepcopy
 
 from .comments import build_comments
 from .entities import EntitySet
-from .identity import entity_id
-
-TRANSLATION_COLUMNS = (
-    "comment_translation_id",
-    "response_answer_id",
-    "survey_id",
-    "source_language",
-    "target_language",
-    "source_text_hash",
-    "translated_text",
-)
+from .translation_columns import source_text_hash, translation_columns, translation_is_current
 
 
-def source_text_hash(text: str) -> str:
-    """Hash the exact stored answer, including whitespace and Unicode spelling."""
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
-
-
-def translation_id(response_answer_id: str, target_language: str) -> str:
-    return entity_id("comment-translation", response_answer_id, target_language)
+def _finish(entities: EntitySet) -> EntitySet:
+    entities.comments = build_comments(entities)
+    entities._present_columns["comments"] = {key for row in entities.comments for key in row}
+    entities._present_entities.add("comments")
+    return entities
 
 
 def prepare_comment_translations(
@@ -35,47 +22,35 @@ def prepare_comment_translations(
     target_languages: Iterable[str],
     translate: Callable[[str, str | None, str], str],
 ) -> EntitySet:
-    """Call a user-supplied translator only for requested, missing or stale targets."""
+    """Prepare requested comment targets without changing source answers."""
     targets = list(dict.fromkeys(target_languages))
-    if any(not isinstance(code, str) or not code.strip() or code != code.strip() for code in targets):
-        raise ValueError("Target languages must be nonblank language codes")
-    prepared = {
-        (str(row["response_answer_id"]), str(row["target_language"])): dict(row)
-        for row in entities.comment_translations
-    }
-    for comment in build_comments(entities):
-        answer_id = str(comment["response_answer_id"])
-        text = str(comment["answer_text"])
-        language = str(comment.get("user_language") or "").strip() or None
-        digest = source_text_hash(text)
+    for target in targets:
+        translation_columns(target)
+    prepared = deepcopy(entities)
+    prepared.comments = build_comments(prepared)
+    for row in prepared.comments:
+        text = str(row["answer_text"])
+        source = str(row.get("user_language") or "").strip() or None
         for target in targets:
-            if target == language:
+            text_key, hash_key, language_key = translation_columns(target)
+            if source is not None and source.casefold() == target.casefold():
                 continue
-            key = answer_id, target
-            if prepared.get(key, {}).get("source_text_hash") == digest:
+            if translation_is_current(row, target):
                 continue
-            translated = translate(text, language, target)
+            translated = translate(text, source, target)
             if not isinstance(translated, str) or not translated.strip():
-                raise ValueError(f"Translator returned no text for {answer_id} in {target}")
-            prepared[key] = {
-                "comment_translation_id": translation_id(answer_id, target),
-                "response_answer_id": answer_id,
-                "survey_id": str(comment["survey_id"]),
-                "source_language": language,
-                "target_language": target,
-                "source_text_hash": digest,
-                "translated_text": translated,
-            }
-    return replace(entities, comment_translations=list(prepared.values()))
+                raise ValueError(f"Translator returned no text for {row['response_answer_id']} in {target}")
+            row[text_key] = translated
+            row[hash_key] = source_text_hash(text)
+            row[language_key] = source
+    return _finish(prepared)
 
 
 def import_comment_translations(entities: EntitySet, records: Iterable[Mapping[str, object]]) -> EntitySet:
-    """Attach prepared rows only when their hashes match current written answers."""
-    comments = {str(row["response_answer_id"]): row for row in build_comments(entities)}
-    prepared = {
-        (str(row["response_answer_id"]), str(row["target_language"])): dict(row)
-        for row in entities.comment_translations
-    }
+    """Import prepared records after checking original-text hashes and identity."""
+    prepared = deepcopy(entities)
+    prepared.comments = build_comments(prepared)
+    comments = {str(row["response_answer_id"]): row for row in prepared.comments}
     incoming: set[tuple[str, str]] = set()
     required = {"response_answer_id", "target_language", "source_text_hash", "translated_text"}
     for source in records:
@@ -84,30 +59,23 @@ def import_comment_translations(entities: EntitySet, records: Iterable[Mapping[s
                 "Translation input must have exactly response_answer_id, target_language, "
                 "source_text_hash, translated_text"
             )
-        answer_id = source["response_answer_id"]
-        target = source["target_language"]
-        digest = source["source_text_hash"]
-        translated = source["translated_text"]
+        answer_id, target = source["response_answer_id"], source["target_language"]
         if not isinstance(answer_id, str) or answer_id not in comments:
             raise ValueError(f"Unknown written response answer: {answer_id}")
-        if not isinstance(target, str) or not target.strip() or target != target.strip():
+        if not isinstance(target, str):
             raise ValueError("Translation target_language must be a nonblank language code")
-        if digest != source_text_hash(str(comments[answer_id]["answer_text"])):
+        text_key, hash_key, language_key = translation_columns(target)
+        row = comments[answer_id]
+        if source["source_text_hash"] != source_text_hash(str(row["answer_text"])):
             raise ValueError(f"Translation source hash does not match answer {answer_id}")
+        translated = source["translated_text"]
         if not isinstance(translated, str) or not translated.strip():
             raise ValueError(f"Translation text must be nonblank for {answer_id}")
         key = answer_id, target
         if key in incoming:
             raise ValueError(f"Duplicate translation for {answer_id} in {target}")
         incoming.add(key)
-        comment = comments[answer_id]
-        prepared[key] = {
-            "comment_translation_id": translation_id(answer_id, target),
-            "response_answer_id": answer_id,
-            "survey_id": str(comment["survey_id"]),
-            "source_language": str(comment.get("user_language") or "").strip() or None,
-            "target_language": target,
-            "source_text_hash": digest,
-            "translated_text": translated,
-        }
-    return replace(entities, comment_translations=list(prepared.values()))
+        row[text_key] = translated
+        row[hash_key] = source["source_text_hash"]
+        row[language_key] = str(row.get("user_language") or "").strip() or None
+    return _finish(prepared)

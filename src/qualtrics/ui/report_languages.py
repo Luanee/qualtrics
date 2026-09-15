@@ -6,6 +6,7 @@ from dataclasses import replace
 from typing import Any
 
 from .._common.models.entities import EntitySet
+from .._common.models.translation_columns import prepared_targets, source_text_hash
 from .context import ReportContext
 from .dashboard import build_dashboard
 from .pages.overview import build_quality_panels
@@ -20,15 +21,28 @@ def response_language(response: dict[str, Any]) -> str:
     return str(response.get("user_language") or "").strip() or MISSING_LANGUAGE
 
 
+def _current_variant(base: dict[str, Any], variant: dict[str, Any] | None, text_key: str) -> dict[str, Any]:
+    if variant is None:
+        return base
+    if variant.get("label_origin") == "callback" and variant.get("label_source_text_hash") != source_text_hash(
+        str(base.get(text_key) or "")
+    ):
+        return base
+    return variant
+
+
 def _definition_labels(entities: EntitySet) -> tuple[list[str], dict[str, dict[str, dict[str, str]]]]:
     languages = sorted(
         {
             str(code)
             for manifest in entities.survey_manifests.values()
-            for code in manifest.get("languages", {}).get("all_languages", [])
+            for code in (
+                manifest.get("languages", {}).get("all_languages", [])
+                + manifest.get("languages", {}).get("prepared_languages", [])
+            )
         }
         | {str(row["language_code"]) for row in entities.questions if row.get("language_code")}
-        | {str(row["target_language"]) for row in entities.comment_translations if row.get("target_language")}
+        | {target for row in entities.comments for target in prepared_targets(row)}
     )
     if not languages:
         return [], {}
@@ -63,9 +77,11 @@ def _definition_labels(entities: EntitySet) -> tuple[list[str], dict[str, dict[s
     for code in languages:
         q_labels = {
             str(row["question_id"]): str(
-                (q_variants.get((str(row["survey_id"]), str(row.get("question_external_id")), code)) or row).get(
-                    "question_text"
-                )
+                _current_variant(
+                    row,
+                    q_variants.get((str(row["survey_id"]), str(row.get("question_external_id")), code)),
+                    "question_text",
+                ).get("question_text")
                 or row.get("question_text")
                 or row["question_id"]
             )
@@ -73,9 +89,11 @@ def _definition_labels(entities: EntitySet) -> tuple[list[str], dict[str, dict[s
         }
         f_labels = {
             str(row.get("question_field_id") or row.get("field_id")): str(
-                (f_variants.get((str(row["survey_id"]), str(row.get("question_field_catalog_id")), code)) or row).get(
-                    "field_text"
-                )
+                _current_variant(
+                    row,
+                    f_variants.get((str(row["survey_id"]), str(row.get("question_field_catalog_id")), code)),
+                    "field_text",
+                ).get("field_text")
                 or row.get("field_text")
                 or ""
             )
@@ -88,7 +106,7 @@ def _definition_labels(entities: EntitySet) -> tuple[list[str], dict[str, dict[s
             catalog_id = str(field_by_id.get(str(row.get("question_field_id")), {}).get("question_field_catalog_id"))
             variant = o_variants.get((str(row["survey_id"]), catalog_id, str(row.get("answer_external_id")), code))
             o_labels[str(row["answer_option_id"])] = str(
-                (variant or row).get("answer_text") or row.get("answer_text") or ""
+                _current_variant(row, variant, "answer_text").get("answer_text") or row.get("answer_text") or ""
             )
         labels[code] = {"questions": q_labels, "fields": f_labels, "options": o_labels}
     return languages, labels

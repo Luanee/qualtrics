@@ -8,10 +8,9 @@ from dataclasses import dataclass
 from typing import Literal
 
 from ..parsers.localization import ensure_localized_entities
-from .comment_translations import source_text_hash
 from .comments import build_comments
 from .entities import EntitySet
-from .translation_columns import translation_columns
+from .translation_columns import source_text_hash, translation_columns
 
 TranslationKind = Literal["question", "field", "answer_option", "comment"]
 

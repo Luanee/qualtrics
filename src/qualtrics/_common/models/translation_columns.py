@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Iterable
+from typing import Any
 
 PREFIXES = (
     "translated_text__",
@@ -26,6 +28,30 @@ def translation_columns(code: str) -> tuple[str, str, str]:
         f"{PREFIXES[0]}{suffix}",
         f"{PREFIXES[1]}{suffix}",
         f"{PREFIXES[2]}{suffix}",
+    )
+
+
+def translation_is_current_column(code: str) -> str:
+    """Name a semantic-only freshness column for one target."""
+    return f"translation_is_current__{_suffix(code)}"
+
+
+def source_text_hash(text: str) -> str:
+    """Hash exact stored source text, including whitespace and Unicode spelling."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def translation_is_current(row: dict[str, Any], code: str) -> bool:
+    """Check a prepared target against current text and respondent language."""
+    text_key, hash_key, language_key = translation_columns(code)
+    translated = row.get(text_key)
+    current_language = str(row.get("user_language") or "").strip().casefold() or None
+    stored_language = str(row.get(language_key) or "").strip().casefold() or None
+    return (
+        isinstance(translated, str)
+        and bool(translated.strip())
+        and row.get(hash_key) == source_text_hash(str(row.get("answer_text") or ""))
+        and stored_language == current_language
     )
 
 

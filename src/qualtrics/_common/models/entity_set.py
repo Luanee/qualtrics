@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 
-from .comment_translations import TRANSLATION_COLUMNS, translation_id
 from .comments import COMMENT_COLUMNS, build_comments
 from .entities import CORE_ENTITY_NAMES, EntitySet
 from .response_merge import merge_response_columns
@@ -19,7 +18,6 @@ PRIMARY_KEYS = {
     "responses": "response_id",
     "response_answers": "response_answer_id",
     "comments": "response_answer_id",
-    "comment_translations": "comment_translation_id",
 }
 
 REQUIRED_COLUMNS = {
@@ -58,13 +56,11 @@ REQUIRED_COLUMNS = {
         "is_selected",
     },
     "comments": set(COMMENT_COLUMNS),
-    "comment_translations": set(TRANSLATION_COLUMNS),
 }
 
 NULLABLE_REQUIRED_COLUMNS = {
     "response_answers": {"answer_option_id", "answer_numeric", "answer_boolean", "is_selected"},
     "comments": {"raw_value", "user_language"},
-    "comment_translations": {"source_language"},
 }
 
 RELATIONSHIPS = (
@@ -93,8 +89,6 @@ RELATIONSHIPS = (
     ("comments", "survey_id", "surveys", "survey_id"),
     ("comments", "question_id", "questions", "question_id"),
     ("comments", "question_field_id", "question_fields", "question_field_id"),
-    ("comment_translations", "response_answer_id", "response_answers", "response_answer_id"),
-    ("comment_translations", "survey_id", "surveys", "survey_id"),
 )
 
 
@@ -239,32 +233,6 @@ def validate_entity_set(entities: EntitySet, *, strict: bool = False) -> None:
             option = options[str(option_id)]
             if str(option["question_field_id"]) != str(answer["question_field_id"]):
                 raise ValueError("response_answers option must belong to the referenced question field")
-    if entities.comment_translations or "comment_translations" in entities._present_entities:
-        columns = entities._present_columns.get("comment_translations")
-        if columns is not None and columns != set(TRANSLATION_COLUMNS):
-            raise ValueError("comment_translations schema must contain exactly the fixed translation columns")
-        comments = {str(row["response_answer_id"]): row for row in build_comments(entities)}
-        for row in entities.comment_translations:
-            answer_id = str(row.get("response_answer_id") or "")
-            target = row.get("target_language")
-            digest = row.get("source_text_hash")
-            translated = row.get("translated_text")
-            if answer_id not in comments:
-                raise ValueError("comment_translations must reference a written answer")
-            if not isinstance(target, str) or not target.strip() or target != target.strip():
-                raise ValueError("comment_translations target_language must be a nonblank code")
-            if (
-                not isinstance(digest, str)
-                or len(digest) != 64
-                or any(char not in "0123456789abcdef" for char in digest)
-            ):
-                raise ValueError("comment_translations source_text_hash must be a SHA-256 hex digest")
-            if not isinstance(translated, str) or not translated.strip():
-                raise ValueError("comment_translations translated_text must be nonblank")
-            if row.get("comment_translation_id") != translation_id(answer_id, target):
-                raise ValueError("comment_translations ID must derive from answer and target language")
-            if str(row.get("survey_id")) != str(comments[answer_id]["survey_id"]):
-                raise ValueError("comment_translations survey must match the written answer")
     if entities.comments or "comments" in entities._present_entities:
         columns = entities._present_columns.get("comments")
         if columns is not None:
@@ -278,6 +246,23 @@ def validate_entity_set(entities: EntitySet, *, strict: bool = False) -> None:
             for key in row:
                 if key not in COMMENT_COLUMNS and target_from_column(key) is None:
                     raise ValueError("comments contains an unknown column")
+            for target in prepared_targets(row):
+                text_key, hash_key, language_key = translation_columns(target)
+                translated, digest, source_language = (row.get(key) for key in (text_key, hash_key, language_key))
+                if translated is None and digest is None and source_language is None:
+                    continue
+                if not isinstance(translated, str) or not translated.strip():
+                    raise ValueError(f"comments {text_key} must be nonblank when prepared")
+                if (
+                    not isinstance(digest, str)
+                    or len(digest) != 64
+                    or any(char not in "0123456789abcdef" for char in digest)
+                ):
+                    raise ValueError(f"comments {hash_key} must be a SHA-256 hex digest")
+                if source_language is not None and (
+                    not isinstance(source_language, str) or not source_language.strip()
+                ):
+                    raise ValueError(f"comments {language_key} must be nullable or a nonblank code")
         expected = {row["response_answer_id"]: row for row in build_comments(entities)}
         supplied = {row["response_answer_id"]: row for row in entities.comments}
         if supplied != expected:
@@ -344,10 +329,10 @@ def merge_entity_sets(entity_sets: list[EntitySet]) -> EntitySet:
     result.surveys, result.responses, response_columns, result.survey_manifests = merge_response_columns(entity_sets)
     if response_columns:
         result._present_columns["responses"] = response_columns
-    result.comment_translations = [dict(row) for item in entity_sets for row in item.comment_translations]
+    result.comments = [dict(row) for item in entity_sets for row in item.comments]
+    result._present_columns["comments"] = set.union(
+        set(COMMENT_COLUMNS), *(item._present_columns.get("comments", set()) for item in entity_sets)
+    )
     result.comments = build_comments(result)
     result._present_columns["comments"] = set(COMMENT_COLUMNS) | {key for row in result.comments for key in row}
-    if result.comment_translations:
-        result._present_entities.add("comment_translations")
-        result._present_columns["comment_translations"] = set(TRANSLATION_COLUMNS)
     return result

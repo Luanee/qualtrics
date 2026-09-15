@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
-from ..._common.models.comment_translations import source_text_hash
-from ..._common.models.comments import is_comment_answer
+from ..._common.models.comments import build_comments, is_comment_answer
+from ..._common.models.translation_columns import prepared_targets, translation_columns, translation_is_current
 from ..components.field_labels import display_field_label
 from ..context import ReportContext
 from ..report_languages import response_language
@@ -88,16 +88,19 @@ def render_written_answers(context: ReportContext) -> str:
             if answer_id:
                 source_texts[answer_id] = str(answer["answer_text"])
     translations: dict[str, dict[str, dict[str, str | bool | None]]] = {}
-    for row in context.entities.comment_translations:
+    for row in build_comments(context.entities):
         answer_id = str(row.get("response_answer_id"))
         if answer_id not in source_texts:
             continue
-        current = row.get("source_text_hash") == source_text_hash(source_texts[answer_id])
-        target = str(row.get("target_language"))
-        translations.setdefault(answer_id, {})[target] = {
-            "text": str(row["translated_text"]) if current else None,
-            "current": current,
-        }
+        for target in prepared_targets(row):
+            text_key, hash_key, _ = translation_columns(target)
+            if row.get(text_key) is None and row.get(hash_key) is None:
+                continue
+            current = translation_is_current(row, target)
+            translations.setdefault(answer_id, {})[target] = {
+                "text": str(row[text_key]) if current else None,
+                "current": current,
+            }
     payload = json.dumps(translations, ensure_ascii=True, separators=(",", ":")).replace("<", "\\u003c")
     return render_template(
         "pages/written.html.jinja",

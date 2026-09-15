@@ -10,12 +10,12 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
-from ..models.comment_translations import TRANSLATION_COLUMNS, source_text_hash
 from ..models.comments import COMMENT_COLUMNS, build_comments
 from ..models.entities import EntitySet
 from ..models.response_columns import read_source_columns
 from ..models.semantic import SEMANTIC_TABLE_NAMES, SemanticModel
 from ..models.survey_manifest import validate_manifests, write_manifest
+from ..models.translation_columns import prepared_targets, translation_is_current, translation_is_current_column
 
 SEMANTIC_COLUMNS = {
     "fact_responses": (
@@ -124,7 +124,6 @@ SEMANTIC_COLUMNS = {
         "label_source_language",
     ),
     "fact_comments": COMMENT_COLUMNS,
-    "fact_comment_translations": (*TRANSLATION_COLUMNS, "is_current"),
     "dim_display_languages": (
         "language_code",
         "is_available",
@@ -194,6 +193,8 @@ def _quote_identifier(name: str) -> str:
 
 
 def _sqlite_type(name: str, column: str) -> str:
+    if name == "fact_comments" and column.startswith("translation_is_current__"):
+        return "INTEGER"
     if column not in SEMANTIC_COLUMNS[name]:
         return "TEXT"
     if column in _FLOAT_COLUMNS:
@@ -253,22 +254,20 @@ def write_semantic_model(model: SemanticModel, folder: str | Path, format: str =
             question_fields=model.dim_questions,
             responses=model.fact_responses,
             response_answers=model.fact_response_answers,
+            comments=model.fact_comments,
         )
     )
-    comments_by_answer = {str(row["response_answer_id"]): row for row in comments}
     model = replace(
         model,
-        fact_comments=comments,
-        fact_comment_translations=[
+        fact_comments=[
             {
-                **row,
-                "is_current": (
-                    str(row.get("response_answer_id")) in comments_by_answer
-                    and row.get("source_text_hash")
-                    == source_text_hash(str(comments_by_answer[str(row["response_answer_id"])]["answer_text"]))
-                ),
+                **dict(row),
+                **{
+                    translation_is_current_column(target): translation_is_current(row, target)
+                    for target in prepared_targets(row)
+                },
             }
-            for row in model.fact_comment_translations
+            for row in comments
         ],
     )
     destination = Path(folder)
@@ -299,7 +298,9 @@ def write_semantic_model(model: SemanticModel, folder: str | Path, format: str =
             for key in keys:
                 if key in SEMANTIC_COLUMNS[name] and key in _FLOAT_COLUMNS:
                     data_type = pa.float64()
-                elif key in SEMANTIC_COLUMNS[name] and key in _BOOL_COLUMNS:
+                elif (key in SEMANTIC_COLUMNS[name] and key in _BOOL_COLUMNS) or (
+                    name == "fact_comments" and key.startswith("translation_is_current__")
+                ):
                     data_type = pa.bool_()
                 elif key in SEMANTIC_COLUMNS[name] and key in _INT_COLUMNS:
                     data_type = pa.int64()

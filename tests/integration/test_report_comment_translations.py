@@ -84,9 +84,9 @@ def test_report_without_prepared_translations_stays_offline_and_shows_original(t
     assert _translation_payload(document) == {}
 
 
-def test_report_ignores_translation_rows_without_a_rendered_written_answer(tmp_path: Path) -> None:
+def test_report_ignores_comment_rows_without_a_rendered_written_answer(tmp_path: Path) -> None:
     entities = _entities(tmp_path)
-    entities.comment_translations.append({"response_answer_id": "not-in-report", "target_language": "EN"})
+    entities.comments.append({"response_answer_id": "not-in-report", "translated_text__EN": "Unrelated"})
     report = tmp_path / "unrelated.html"
     render_report(entities, report)
     document = report.read_text(encoding="utf-8")

@@ -4,11 +4,16 @@ from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from typing import Any
 
-from .comment_translations import source_text_hash
 from .comments import COMMENT_COLUMNS, build_comments
 from .entities import EntitySet
 from .entity_set import validate_entity_set
 from .identity import entity_id
+from .translation_columns import (
+    prepared_targets,
+    source_text_hash,
+    translation_is_current,
+    translation_is_current_column,
+)
 
 SEMANTIC_TABLE_NAMES = (
     "fact_responses",
@@ -17,7 +22,6 @@ SEMANTIC_TABLE_NAMES = (
     "dim_questions",
     "dim_answer_options",
     "fact_comments",
-    "fact_comment_translations",
     "dim_display_languages",
     "dim_question_labels",
     "dim_answer_option_labels",
@@ -33,7 +37,6 @@ class SemanticModel:
     dim_questions: list[dict[str, Any]] = field(default_factory=list)
     dim_answer_options: list[dict[str, Any]] = field(default_factory=list)
     fact_comments: list[dict[str, Any]] = field(default_factory=list)
-    fact_comment_translations: list[dict[str, Any]] = field(default_factory=list)
     dim_display_languages: list[dict[str, Any]] = field(default_factory=list)
     dim_question_labels: list[dict[str, Any]] = field(default_factory=list)
     dim_answer_option_labels: list[dict[str, Any]] = field(default_factory=list)
@@ -47,6 +50,11 @@ def _language_dimensions(
     questions = {
         (str(row["survey_id"]), str(row["question_external_id"]), row.get("language_code")): row
         for row in entities.questions
+    }
+    base_questions = {
+        (str(row["survey_id"]), str(row["question_external_id"])): row
+        for row in entities.questions
+        if not row.get("is_localized")
     }
     fields = {
         (
@@ -68,13 +76,25 @@ def _language_dimensions(
         ): row
         for row in entities.answer_options
     }
+
+    def current_label(variant: dict[str, Any], base_row: dict[str, Any], key: str) -> dict[str, Any]:
+        if variant.get("label_origin") == "callback" and variant.get("label_source_text_hash") != source_text_hash(
+            str(base_row.get(key) or "")
+        ):
+            return base_row
+        return variant
+
     registries = {
         str(survey["survey_id"]): entities.survey_manifests.get(str(survey["survey_id"]), {}).get("languages", {})
         for survey in entities.surveys
     }
-    translation_targets: dict[str, set[str]] = {}
-    for row in entities.comment_translations:
-        translation_targets.setdefault(str(row["survey_id"]), set()).add(str(row["target_language"]))
+    translation_targets: dict[str, set[str]] = {
+        survey_id: set(registry.get("prepared_languages", []))
+        for survey_id, registry in registries.items()
+        if isinstance(registry, dict)
+    }
+    for row in entities.comments:
+        translation_targets.setdefault(str(row["survey_id"]), set()).update(prepared_targets(row))
     languages = sorted(
         {
             str(code)
@@ -116,14 +136,17 @@ def _language_dimensions(
                     continue
                 native_question = str(field_dimension["question_external_id"])
                 native_field = str(field_dimension.get("field_external_id"))
+                base_question = base_questions.get((survey_id, native_question))
                 question = questions.get((survey_id, native_question, language)) or questions.get((
                     survey_id,
                     native_question,
                     base,
                 ))
                 translated_field = fields.get((survey_id, native_question, native_field, language)) or field_dimension
-                if question is None:
+                if question is None or base_question is None:
                     continue
+                question = current_label(question, base_question, "question_text")
+                translated_field = current_label(translated_field, field_dimension, "field_text")
                 question_labels.append({
                     "question_field_label_id": entity_id(
                         "question-field-label", field_dimension["question_field_id"], language
@@ -147,6 +170,7 @@ def _language_dimensions(
                 native_option = str(option["answer_external_id"])
                 translated_option = options.get((survey_id, native_question, native_field, native_option, language))
                 translated_option = translated_option or option
+                translated_option = current_label(translated_option, option, "answer_text")
                 option_labels.append({
                     "answer_option_label_id": entity_id("answer-option-label", option["answer_option_id"], language),
                     "survey_id": survey_id,
@@ -162,10 +186,14 @@ def _language_dimensions(
 
 
 def build_semantic_model(entities: EntitySet) -> SemanticModel:
+    comments = build_comments(entities)
     entities = replace(
         entities,
-        comments=build_comments(entities),
-        _present_columns={**entities._present_columns, "comments": set(COMMENT_COLUMNS)},
+        comments=comments,
+        _present_columns={
+            **entities._present_columns,
+            "comments": {key for row in comments for key in row} or set(COMMENT_COLUMNS),
+        },
     )
     validate_entity_set(entities, strict=True)
     questions = {str(row["question_id"]): row for row in entities.questions}
@@ -187,14 +215,15 @@ def build_semantic_model(entities: EntitySet) -> SemanticModel:
         if not row.get("is_definition_only") and not row.get("is_localized")
     ]
     display_languages, question_labels, option_labels = _language_dimensions(entities, dimensions, active_options)
-    current_comments = {str(row["response_answer_id"]): row for row in entities.comments}
-    translations = [
+    fact_comments = [
         {
             **dict(row),
-            "is_current": row["source_text_hash"]
-            == source_text_hash(str(current_comments[str(row["response_answer_id"])]["answer_text"])),
+            **{
+                translation_is_current_column(target): translation_is_current(row, target)
+                for target in prepared_targets(row)
+            },
         }
-        for row in entities.comment_translations
+        for row in entities.comments
     ]
     return SemanticModel(
         survey_manifests=deepcopy(entities.survey_manifests),
@@ -203,8 +232,7 @@ def build_semantic_model(entities: EntitySet) -> SemanticModel:
         dim_surveys=[dict(row) for row in entities.surveys],
         dim_questions=dimensions,
         dim_answer_options=active_options,
-        fact_comments=entities.comments,
-        fact_comment_translations=translations,
+        fact_comments=fact_comments,
         dim_display_languages=display_languages,
         dim_question_labels=question_labels,
         dim_answer_option_labels=option_labels,
