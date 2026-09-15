@@ -2,7 +2,7 @@
 
 This reference defines the tables, IDs, and relationships used by the toolkit. For a plain-language introduction, start with [understand your data](understand/your-data.md). Follow the [Power BI guide](guides/power-bi.md) to export and connect the analysis tables.
 
-Explore the nine core entities, derived comments, and optional comment translations in the diagram below. The viewer needs an internet connection; the table descriptions and DBML remain available offline.
+Explore the nine core entities and derived comments in the diagram below. The viewer needs an internet connection; the table descriptions and DBML remain available offline.
 
 <iframe class="dbml-model" title="Qualtrics entity data model" src="{{ dbml_entity_url }}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>
 
@@ -10,7 +10,7 @@ Explore the nine core entities, derived comments, and optional comment translati
 
 [Download the entity DBML schema](entity-model.dbml) to inspect the full column and relationship contract in a compatible schema tool.
 
-Parsing produces nine authoritative entities plus derived `comments`. An optional `comment_translations` sidecar stores prepared text separately; it is absent until translations are added. A sibling `manifest.json` carries survey-specific flow and source-column descriptors. Occurrence IDs are survey-safe hashes; `*_external_id` columns preserve Qualtrics lineage. Catalog IDs identify normalized semantics across surveys. Catalog merging compares the complete stored normalized content, including the parent question catalog ID for fields, while retaining the [first input’s representative display labels](guides/combine-surveys.md#representative-catalog-labels). Concrete question, field, and answer-option rows remain survey-specific.
+Parsing produces nine authoritative entities plus derived `comments`. Prepared translations are nullable columns on those comment rows. A sibling `manifest.json` carries survey-specific flow and source-column descriptors. Occurrence IDs are survey-safe hashes; `*_external_id` columns preserve Qualtrics lineage. Catalog IDs identify normalized semantics across surveys. Catalog merging compares the complete stored normalized content, including the parent question catalog ID for fields, while retaining the [first input’s representative display labels](guides/combine-surveys.md#representative-catalog-labels). Concrete question, field, and answer-option rows remain survey-specific.
 
 When a QSF supplies `SurveyLanguage`, including under `SurveyOptions`, that code becomes `surveys.default_language` and identifies the language of the base question text used for catalog identity. The per-survey `manifest.json` entry also records `languages.base_language`, declared `languages.available_languages`, and `languages.all_languages` (the base, available, and every code found under a question's `Language` object). An absent QSF leaves these values empty or null; response `UserLanguage` is never inferred from them.
 
@@ -28,7 +28,6 @@ For every code in `all_languages`, `questions`, `question_fields`, and `answer_o
 | `responses` | submitted response | `response_id` | survey |
 | `response_answers` | non-empty response field | `response_answer_id` | response, question, field, optional option |
 | `comments` | derived nonblank text answer field | original `response_answer_id` | original answer, response, survey, question, field |
-| `comment_translations` | optional written answer × target language | `comment_translation_id` | original answer, survey |
 
 Each `sections` row represents one configured survey block, identified internally by the survey-scoped `section_id`. Its `section_external_id` retains the native block ID, including a dictionary key used when the block has no explicit `ID`. List position never becomes a block ID. `questions.section_id` links to that internal section ID; the flattened `dim_questions` carries the section name and block order. A block referenced more than once in survey flow still has one section row, while the flow keeps each occurrence as a separate node. Trash blocks have no section row, but their position remains in block ordering.
 
@@ -75,11 +74,13 @@ New `question_fields.is_comment_field` values carry nullable boolean classificat
 
 Legacy nine-table folders remain valid: loading reconstructs comments from the available question and field types when `is_comment_field` is absent or null. Reparse with the matching QSF to recover stronger source evidence. Parse, merge, load, entity write, and semantic build regenerate the projection; a supplied comments file must agree with its source answers and responses. Edit or reparse the authoritative data instead of maintaining a separate comments copy. Current exports write `comments.json`, `comments.csv`, or `comments.parquet`, including an empty table when no fields qualify.
 
-## Prepared comment translations
+## Prepared translations
 
-`comment_translations` is an optional sidecar, never a replacement for `comments` or `response_answers`. Its grain is one `response_answer_id` × `target_language`. It records `translated_text`, nullable `source_language` from `responses.user_language`, and `source_text_hash`: a SHA-256 digest of the exact original `answer_text`, including whitespace. IDs derive from the answer ID and target language. Combining surveys retains the sidecar rows, and CSV/JSON/Parquet entity round-trips preserve them. No translation file is written when the sidecar is empty.
+`prepare_translations` adds missing target-language question, field, and choice labels and optional free-text translations. QSF labels win; a callback fills only gaps. Generated locale rows keep the base catalog IDs, have unique occurrence IDs, and carry `label_origin = "callback"` plus a hash of their base label. Stale callback labels fall back to the current base text in reports and semantic exports. Callback-generated choice labels are display-only and never link categorical facts. See the [survey workflow guide](guides/survey-workflow.md) for the shared structured callback and kind-specific overrides.
 
-Supply your own offline or network-backed translator through `prepare_comment_translations(entities, target_languages, translate)`. The callback receives `(original_text, source_language_or_none, target_language)` and returns text. Only requested, missing or stale targets are called; original answers stay unchanged. The toolkit includes no provider and makes no automatic translation request.
+Free-text translations share the original comment's grain: one row per `response_answer_id`, not one row per target language. Each target adds three nullable columns such as `translated_text__EN`, `translation_source_hash__EN`, and `translation_source_language__EN`. Earlier targets survive when another is added; combining surveys unions the columns with nulls where a target was absent. The hash covers the exact original `answer_text` including whitespace. A changed answer or `UserLanguage` makes prepared text stale. Reports and Power BI use the original until refreshed. No callback leaves raw comments only; no provider or automatic network call is bundled.
+
+The simpler `prepare_comment_translations(entities, target_languages, translate)` wrapper accepts `(text, source_language_or_none, target_language)` and writes those same comment columns. It skips a callback when the known source already equals the target and never changes `response_answers`.
 
 Alternatively, import a prepared CSV or Parquet file with exactly `response_answer_id,target_language,source_text_hash,translated_text`:
 
@@ -87,7 +88,7 @@ Alternatively, import a prepared CSV or Parquet file with exactly `response_answ
 qualtrics translations import data/entities data/prepared.csv --output data/translated
 ```
 
-The command writes a new entity folder in Parquet by default; `--format csv` and `--format json` are also supported. Import rejects a source hash that no longer matches the written answer. A translation can later become stale if the source answer changes: loading preserves it, and `fact_comment_translations.is_current` marks the mismatch. Consumers must use only current translations and fall back to the original when a target is missing or stale.
+The command writes a new entity folder in Parquet by default; `--format csv` and `--format json` are also supported. Import rejects a source hash that no longer matches the written answer. The prepared text is stored on `comments`, with no sidecar entity or translation fact table.
 
 ## Answer value provenance
 
@@ -155,12 +156,11 @@ Reparse the original export to recover fields omitted by older versions. An olde
 - `dim_questions`
 - `dim_answer_options`
 - `fact_comments`
-- `fact_comment_translations`
 - `dim_display_languages`
 - `dim_question_labels`
 - `dim_answer_option_labels`
 
-The semantic model has ten exported tables plus `manifest.json`: six base-grain fact-path tables, three display-label tables, and an optional translation lookup exported with an empty schema when unused. Its diagram shows six fact-path and two label-only relationships; DBML symbols describe cardinality, while Power BI's cross-filter direction is a separate setting.
+The semantic model has nine exported tables plus `manifest.json`: six base-grain fact-path tables and three display-label tables. Prepared comments stay in `fact_comments`; there is no translation lookup. Its diagram shows six fact-path and two label-only relationships; DBML symbols describe cardinality, while Power BI's cross-filter direction is a separate setting.
 
 <iframe class="dbml-model" title="Power BI semantic model" src="{{ dbml_power_bi_url }}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>
 

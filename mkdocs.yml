@@ -104,6 +104,7 @@ nav:
       - Read and share reports: guides/reports.md
       - Understand a survey flow: guides/survey-flow.md
       - Combine surveys: guides/combine-surveys.md
+      - Survey to analysis workflow: guides/survey-workflow.md
       - Connect to Qualtrics: guides/api-access.md
       - Prepare a Power BI model: guides/power-bi.md
   - Understand your data:
