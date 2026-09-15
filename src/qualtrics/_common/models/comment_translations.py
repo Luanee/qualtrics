@@ -5,14 +5,31 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable, Mapping
 from copy import deepcopy
 
-from .comments import build_comments
+from .comments import COMMENT_COLUMNS, build_comments
 from .entities import EntitySet
 from .translation_columns import source_text_hash, translation_columns, translation_is_current
 
 
+def _register_target(entities: EntitySet, survey_id: str, target: str) -> None:
+    manifest = entities.survey_manifests.get(survey_id)
+    if manifest is None:
+        return
+    registry = manifest.get("languages")
+    if not isinstance(registry, dict):
+        return
+    prepared = registry.setdefault("prepared_languages", [])
+    canonical = target.upper()
+    if canonical not in prepared:
+        prepared.append(canonical)
+
+
 def _finish(entities: EntitySet) -> EntitySet:
     entities.comments = build_comments(entities)
-    entities._present_columns["comments"] = {key for row in entities.comments for key in row}
+    entities._present_columns["comments"] = (
+        set(COMMENT_COLUMNS)
+        | set(entities._present_columns.get("comments", set()))
+        | {key for row in entities.comments for key in row}
+    )
     entities._present_entities.add("comments")
     return entities
 
@@ -27,6 +44,12 @@ def prepare_comment_translations(
     for target in targets:
         translation_columns(target)
     prepared = deepcopy(entities)
+    prepared._present_columns["comments"] = set(prepared._present_columns.get("comments", set())) | {
+        column for target in targets for column in translation_columns(target)
+    }
+    for survey in prepared.surveys:
+        for target in targets:
+            _register_target(prepared, str(survey["survey_id"]), target)
     prepared.comments = build_comments(prepared)
     for row in prepared.comments:
         text = str(row["answer_text"])
@@ -78,4 +101,5 @@ def import_comment_translations(entities: EntitySet, records: Iterable[Mapping[s
         row[text_key] = translated
         row[hash_key] = source["source_text_hash"]
         row[language_key] = str(row.get("user_language") or "").strip() or None
+        _register_target(prepared, str(row["survey_id"]), target)
     return _finish(prepared)

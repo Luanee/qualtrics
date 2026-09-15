@@ -8,9 +8,10 @@
     const written = all('.written-answer');
     const translations = JSON.parse($('#written-translation-data')?.textContent || '{}');
     const originals = new Map(written.map(node => [node, node.querySelector('.written-value')?.textContent || '']));
+    const sameLanguage = (left, right) => String(left || '').toUpperCase() === String(right || '').toUpperCase();
     const eligible = node => Boolean(node && selectedSurveys().has(node.dataset.survey)
       && ((root.ReportUI?.respondentLanguage?.() || 'all') === 'all'
-        || node.dataset.userLanguage === root.ReportUI.respondentLanguage()));
+        || sameLanguage(node.dataset.userLanguage, root.ReportUI.respondentLanguage())));
     const writtenPager = createPager(written, $('#written-pagination'), 20, 'written answers');
   const writtenCache = new Map(written.map(node => [node, normalize(node.textContent)]));
   function refreshCache() { written.forEach(node => writtenCache.set(node, normalize(node.textContent))); }
@@ -22,7 +23,7 @@
       const original = node.querySelector('.written-original');
       if (!value || !cue || !original) return;
       const source = node.dataset.userLanguage;
-      const requested = Boolean(target && target !== source);
+      const requested = Boolean(target && !sameLanguage(target, source));
       const prepared = translations[node.dataset.answerId]?.[target];
       const current = requested && prepared?.current && typeof prepared.text === 'string';
       value.textContent = current ? prepared.text : originals.get(node);

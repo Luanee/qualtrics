@@ -15,7 +15,12 @@ from ..models.entities import EntitySet
 from ..models.response_columns import read_source_columns
 from ..models.semantic import SEMANTIC_TABLE_NAMES, SemanticModel
 from ..models.survey_manifest import validate_manifests, write_manifest
-from ..models.translation_columns import prepared_targets, translation_is_current, translation_is_current_column
+from ..models.translation_columns import (
+    prepared_targets,
+    translation_columns,
+    translation_is_current,
+    translation_is_current_column,
+)
 
 SEMANTIC_COLUMNS = {
     "fact_responses": (
@@ -179,6 +184,11 @@ SEMANTIC_SQLITE_FILENAME = "semantic_model.sqlite"
 def _column_names(name: str, rows: list[dict[str, Any]], model: SemanticModel) -> list[str]:
     keys = list(SEMANTIC_COLUMNS[name])
     keys.extend(key for row in rows for key in row if key not in keys)
+    if name == "fact_comments":
+        for target in model.prepared_comment_targets:
+            keys.extend(
+                key for key in (*translation_columns(target), translation_is_current_column(target)) if key not in keys
+            )
     if name == "fact_responses":
         for manifest in model.survey_manifests.values():
             for column in read_source_columns(manifest):

@@ -242,10 +242,17 @@ def _normalize_parquet_records(records: list[dict[str, object]]) -> list[dict[st
 def _column_names(entities: EntitySet, name: str) -> list[str]:
     if name == "comments":
         columns = list(COMMENT_COLUMNS)
+        comments = build_comments(entities)
         targets = prepared_targets(
-            [key for row in build_comments(entities) for key in row]
-            + list(entities._present_columns.get("comments", set()))
+            [key for row in comments for key in row] + list(entities._present_columns.get("comments", set()))
         )
+        if not comments:
+            targets.update(
+                str(code).upper()
+                for manifest in entities.survey_manifests.values()
+                if isinstance(registry := manifest.get("languages"), dict)
+                for code in registry.get("prepared_languages", [])
+            )
         columns.extend(column for target in sorted(targets) for column in translation_columns(target))
         return columns
     keys = dict.fromkeys(ENTITY_COLUMNS[name])

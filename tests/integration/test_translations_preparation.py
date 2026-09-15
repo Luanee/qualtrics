@@ -105,6 +105,18 @@ def test_comment_callback_skips_known_target_and_passes_unknown_source(tmp_path:
     assert all(request.kind == "comment" for request in requests)
 
 
+def test_respondent_language_cohorts_ignore_code_case(tmp_path: Path) -> None:
+    source = _survey(tmp_path)
+    source.responses[0]["user_language"] = "en"
+    source.responses[1]["user_language"] = "EN"
+
+    report = build_report_languages(source)
+
+    assert report["respondent_languages"].count("EN") == 1
+    assert "en" not in report["respondent_languages"]
+    assert report["snapshots"]["EN"]["surveys"]["SV_NORWAY"]["responses"] == 2
+
+
 def test_default_target_is_survey_language_and_later_target_keeps_earlier_text(tmp_path: Path) -> None:
     source = _survey(tmp_path)
     calls = []
@@ -150,6 +162,46 @@ def test_qsf_labels_win_and_specific_option_callback_fills_only_missing_choice(t
     assert [request.text for request in requests] == ["Nei"]
 
 
+def test_lowercase_qsf_language_key_is_one_display_language(tmp_path: Path) -> None:
+    _survey(tmp_path)
+    definition = tmp_path / "definition.qsf"
+    qsf = json.loads(definition.read_text(encoding="utf-8"))
+    qsf["SurveyOptions"]["AvailableLanguages"] = {"NO": [], "de": []}
+    qsf["Questions"]["QID1"]["Language"] = {"de": {"QuestionText": "Wählen Sie", "Choices": {"1": {"Display": "Ja"}}}}
+    definition.write_text(json.dumps(qsf), encoding="utf-8")
+    source = qualtrics.parse_survey(tmp_path / "responses.csv", definition)
+    prepared = _prepare(source, language="DE", question=lambda request: f"Callback: {request.text}")
+
+    report = build_report_languages(prepared)
+    assert "DE" in report["display_languages"]
+    assert "de" not in report["display_languages"]
+    base_question = next(
+        row for row in source.questions if row["question_external_id"] == "QID1" and not row.get("is_localized")
+    )
+    assert report["labels"]["DE"]["questions"][base_question["question_id"]] == "Wählen Sie"
+    model = qualtrics.build_semantic_model(prepared)
+    assert [row["language_code"] for row in model.dim_display_languages].count("DE") == 1
+    assert "de" not in [row["language_code"] for row in model.dim_display_languages]
+    assert any(
+        row["language_code"] == "DE" and row["question_text"] == "Wählen Sie" for row in model.dim_question_labels
+    )
+
+
+def test_missing_qsf_option_label_has_original_language_cue(tmp_path: Path) -> None:
+    source = _survey(tmp_path)
+    base_option = next(
+        row
+        for row in source.answer_options
+        if row["question_external_id"] == "QID1" and row["answer_external_id"] == "2" and not row.get("is_localized")
+    )
+    report = build_report_languages(source)
+
+    assert report["label_fallbacks"]["DE"]["options"][base_option["answer_option_id"]] == {
+        "source": "NO",
+        "reason": "missing",
+    }
+
+
 def test_callback_generated_choice_label_cannot_resolve_response_fact(tmp_path: Path) -> None:
     source = _survey(tmp_path)
     prepared = _prepare(
@@ -175,6 +227,30 @@ def test_failed_callback_leaves_input_unchanged(tmp_path: Path) -> None:
     with pytest.raises(RuntimeError, match="translation service offline"):
         _prepare(source, language="EN", translate=fail)
     assert source == original
+
+
+@pytest.mark.parametrize("format", ["json", "csv", "parquet"])
+def test_preparation_with_no_written_answers_keeps_valid_comment_schema(tmp_path: Path, format: str) -> None:
+    source = _survey(tmp_path)
+    source.response_answers = []
+    source.comments = []
+
+    prepared = _prepare(source, language="EN", comment=lambda request: f"English: {request.text}")
+
+    assert prepared.comments == []
+    validate_entity_set(prepared, strict=True)
+    output = tmp_path / "empty_comments"
+    qualtrics.write_entities(prepared, output, format=format)
+    loaded = qualtrics.load_entities(output)
+    assert loaded.comments == []
+    assert "translated_text__EN" in loaded._present_columns["comments"]
+    model = qualtrics.build_semantic_model(loaded)
+    semantic = tmp_path / "empty_semantic"
+    qualtrics.write_semantic_model(model, semantic, format="parquet")
+    import pyarrow.parquet as pq
+
+    names = pq.read_schema(semantic / "fact_comments.parquet").names
+    assert {"translated_text__EN", "translation_source_hash__EN", "translation_is_current__EN"} <= set(names)
 
 
 @pytest.mark.parametrize("format", ["json", "csv", "parquet"])
@@ -250,6 +326,20 @@ def test_stale_generated_question_label_falls_back_to_current_base(tmp_path: Pat
     labels = build_report_languages(prepared)["labels"]
 
     assert labels["EN"]["questions"][base["question_id"]] == "Revised base question"
+
+    output = tmp_path / "stale-label-report.html"
+    qualtrics.render_report(prepared, output)
+    document = output.read_text(encoding="utf-8")
+    payload = json.loads(
+        document.split("<script id='report-language-data' type='application/json'>", 1)[1].split("</script>", 1)[0]
+    )
+    assert payload["stale_labels"]["EN"] >= 1
+    assert payload["label_fallbacks"]["EN"]["questions"][base["question_id"]] == {
+        "source": "NO",
+        "reason": "out_of_date",
+    }
+    assert "id='display-language-note'" in document
+    assert "Prepared labels are out of date" in document
 
 
 def test_semantic_labels_fall_back_when_callback_source_changes(tmp_path: Path) -> None:

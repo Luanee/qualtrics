@@ -31,6 +31,7 @@ SEMANTIC_TABLE_NAMES = (
 @dataclass
 class SemanticModel:
     survey_manifests: dict[str, dict[str, Any]] = field(default_factory=dict, kw_only=True)
+    prepared_comment_targets: tuple[str, ...] = field(default_factory=tuple, kw_only=True)
     fact_responses: list[dict[str, Any]] = field(default_factory=list)
     fact_response_answers: list[dict[str, Any]] = field(default_factory=list)
     dim_surveys: list[dict[str, Any]] = field(default_factory=list)
@@ -48,7 +49,7 @@ def _language_dimensions(
     active_options: list[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     questions = {
-        (str(row["survey_id"]), str(row["question_external_id"]), row.get("language_code")): row
+        (str(row["survey_id"]), str(row["question_external_id"]), str(row.get("language_code") or "").casefold()): row
         for row in entities.questions
     }
     base_questions = {
@@ -61,7 +62,7 @@ def _language_dimensions(
             str(row["survey_id"]),
             str(row["question_external_id"]),
             str(row.get("field_external_id")),
-            row.get("language_code"),
+            str(row.get("language_code") or "").casefold(),
         ): row
         for row in entities.question_fields
     }
@@ -72,7 +73,7 @@ def _language_dimensions(
             str(row["question_external_id"]),
             str(fields_by_id[str(row["question_field_id"])].get("field_external_id")),
             str(row["answer_external_id"]),
-            row.get("language_code"),
+            str(row.get("language_code") or "").casefold(),
         ): row
         for row in entities.answer_options
     }
@@ -89,15 +90,17 @@ def _language_dimensions(
         for survey in entities.surveys
     }
     translation_targets: dict[str, set[str]] = {
-        survey_id: set(registry.get("prepared_languages", []))
+        survey_id: {str(code).upper() for code in registry.get("prepared_languages", [])}
         for survey_id, registry in registries.items()
         if isinstance(registry, dict)
     }
     for row in entities.comments:
-        translation_targets.setdefault(str(row["survey_id"]), set()).update(prepared_targets(row))
+        translation_targets.setdefault(str(row["survey_id"]), set()).update(
+            target.upper() for target in prepared_targets(row)
+        )
     languages = sorted(
         {
-            str(code)
+            str(code).upper()
             for registry in registries.values()
             if isinstance(registry, dict)
             for code in registry.get("all_languages", [])
@@ -109,7 +112,10 @@ def _language_dimensions(
         registry = registries[survey_id]
         return language in translation_targets.get(survey_id, set()) or (
             isinstance(registry, dict)
-            and (language == registry.get("base_language") or language in registry.get("available_languages", []))
+            and (
+                language == str(registry.get("base_language") or "").upper()
+                or language in {str(code).upper() for code in registry.get("available_languages", [])}
+            )
         )
 
     display_languages = [
@@ -118,7 +124,8 @@ def _language_dimensions(
             "is_available": any(is_available(survey_id, language) for survey_id in registries),
             "available_survey_count": sum(is_available(survey_id, language) for survey_id in registries),
             "defined_survey_count": sum(
-                isinstance(registry, dict) and language in registry.get("all_languages", [])
+                isinstance(registry, dict)
+                and language in {str(code).upper() for code in registry.get("all_languages", [])}
                 for registry in registries.values()
             ),
         }
@@ -137,12 +144,14 @@ def _language_dimensions(
                 native_question = str(field_dimension["question_external_id"])
                 native_field = str(field_dimension.get("field_external_id"))
                 base_question = base_questions.get((survey_id, native_question))
-                question = questions.get((survey_id, native_question, language)) or questions.get((
+                question = questions.get((survey_id, native_question, language.casefold())) or questions.get((
                     survey_id,
                     native_question,
-                    base,
+                    str(base or "").casefold(),
                 ))
-                translated_field = fields.get((survey_id, native_question, native_field, language)) or field_dimension
+                translated_field = (
+                    fields.get((survey_id, native_question, native_field, language.casefold())) or field_dimension
+                )
                 if question is None or base_question is None:
                     continue
                 question = current_label(question, base_question, "question_text")
@@ -168,7 +177,13 @@ def _language_dimensions(
                 native_question = str(option["question_external_id"])
                 native_field = str(base_field.get("field_external_id"))
                 native_option = str(option["answer_external_id"])
-                translated_option = options.get((survey_id, native_question, native_field, native_option, language))
+                translated_option = options.get((
+                    survey_id,
+                    native_question,
+                    native_field,
+                    native_option,
+                    language.casefold(),
+                ))
                 translated_option = translated_option or option
                 translated_option = current_label(translated_option, option, "answer_text")
                 option_labels.append({
@@ -192,7 +207,11 @@ def build_semantic_model(entities: EntitySet) -> SemanticModel:
         comments=comments,
         _present_columns={
             **entities._present_columns,
-            "comments": {key for row in comments for key in row} or set(COMMENT_COLUMNS),
+            "comments": (
+                set(COMMENT_COLUMNS)
+                | set(entities._present_columns.get("comments", set()))
+                | {key for row in comments for key in row}
+            ),
         },
     )
     validate_entity_set(entities, strict=True)
@@ -227,6 +246,7 @@ def build_semantic_model(entities: EntitySet) -> SemanticModel:
     ]
     return SemanticModel(
         survey_manifests=deepcopy(entities.survey_manifests),
+        prepared_comment_targets=tuple(sorted(prepared_targets(entities._present_columns.get("comments", set())))),
         fact_responses=[dict(row) for row in entities.responses],
         fact_response_answers=[dict(row) for row in entities.response_answers],
         dim_surveys=[dict(row) for row in entities.surveys],

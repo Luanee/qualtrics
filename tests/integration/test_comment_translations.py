@@ -118,6 +118,17 @@ def test_callback_refreshes_stale_rows_without_calling_for_current_targets() -> 
     assert refreshed.comments[0]["translated_text__EN"] == "Second"
 
 
+def test_convenience_callback_keeps_target_schema_when_no_comments(tmp_path: Path) -> None:
+    source = _parsed(tmp_path)
+    source.response_answers = []
+    source.comments = []
+    prepared = qualtrics.prepare_comment_translations(source, ["EN"], lambda *_args: "Never called")
+
+    assert prepared.comments == []
+    assert "translated_text__EN" in prepared._present_columns["comments"]
+    validate_entity_set(prepared, strict=True)
+
+
 @pytest.mark.parametrize("targets", [[""], [" EN"], ["EN "]])
 def test_callback_rejects_invalid_target_languages(targets: list[str]) -> None:
     with pytest.raises(ValueError, match="Target languages"):
@@ -180,6 +191,7 @@ def test_python_import_rejects_duplicate_answer_and_target() -> None:
 @pytest.mark.parametrize("format", ["json", "csv", "parquet"])
 def test_optional_translations_roundtrip_and_survive_merge(tmp_path: Path, format: str) -> None:
     first = _prepared(tmp_path)
+    assert "EN" in first.survey_manifests["SV_TRANSLATIONS"]["languages"]["prepared_languages"]
     folder = tmp_path / format
     write_entities(first, folder, format)
     loaded = load_entities(folder)

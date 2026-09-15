@@ -8,7 +8,7 @@ Run these commands from the repository with `uv run --extra cli --extra ui qualt
 | `report` | Entity files | One HTML report | HTML |
 | `entities combine` | Entity collections for distinct surveys | Ten combined entity files | Parquet |
 | `translations import` | Entity folder and prepared CSV/Parquet | New entity folder with prepared comment columns | Parquet |
-| `semantic-model build` | One complete entity collection | Ten semantic tables | Parquet |
+| `semantic-model build` | One complete entity collection | Nine semantic tables | Parquet |
 | `api surveys` | API credentials | Survey IDs and names in the terminal | Tab-separated text |
 | `api export` | Survey ID and API credentials | Response export | CSV inside a ZIP |
 | `api flow` | Survey ID and API credentials | Configured survey flow | JSON |

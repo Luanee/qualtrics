@@ -159,6 +159,8 @@ RETURN COALESCE(
 
 Use the same pattern for `dim_question_labels[field_text]` and `dim_answer_option_labels[answer_text]`, looking up by base `question_field_id` or `answer_option_id`. For a chart axis built from `dim_answer_option_labels[answer_text]`, apply the axis's base IDs to the existing option dimension inside the measure:
 
+When a label's `question_label_source_language`, `field_label_source_language`, or `label_source_language` differs from the selected display code, show an “Original · SOURCE” cue beside it. These source-language fields record both missing and stale prepared-label fallbacks; the exported label already contains the safe base text.
+
 ```dax
 Localized Answer Rows =
 CALCULATE(

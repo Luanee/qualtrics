@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from ..parsers.localization import ensure_localized_entities
-from .comments import build_comments
+from .comments import COMMENT_COLUMNS, build_comments
 from .entities import EntitySet
 from .translation_columns import source_text_hash, translation_columns
 
@@ -238,7 +238,12 @@ def _written_answers(entities: EntitySet, survey_id: str, target: str, callback:
         row.setdefault(text_key, None)
         row.setdefault(hash_key, None)
         row.setdefault(language_key, None)
-    entities._present_columns["comments"] = {key for row in entities.comments for key in row}
+    entities._present_columns["comments"] = (
+        set(COMMENT_COLUMNS)
+        | set(entities._present_columns.get("comments", set()))
+        | {text_key, hash_key, language_key}
+        | {key for row in entities.comments for key in row}
+    )
 
 
 def prepare_translations(
@@ -280,5 +285,9 @@ def prepare_translations(
         _definition_labels(prepared, survey_id, target, callbacks)
         _written_answers(prepared, survey_id, target, callbacks["comment"])
     prepared.comments = build_comments(prepared)
-    prepared._present_columns["comments"] = {key for row in prepared.comments for key in row}
+    prepared._present_columns["comments"] = (
+        set(COMMENT_COLUMNS)
+        | set(prepared._present_columns.get("comments", set()))
+        | {key for row in prepared.comments for key in row}
+    )
     return prepared
