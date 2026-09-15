@@ -12,6 +12,8 @@ import pytest
 import qualtrics
 from qualtrics._common.models.entity_set import validate_entity_set
 from qualtrics._common.models.semantic import SEMANTIC_TABLE_NAMES
+from qualtrics._common.parsers.localization import link_translated_answers
+from qualtrics.ui.codebook import build_codebook
 from qualtrics.ui.report_languages import build_report_languages
 
 
@@ -103,6 +105,27 @@ def test_comment_callback_skips_known_target_and_passes_unknown_source(tmp_path:
     assert all(request.kind == "comment" for request in requests)
 
 
+def test_default_target_is_survey_language_and_later_target_keeps_earlier_text(tmp_path: Path) -> None:
+    source = _survey(tmp_path)
+    calls = []
+
+    def translate(request):
+        calls.append((request.text, request.source_language, request.target_language))
+        return f"{request.target_language}: {request.text}"
+
+    norwegian = _prepare(source, comment=translate)
+    english = _prepare(norwegian, language="EN", comment=translate)
+    comments = {row["answer_text"]: row for row in english.comments}
+
+    assert comments["English comment"]["translated_text__NO"] == "NO: English comment"
+    assert comments["English comment"]["translated_text__EN"] is None
+    assert comments["Norsk kommentar"]["translated_text__NO"] is None
+    assert comments["Norsk kommentar"]["translated_text__EN"] == "EN: Norsk kommentar"
+    assert calls.count(("English comment", "EN", "NO")) == 1
+    assert "NO" in english.survey_manifests["SV_NORWAY"]["languages"]["prepared_languages"]
+    assert "EN" in english.survey_manifests["SV_NORWAY"]["languages"]["prepared_languages"]
+
+
 def test_qsf_labels_win_and_specific_option_callback_fills_only_missing_choice(tmp_path: Path) -> None:
     source = _survey(tmp_path)
     requests = []
@@ -125,6 +148,21 @@ def test_qsf_labels_win_and_specific_option_callback_fills_only_missing_choice(t
     assert options["1"]["answer_text"] == "Ja"
     assert options["2"]["answer_text"] == "Nein"
     assert [request.text for request in requests] == ["Nei"]
+
+
+def test_callback_generated_choice_label_cannot_resolve_response_fact(tmp_path: Path) -> None:
+    source = _survey(tmp_path)
+    prepared = _prepare(
+        source,
+        language="EN",
+        answer_option=lambda request: "Maybe" if request.text == "Ja" else "Other",
+    )
+    unknown = next(row for row in prepared.response_answers if row["answer_text"] == "Maybe")
+    unknown["user_language"] = "EN"
+
+    link_translated_answers(prepared)
+
+    assert unknown["answer_option_id"] is None
 
 
 def test_failed_callback_leaves_input_unchanged(tmp_path: Path) -> None:
@@ -245,3 +283,23 @@ def test_semantic_labels_fall_back_when_callback_source_changes(tmp_path: Path) 
     assert label["question_text"] == "Revised question"
     assert label["field_text"] == "Revised field"
     assert option_label["answer_text"] == "Revised option"
+
+
+def test_codebook_marks_stale_prepared_labels_and_shows_base_text(tmp_path: Path) -> None:
+    prepared = _prepare(_survey(tmp_path), language="EN", translate=lambda request: f"English: {request.text}")
+    base_question = next(
+        row for row in prepared.questions if row["question_external_id"] == "QID1" and not row.get("is_localized")
+    )
+    base_field = next(
+        row for row in prepared.question_fields if row["question_external_id"] == "QID1" and not row.get("is_localized")
+    )
+    base_question["question_text"] = "Revised question"
+    base_field["field_text"] = "Revised field"
+
+    localized = next(
+        row for row in build_codebook(prepared) if row["question_id"] == "QID1" and row["language_code"] == "EN"
+    )
+
+    assert localized["question"] == "Revised question"
+    assert localized["field"] == "Revised field"
+    assert "out of date" in localized["reason"]
