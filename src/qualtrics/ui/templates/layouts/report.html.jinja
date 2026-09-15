@@ -29,6 +29,21 @@
         </div>
       </div>
     </div>
+    <div class='language-controls' aria-label='Report languages'>
+      <label for='respondent-language'>Respondent language
+        <select id='respondent-language'>
+          <option value='all'>All languages</option>
+          {% for code in respondent_languages %}<option value='{{ code }}'>{{ 'Missing / unknown' if code == missing_language else code }}</option>{% endfor %}
+        </select>
+      </label>
+      <label for='display-language'>Display language
+        <select id='display-language'{% if not display_languages %} disabled{% endif %}>
+          {% if display_languages %}{% for code in display_languages %}<option value='{{ code }}'>{{ code }}</option>{% endfor %}
+          {% else %}<option value=''>No translations</option>{% endif %}
+        </select>
+      </label>
+      <p>Respondent language filters counts. Display language changes labels and prepared comments.</p>
+    </div>
     {% with pages=navigation_pages %}{% include 'components/navigation.html.jinja' %}{% endwith %}
   </aside>
   <main id='report-content' class='report-main' tabindex='-1'>
@@ -41,4 +56,5 @@
     {% for page in pages %}{{ page }}{% endfor %}
   </main>
 </div>
+<script id='report-language-data' type='application/json'>{{ language_payload }}</script>
 {% endblock %}

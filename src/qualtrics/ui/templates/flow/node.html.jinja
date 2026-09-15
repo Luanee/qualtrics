@@ -9,7 +9,7 @@
       <summary>{{ item.questions|length }} {{ 'question' if item.questions|length == 1 else 'questions' }} in this block</summary>
       <ol>
       {% for question in item.questions %}
-        <li>{% if question.target %}<a href='#{{ question.target }}'>{{ question.text }}</a>{% else %}{{ question.text }}{% endif %}<small>{{ question.question_id }}{% if question.flags %} · {{ question.flags }}{% endif %}</small></li>
+        <li><span class='flow-question-label' data-question-external-id='{{ question.question_id }}'>{% if question.target %}<a href='#{{ question.target }}'>{{ question.text }}</a>{% else %}{{ question.text }}{% endif %}</span><small>{{ question.question_id }}{% if question.flags %} · {{ question.flags }}{% endif %}</small></li>
       {% endfor %}
       </ol>
     </details>

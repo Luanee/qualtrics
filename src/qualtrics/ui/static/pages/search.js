@@ -83,7 +83,25 @@
     if (!searchList) return;
     searchQuery = terms($('#report-search')?.value || '');
     const surveys = selectedSurveys();
-    searchMatches = searchQuery.length ? records.filter(item => surveys.has(item.node.closest('[data-survey]')?.dataset.survey) && matches(item.normalized, searchQuery)) : [];
+    const language = root.ReportUI?.respondentLanguage?.() || 'all';
+    const display = root.ReportUI?.displayLanguage?.() || '';
+    records.forEach(item => {
+      if (item.scope === 'Question') item.title = labelOf(item.node);
+      else if (item.scope === 'Written answer') item.title = item.node.querySelector('.written-question')?.textContent || item.title;
+      else if (item.scope === 'Response answer') {
+        item.title = item.node.closest('.answer')?.querySelector('.question')?.textContent || item.title;
+        item.content = item.node.textContent;
+      }
+      item.normalized = normalize(`${item.title} ${item.context} ${item.content}`);
+    });
+    searchMatches = searchQuery.length ? records.filter(item => {
+      const owner = item.node.closest('[data-survey]');
+      if (!surveys.has(owner?.dataset.survey)) return false;
+      const response = item.node.closest('.respondent, .written-answer');
+      if (response && language !== 'all' && response.dataset.userLanguage !== language) return false;
+      if (item.scope === 'Codebook' && display && owner.dataset.language && owner.dataset.language !== display) return false;
+      return matches(item.normalized, searchQuery);
+    }) : [];
     searchPage = 1;
     $('#search-results').hidden = !searchQuery.length;
     if ($('#search-clear')) $('#search-clear').hidden = !searchQuery.length;

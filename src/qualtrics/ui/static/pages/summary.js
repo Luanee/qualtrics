@@ -7,11 +7,11 @@
     let showAllFindings = false;
     const surveyChoices = all('.survey-choice');
     const eligible = node => Boolean(node && selectedSurveys().has(node.dataset.survey));
-  const findings = all('.finding');
   const findingsMore = document.createElement('button');
   findingsMore.id = 'findings-more'; findingsMore.type = 'button';
   $('.findings')?.after(findingsMore);
   function updateFindings() {
+    const findings = all('.finding');
     const selected = findings.filter(eligible);
     const displayed = new Set(isPrinting() || showAllFindings ? selected : selected.slice(0, 5));
     findings.forEach(node => { node.hidden = !displayed.has(node); });

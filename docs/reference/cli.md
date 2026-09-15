@@ -7,7 +7,8 @@ Run these commands from the repository with `uv run --extra cli --extra ui qualt
 | `build` | Qualtrics CSV or response ZIP, with an optional definition | Ten entity files | JSON |
 | `report` | Entity files | One HTML report | HTML |
 | `entities combine` | Entity collections for distinct surveys | Ten combined entity files | Parquet |
-| `semantic-model build` | One complete entity collection | Six analysis tables | Parquet |
+| `translations import` | Entity folder and prepared CSV/Parquet | New entity folder with optional translation sidecar | Parquet |
+| `semantic-model build` | One complete entity collection | Ten semantic tables | Parquet |
 | `api surveys` | API credentials | Survey IDs and names in the terminal | Tab-separated text |
 | `api export` | Survey ID and API credentials | Response export | CSV inside a ZIP |
 | `api flow` | Survey ID and API credentials | Configured survey flow | JSON |
@@ -108,7 +109,18 @@ uv run --extra cli --extra ui qualtrics entities combine output/north output/sou
 
 Each input must contain the nine authoritative entity files, with one format per entity and valid keys and relationships. Current exports also include the derived `comments` file; older folders without it remain valid. A supplied comments file must agree with its source answers and responses. You can combine collections stored in different formats. The command rejects duplicate survey IDs and conflicting catalog records; it deduplicates matching question and field catalog records and regenerates comments from the combined data.
 
+Prepared `comment_translations` sidecars are optional. When present, their rows follow their surveys into the combined output; absent translations do not create placeholder rows.
+
 Use this command for distinct surveys. It does not append successive exports from the same survey. See [combine surveys](../guides/combine-surveys.md).
+
+## `translations import`
+
+```bash
+uv run --extra cli qualtrics translations import output/customer/entities data/prepared.csv \
+  --output output/customer/translated --format parquet
+```
+
+The input CSV or Parquet file must have exactly `response_answer_id,target_language,source_text_hash,translated_text`. Hash the original, unchanged `answer_text` with SHA-256. The command checks each hash and written-answer ID before writing a new entity folder. It never calls a translation provider. `--format` selects `parquet` (default), `csv`, or `json`; the destination must not already contain entity files. See [prepared comment translations](../entity-model.md#prepared-comment-translations).
 
 ## `semantic-model build`
 
@@ -121,11 +133,11 @@ uv run --extra cli --extra ui qualtrics semantic-model build output/combined/ent
 | --- | --- | --- | --- |
 | `FOLDER` | Yes | — | Complete entity folder: ten current files, or nine legacy files without `comments`. This command does not discover nested folders. |
 | `--output`, `-o` | Yes | — | Destination directory. It must contain no existing semantic table filenames or `semantic_model.sqlite`. |
-| `--format`, `-f` | No | `parquet` | `parquet`, `sqlite`, `json`, or `csv`. SQLite stores all six tables in one database. |
+| `--format`, `-f` | No | `parquet` | `parquet`, `sqlite`, `json`, or `csv`. SQLite stores all ten tables in one database. |
 
-The command validates the entity collection and writes `fact_responses`, `fact_response_answers`, `dim_surveys`, `dim_questions`, `dim_answer_options`, and `fact_comments`. Comments are derived from the original answers; they remain included in `fact_response_answers`. See [Power BI](../guides/power-bi.md) for relationships and loading instructions, or download the [Power BI DBML schema](../power-bi-model.dbml).
+The command validates the entity collection and writes the response, question, option, comment, display-language, localized-label, and comment-translation tables. `fact_comment_translations` has an empty schema when no translations were prepared; `is_current` indicates whether each stored hash still matches the source comment. Comments remain included in `fact_response_answers`. See [Power BI](../guides/power-bi.md) for relationships and loading instructions, or download the [Power BI DBML schema](../power-bi-model.dbml).
 
-For SQLite, use `--format sqlite`; the command writes `semantic_model.sqlite` inside the output directory. It preserves IDs as text, represents booleans as `0`/`1`, and includes typed columns even for empty tables. The database becomes available only after all six tables have been written successfully. Existing output is never replaced.
+For SQLite, use `--format sqlite`; the command writes `semantic_model.sqlite` inside the output directory. It preserves IDs as text, represents booleans as `0`/`1`, and includes typed columns even for empty tables. The database becomes available only after all tables have been written successfully. Existing output is never replaced.
 
 !!! note "Parquet is the default"
     `entities combine` and `semantic-model build` default to Parquet, which the base package supports. Select `--format json` or `--format csv` for text files. The semantic-model command also supports `--format sqlite`. See [installation](../getting-started/installation.md).

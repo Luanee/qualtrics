@@ -96,3 +96,40 @@ a {
 [hidden], .hidden {
   display: none !important;
 }
+
+.language-controls {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 18px;
+  padding: 12px;
+  background: var(--wash);
+  border-radius: 12px;
+}
+
+.language-controls label {
+  display: grid;
+  gap: 4px;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.language-controls select {
+  width: 100%;
+  min-width: 0;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 9px;
+  font: inherit;
+}
+
+.language-controls select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.language-controls p {
+  color: var(--muted);
+  font-size: 12px;
+}

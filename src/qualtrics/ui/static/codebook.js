@@ -17,7 +17,9 @@
     const pager = createPager(rows, container, 25, 'fields');
     window.updateCodebook = () => {
       const surveys = selectedSurveys(), query = terms(search.value);
-      const filtered = rows.filter(row => surveys.has(row.dataset.survey) && matches(cache.get(row), query));
+      const display = window.ReportUI.displayLanguage();
+      const filtered = rows.filter(row => surveys.has(row.dataset.survey)
+        && (!display || !row.dataset.language || row.dataset.language === display) && matches(cache.get(row), query));
       pager.update(filtered);
       document.querySelector('#codebook-count').textContent = `${filtered.length} of ${rows.filter(row => surveys.has(row.dataset.survey)).length} fields`;
       document.querySelector('#codebook-empty').hidden = filtered.length > 0;

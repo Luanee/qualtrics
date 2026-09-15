@@ -9,6 +9,7 @@ from ..._common.models.response_columns import read_source_columns
 from ..components.controls import render_question_choices
 from ..components.field_labels import display_field_label
 from ..context import ReportContext
+from ..report_languages import response_language
 from ..templating import render_template, trusted_html
 
 _BROWSER_LABELS = {
@@ -36,6 +37,7 @@ class ResponseProperty:
 @dataclass(frozen=True)
 class FieldAnswer:
     id: str
+    option_id: str
     label: str
     value: str
     text: bool
@@ -44,6 +46,7 @@ class FieldAnswer:
 @dataclass(frozen=True)
 class ResponseQuestion:
     token: str
+    question_id: str
     label: str
     metadata: str
     fields: tuple[FieldAnswer, ...]
@@ -53,6 +56,7 @@ class ResponseQuestion:
 class ResponseCard:
     id: str
     survey_id: str
+    user_language: str
     label: str
     searchable: str
     metadata: tuple[MetadataValue, ...]
@@ -123,6 +127,7 @@ def render_responses(context: ReportContext) -> str:
             fields = tuple(
                 FieldAnswer(
                     str(answer["field_id"]),
+                    str(answer.get("answer_option_id") or ""),
                     display_field_label(field, question, context.answer_options),
                     str(answer["answer_text"]),
                     bool(field.get("is_text_field")),
@@ -134,7 +139,7 @@ def render_responses(context: ReportContext) -> str:
             )
             rows.append(
                 ResponseQuestion(
-                    f"{sid}::{external_id}", str(question.get("question_text") or qid), question_meta, fields
+                    f"{sid}::{external_id}", qid, str(question.get("question_text") or qid), question_meta, fields
                 )
             )
         response_meta = " · ".join(
@@ -153,6 +158,7 @@ def render_responses(context: ReportContext) -> str:
             ResponseCard(
                 id=f"response-{index + 1}",
                 survey_id=sid,
+                user_language=response_language(response),
                 label=label,
                 searchable=" ".join(search_terms).casefold(),
                 metadata=tuple(metadata),

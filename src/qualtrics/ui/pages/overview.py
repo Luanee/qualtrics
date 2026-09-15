@@ -13,6 +13,8 @@ from ..templating import render_template, trusted_html
 @dataclass(frozen=True)
 class CoverageRow:
     survey_id: str
+    question_id: str
+    target: str
     label: str
     metadata: str
     count: int
@@ -43,7 +45,12 @@ class QualityPanel:
     options: tuple[IssueGroup, ...]
 
 
-def _issue_groups(context: ReportContext, items: list[dict[str, Any]], label_key: str) -> tuple[IssueGroup, ...]:
+def _issue_groups(
+    context: ReportContext,
+    items: list[dict[str, Any]],
+    label_key: str,
+    labels: dict[str, dict[str, str]] | None = None,
+) -> tuple[IssueGroup, ...]:
     grouped: dict[str, list[dict[str, Any]]] = {}
     for item in items:
         grouped.setdefault(str(item.get("question_id") or "Unknown"), []).append(item)
@@ -51,22 +58,48 @@ def _issue_groups(context: ReportContext, items: list[dict[str, Any]], label_key
     for qid, question_items in grouped.items():
         sid = str(question_items[0].get("survey_id") or "")
         question = context.analysis.questions.get((sid, qid), {})
-        label = str(question.get("question_text") or qid)
+        label = (labels or {}).get("questions", {}).get(qid) or str(question.get("question_text") or qid)
         block_name = str(question.get("block_name") or "")
         external_id = str(question.get("question_external_id") or qid)
         metadata = external_id + (f" · Section: {block_name}" if block_name else "")
-        labels = tuple(
-            str(item.get(label_key) or item.get("field_id") or item.get("answer_id") or "Unknown")
+        item_labels = tuple(
+            (labels or {})
+            .get("fields" if label_key == "field_text" else "options", {})
+            .get(
+                str(item.get("question_field_id") or item.get("field_id"))
+                if label_key == "field_text"
+                else str(item.get("answer_option_id"))
+            )
+            or str(item.get(label_key) or item.get("field_id") or item.get("answer_id") or "Unknown")
             for item in question_items
         )
-        groups.append(IssueGroup(label, metadata, labels))
+        groups.append(IssueGroup(label, metadata, item_labels))
     return tuple(groups)
+
+
+def build_quality_panels(context: ReportContext, labels: dict[str, dict[str, str]] | None = None) -> list[QualityPanel]:
+    analysis = context.analysis
+    quality = []
+    for sid, survey in analysis.survey_lookup.items():
+        fields = [item for item in analysis.unused_fields if str(item["survey_id"]) == sid]
+        options = [item for item in analysis.unused_options if str(item["survey_id"]) == sid]
+        quality.append(
+            QualityPanel(
+                survey_id=sid,
+                label=str(survey.get("survey_name") or sid),
+                field_count=len(fields),
+                option_count=len(options),
+                fields=_issue_groups(context, fields, "field_text", labels),
+                options=_issue_groups(context, options, "answer_text", labels),
+            )
+        )
+    return quality
 
 
 def render_overview(context: ReportContext, findings: tuple[str, ...]) -> str:
     analysis = context.analysis
     groups: dict[str, CoverageGroup] = {}
-    for key, question in analysis.response_questions.items():
+    for occurrence, (key, question) in enumerate(analysis.response_questions.items(), 1):
         qid = str(question["question_id"])
         external_id = str(question.get("question_external_id") or qid)
         sid = str(key[0])
@@ -82,20 +115,14 @@ def render_overview(context: ReportContext, findings: tuple[str, ...]) -> str:
         if block_name:
             metadata += f" · Section: {block_name}"
         groups.setdefault(catalog_id, CoverageGroup(catalog_id, catalog_label)).rows.append(
-            CoverageRow(survey_id=sid, label=survey_label, metadata=metadata, count=count, rate=rate)
-        )
-    quality = []
-    for sid, survey in analysis.survey_lookup.items():
-        fields = [item for item in analysis.unused_fields if str(item["survey_id"]) == sid]
-        options = [item for item in analysis.unused_options if str(item["survey_id"]) == sid]
-        quality.append(
-            QualityPanel(
+            CoverageRow(
                 survey_id=sid,
-                label=str(survey.get("survey_name") or sid),
-                field_count=len(fields),
-                option_count=len(options),
-                fields=_issue_groups(context, fields, "field_text"),
-                options=_issue_groups(context, options, "answer_text"),
+                question_id=qid,
+                target=f"question-detail-{occurrence}",
+                label=survey_label,
+                metadata=metadata,
+                count=count,
+                rate=rate,
             )
         )
     return render_template(
@@ -112,6 +139,6 @@ def render_overview(context: ReportContext, findings: tuple[str, ...]) -> str:
         unanswered=len(analysis.unanswered_questions),
         unused_fields=len(analysis.unused_fields),
         multiple_surveys=len(context.entities.surveys) > 1,
-        quality_panels=quality,
+        quality_panels=build_quality_panels(context),
         coverage_groups=tuple(groups.values()),
     )

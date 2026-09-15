@@ -5,8 +5,9 @@ import json
 import sys
 from pathlib import Path
 
+from ..models.comment_translations import TRANSLATION_COLUMNS
 from ..models.comments import COMMENT_COLUMNS, build_comments
-from ..models.entities import ENTITY_NAMES, EntitySet
+from ..models.entities import ALL_ENTITY_NAMES, EntitySet
 from ..models.response_columns import read_source_columns
 from ..models.survey_manifest import MANIFEST_FILENAME, load_manifest, validate_manifests, write_manifest
 
@@ -164,6 +165,7 @@ ENTITY_COLUMNS: dict[str, tuple[str, ...]] = {
         "user_language",
     ),
     "comments": COMMENT_COLUMNS,
+    "comment_translations": TRANSLATION_COLUMNS,
 }
 
 
@@ -241,6 +243,8 @@ def _normalize_parquet_records(records: list[dict[str, object]]) -> list[dict[st
 def _column_names(entities: EntitySet, name: str) -> list[str]:
     if name == "comments":
         return list(COMMENT_COLUMNS)
+    if name == "comment_translations":
+        return list(TRANSLATION_COLUMNS)
     keys = dict.fromkeys(ENTITY_COLUMNS[name])
     keys.update(dict.fromkeys(key for row in getattr(entities, name) for key in row))
     keys.update(dict.fromkeys(sorted(entities._present_columns.get(name, set()))))
@@ -260,8 +264,10 @@ def write_entities(entities: EntitySet, folder: str | Path, format: str = "json"
     validate_manifests({str(row["survey_id"]) for row in entities.surveys}, entities.survey_manifests)
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
-    for name in ENTITY_NAMES:
+    for name in ALL_ENTITY_NAMES:
         records = build_comments(entities) if name == "comments" else getattr(entities, name)
+        if name == "comment_translations" and not records:
+            continue
         path = folder / f"{name}.{format}"
         if format == "json":
             path.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -311,7 +317,7 @@ def load_entities(folder: str | Path | None = None, **paths: str | Path) -> Enti
 
     folder = Path(folder) if folder else None
     result = EntitySet()
-    for name in ENTITY_NAMES:
+    for name in ALL_ENTITY_NAMES:
         candidates = [
             folder / f"{name}.{ext}"
             for ext in ("json", "csv", "parquet")
@@ -324,10 +330,10 @@ def load_entities(folder: str | Path | None = None, **paths: str | Path) -> Enti
             continue
         if path.suffix == ".json":
             records = json.loads(path.read_text(encoding="utf-8"))
-            if name == "comments" and (
+            if name in {"comments", "comment_translations"} and (
                 not isinstance(records, list) or any(not isinstance(record, dict) for record in records)
             ):
-                raise ValueError("comments must contain a JSON list of records")
+                raise ValueError(f"{name} must contain a JSON list of records")
             result._present_columns[name] = (
                 {key for record in records for key in record} if records else set(ENTITY_COLUMNS[name])
             )
@@ -354,7 +360,7 @@ def load_entities(folder: str | Path | None = None, **paths: str | Path) -> Enti
     elif folder:
         manifest_path = folder / MANIFEST_FILENAME
     else:
-        parent_folders = {Path(path).resolve().parent for name, path in paths.items() if name in ENTITY_NAMES}
+        parent_folders = {Path(path).resolve().parent for name, path in paths.items() if name in ALL_ENTITY_NAMES}
         manifest_path = next(iter(parent_folders)) / MANIFEST_FILENAME if len(parent_folders) == 1 else None
     if manifest_path is not None:
         result.survey_manifests = load_manifest(manifest_path, result.surveys)

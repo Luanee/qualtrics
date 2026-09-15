@@ -16,14 +16,20 @@ function node(dataset = {}, selectors = {}) {
     addEventListener(event, callback) { this.handlers[event] = callback; },
     setAttribute() {}, closest() { return null; }, contains() { return false; }, focus() {}, scrollIntoView() {}};
 }
-function fixture({paginated = false, properties = false} = {}) {
+function fixture({paginated = false, properties = false, languages = false, translations = false} = {}) {
   const surveyA = node(), surveyB = node();
   surveyA.value = 'a'; surveyB.value = 'b';
   surveyA.closest = () => ({textContent: 'Survey A'});
   surveyB.closest = () => ({textContent: 'Survey B'});
-  const field1 = node({fieldId: 'first'}, {'.value': [{textContent: 'Lee'}]});
+  const rawChoice = node(); rawChoice.textContent = 'Yes';
+  const choiceLabel = node(); choiceLabel.textContent = 'Choice';
+  const recorded = node(); recorded.hidden = true;
+  const field1 = node({fieldId: 'first', optionId: 'O1', rawValue: 'Yes'}, {
+    '.value': [rawChoice], '.field': [choiceLabel], '.answer-original': [recorded],
+  });
   const field2 = node({fieldId: 'last'}, {'.value': [{textContent: 'Lee'}]});
-  const row = node({question: 'a::q'}, {'.field-answer': [field1, field2]});
+  const questionLabel = node({questionId: 'Q1'}); questionLabel.textContent = 'Question';
+  const row = node({question: 'a::q'}, {'.field-answer': [field1, field2], '.question': [questionLabel]});
   const propertyRows = properties ? [['Region', 'North'], ['Email permission', 'False'], ['Count', '0']].map(([label, value]) => {
     const property = node({}, {'.property-label': [{textContent: label}], '.property-value': [{textContent: value}]});
     property.textContent = `${label} ${value}`;
@@ -38,14 +44,27 @@ function fixture({paginated = false, properties = false} = {}) {
     property.closest = selector => ['[data-survey]', '.respondent'].includes(selector) ? card : null;
   });
   const link = {href: '#response-1', getAttribute() { return this.href; }};
+  const writtenLabel = node({questionId: 'Q1'}); writtenLabel.textContent = 'Question';
+  const writtenValue = node(); writtenValue.textContent = 'Lee';
+  const translationCue = node(); translationCue.hidden = true;
+  const originalText = node(); originalText.textContent = 'Lee';
+  const originalDisclosure = node({}, {p: [originalText]}); originalDisclosure.hidden = true;
   const a = node({survey: 'a', questionToken: 'a::q', fieldId: 'last', responseTarget: card.id},
-    {'.written-value': [{textContent: 'Lee'}], a: [link]});
+    {'.written-value': [writtenValue], '.translation-cue': [translationCue], '.written-original': [originalDisclosure],
+      '.written-question': [writtenLabel], a: [link]});
   const b = node({survey: 'b', questionToken: 'b::q', fieldId: 'last'});
   const optionA = node({survey: 'a', label: 'Name'}); optionA.value = 'a::q'; optionA.textContent = 'Name';
   const optionB = node({survey: 'b', label: 'Name'}); optionB.value = 'b::q'; optionB.textContent = 'Name';
   const select = node(); select.options = [node(), optionA, optionB];
   const empty = node();
   const cards = [card], written = [a, b];
+  if (languages) {
+    card.dataset.userLanguage = 'DE';
+    a.dataset.userLanguage = 'DE';
+    b.dataset.userLanguage = '__missing__';
+    cards.push(node({survey: 'b', userLanguage: '__missing__'}));
+  }
+  if (translations) a.dataset.answerId = 'A1';
   const responsePagination = node(), writtenPagination = node();
   if (paginated) {
     cards.push(...Array.from({length: 24}, () => node({survey: 'a'})), node({survey: 'b'}));
@@ -60,11 +79,33 @@ function fixture({paginated = false, properties = false} = {}) {
   flowCard.closest = selector => selector === '[data-survey]' ? flowCard : null;
   flowView.contains = item => item === flowCard;
   const reportSearch = node(), responseSearch = node(), searchResults = node(), searchClear = node(), theme = node(), other = node();
+  const respondentLanguage = node(), displayLanguage = node(), languageData = node();
+  const translationData = node();
+  translationData.textContent = JSON.stringify({A1: {
+    EN: {text: 'Translated Lee', current: true}, FR: {text: null, current: false},
+  }});
+  respondentLanguage.value = 'all'; displayLanguage.value = 'EN';
+  languageData.textContent = JSON.stringify({
+    labels: {EN: {questions: {Q1: 'Question'}, fields: {first: 'Choice'}, options: {O1: 'Yes'}},
+      DE: {questions: {Q1: 'Frage'}, fields: {first: 'Auswahl'}, options: {O1: 'Ja'}}},
+    snapshots: {
+      all: {surveys: {a: {responses: 1}, b: {responses: 1}}, questions: {}, findings: [], quality: {}},
+      DE: {surveys: {a: {responses: 1}, b: {responses: 0}}, questions: {}, findings: [], quality: {}},
+      __missing__: {surveys: {a: {responses: 0}, b: {responses: 1}}, questions: {}, findings: [], quality: {}},
+    },
+  });
   const selectors = {'.survey-choice': [surveyA, surveyB], '.respondent': cards, '.written-answer': written,
     details: cards, '#response-pagination': [responsePagination], '#written-pagination': [writtenPagination],
     '#written-question': [select], '#written-empty': [empty], '#report-search': [reportSearch], '#search': [responseSearch],
     '#search-results': [searchResults], '#search-result-list': [node()], '#search-pagination': [node()],
-    '#search-clear': [searchClear], '#theme-choice': [theme], '#overview-other': [other]};
+    '#search-clear': [searchClear], '#theme-choice': [theme], '#overview-other': [other],
+    '#report-language-data': languages ? [languageData] : [],
+    '#written-translation-data': translations ? [translationData] : [],
+    '#respondent-language': languages ? [respondentLanguage] : [],
+    '#display-language': languages ? [displayLanguage] : [],
+    '.field-answer[data-field-id]': languages ? [field1] : [],
+    '.question-label[data-question-id], .question[data-question-id], .written-question[data-question-id], .finding a[data-question-id]':
+      languages ? [questionLabel, writtenLabel] : []};
   const document = node({}, selectors);
   document.addEventListener = (event, callback) => {
     const previous = document.handlers[event];
@@ -92,8 +133,65 @@ function fixture({paginated = false, properties = false} = {}) {
   return {surveyA, surveyB, a, b, field2, link, select, optionA, optionB, empty,
     cards, written, responsePagination, writtenPagination, window, location, document,
     overview, responseView, reportSearch, searchResults, searchClear, theme, other, dashboardSelections, dashboardResizes,
-    flowView, flowCard, flowSelections, flowReveals, flowResizes, content, responseSearch, propertyRows, propertyDetails};
+    flowView, flowCard, flowSelections, flowReveals, flowResizes, content, responseSearch, propertyRows, propertyDetails,
+    respondentLanguage, displayLanguage, questionLabel, writtenLabel, choiceLabel, rawChoice, recorded,
+    writtenValue, translationCue, originalDisclosure, originalText};
 }
+
+test('prepared comments switch by display language and keep the original accessible', () => {
+  const f = fixture({languages: true, translations: true});
+  assert.equal(f.writtenValue.textContent, 'Translated Lee');
+  assert.equal(f.originalDisclosure.hidden, false);
+  assert.equal(f.originalText.textContent, 'Lee');
+  assert.equal(f.translationCue.hidden, true);
+  f.displayLanguage.value = 'DE'; f.displayLanguage.handlers.change();
+  assert.equal(f.writtenValue.textContent, 'Lee');
+  assert.equal(f.originalDisclosure.hidden, true);
+  assert.equal(f.translationCue.hidden, true);
+  f.displayLanguage.value = 'FR'; f.displayLanguage.handlers.change();
+  assert.equal(f.writtenValue.textContent, 'Lee');
+  assert.equal(f.translationCue.hidden, false);
+  assert.match(f.translationCue.textContent, /out of date/);
+  f.displayLanguage.value = 'IT'; f.displayLanguage.handlers.change();
+  assert.equal(f.writtenValue.textContent, 'Lee');
+  assert.match(f.translationCue.textContent, /unavailable/);
+  f.respondentLanguage.value = 'DE'; f.respondentLanguage.handlers.change();
+  assert.equal(f.writtenValue.textContent, 'Lee');
+});
+
+test('respondent language changes response, written and summary cohorts without rewriting raw text', () => {
+  const f = fixture({languages: true});
+  assert.equal(f.cards.filter(card => !card.hidden).length, 2);
+  const raw = f.a.querySelector('.written-value').textContent;
+  f.respondentLanguage.value = 'DE'; f.respondentLanguage.handlers.change();
+  assert.equal(f.surveyA.dataset.responses, '1');
+  assert.equal(f.surveyB.dataset.responses, '0');
+  assert.equal(f.cards[0].hidden, false);
+  assert.equal(f.cards[1].hidden, true);
+  assert.equal(f.a.hidden, false); assert.equal(f.b.hidden, true);
+  f.respondentLanguage.value = '__missing__'; f.respondentLanguage.handlers.change();
+  assert.equal(f.cards[0].hidden, true);
+  assert.equal(f.cards[1].hidden, false);
+  assert.equal(f.a.hidden, true); assert.equal(f.b.hidden, false);
+  assert.equal(f.a.querySelector('.written-value').textContent, raw);
+});
+
+test('definition language changes labels while preserving the recorded choice and cohort', () => {
+  const f = fixture({languages: true});
+  f.respondentLanguage.value = 'DE'; f.respondentLanguage.handlers.change();
+  f.displayLanguage.value = 'DE'; f.displayLanguage.handlers.change();
+  assert.equal(f.questionLabel.textContent, 'Frage');
+  assert.equal(f.writtenLabel.textContent, 'Frage');
+  assert.equal(f.choiceLabel.textContent, 'Auswahl');
+  assert.equal(f.rawChoice.textContent, 'Ja');
+  assert.equal(f.cards[0].querySelector('.answer').querySelector('.field-answer').dataset.rawValue, 'Yes');
+  assert.equal(f.recorded.hidden, false);
+  assert.equal(f.surveyA.dataset.responses, '1');
+  f.displayLanguage.value = 'EN'; f.displayLanguage.handlers.change();
+  assert.equal(f.rawChoice.textContent, 'Yes');
+  assert.equal(f.recorded.hidden, true);
+  assert.equal(f.surveyA.dataset.responses, '1');
+});
 
 test('response properties participate in local search without requiring question selection', () => {
   const f = fixture({properties: true});

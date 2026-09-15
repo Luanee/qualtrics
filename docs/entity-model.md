@@ -2,15 +2,15 @@
 
 This reference defines the tables, IDs, and relationships used by the toolkit. For a plain-language introduction, start with [understand your data](understand/your-data.md). Follow the [Power BI guide](guides/power-bi.md) to export and connect the analysis tables.
 
-Explore the ten exported entities and their relationships in the diagram below. The viewer needs an internet connection; no account or API key is required. The table descriptions on this page and the downloadable DBML remain available if the viewer cannot load.
+Explore the nine core entities, derived comments, and optional comment translations in the diagram below. The viewer needs an internet connection; the table descriptions and DBML remain available offline.
 
-<iframe class="dbml-model" title="Ten-entity Qualtrics data model" src="{{ dbml_entity_url }}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>
+<iframe class="dbml-model" title="Qualtrics entity data model" src="{{ dbml_entity_url }}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>
 
 <p><a href="{{ dbml_entity_url }}" target="_blank" rel="noopener">Open the entity diagram at full size</a></p>
 
-[Download the ten-entity DBML schema](entity-model.dbml) to inspect the full column and relationship contract in a compatible schema tool.
+[Download the entity DBML schema](entity-model.dbml) to inspect the full column and relationship contract in a compatible schema tool.
 
-Parsing produces nine authoritative entities plus the derived `comments` table, for ten exported tables. A sibling `manifest.json` carries survey-specific flow and source-column descriptors; it is metadata, not an eleventh entity. Occurrence IDs are survey-safe hashes; `*_external_id` columns preserve Qualtrics lineage. Catalog IDs identify normalized semantics across surveys. Catalog merging compares the complete stored normalized content, including the parent question catalog ID for fields, while retaining the [first input’s representative display labels](guides/combine-surveys.md#representative-catalog-labels). Concrete question, field, and answer-option rows remain survey-specific.
+Parsing produces nine authoritative entities plus derived `comments`. An optional `comment_translations` sidecar stores prepared text separately; it is absent until translations are added. A sibling `manifest.json` carries survey-specific flow and source-column descriptors. Occurrence IDs are survey-safe hashes; `*_external_id` columns preserve Qualtrics lineage. Catalog IDs identify normalized semantics across surveys. Catalog merging compares the complete stored normalized content, including the parent question catalog ID for fields, while retaining the [first input’s representative display labels](guides/combine-surveys.md#representative-catalog-labels). Concrete question, field, and answer-option rows remain survey-specific.
 
 When a QSF supplies `SurveyLanguage`, including under `SurveyOptions`, that code becomes `surveys.default_language` and identifies the language of the base question text used for catalog identity. The per-survey `manifest.json` entry also records `languages.base_language`, declared `languages.available_languages`, and `languages.all_languages` (the base, available, and every code found under a question's `Language` object). An absent QSF leaves these values empty or null; response `UserLanguage` is never inferred from them.
 
@@ -28,6 +28,7 @@ For every code in `all_languages`, `questions`, `question_fields`, and `answer_o
 | `responses` | submitted response | `response_id` | survey |
 | `response_answers` | non-empty response field | `response_answer_id` | response, question, field, optional option |
 | `comments` | derived nonblank text answer field | original `response_answer_id` | original answer, response, survey, question, field |
+| `comment_translations` | optional written answer × target language | `comment_translation_id` | original answer, survey |
 
 Each `sections` row represents one configured survey block, identified internally by the survey-scoped `section_id`. Its `section_external_id` retains the native block ID, including a dictionary key used when the block has no explicit `ID`. List position never becomes a block ID. `questions.section_id` links to that internal section ID; the flattened `dim_questions` carries the section name and block order. A block referenced more than once in survey flow still has one section row, while the flow keeps each occurrence as a separate node. Trash blocks have no section row, but their position remains in block ordering.
 
@@ -46,6 +47,8 @@ For native Loop & Merge identifiers, the suffix after the matching question ID i
 When there is no native choice suffix, the supported legacy prefix convention remains: `1_QID1_TEXT` and `2_QID1_TEXT` identify attached text for choices 1 and 2, including their choice-specific validation. Multiple-answer matrix cells also retain the legacy `row_QID_answer` convention when there is only one suffix position, for example `1_QID3_3` is row 1, answer 3. This ambiguous shape is interpreted as a legacy cell; native looped cells need both row and answer suffixes. Corrected choice links can change option IDs and, when normalized option content changes, catalog IDs. The identity algorithms and concrete survey, question, field, response, and answer IDs are unchanged.
 
 Choice matching gives explicit `RecodeValues` priority within the answer's question field. If native choice `1` has recode `2`, an exported `2` links to that choice even when native choice `2` also exists. This also applies to categorical matrix answer domains. Without an explicit recode match, the parser uses an unambiguous match against the native ID, cleaned `Display` label, or export tag. Two choices sharing the same recode remain unresolved; a lower-priority alias does not break the tie. Raw answer text and option identities are preserved.
+
+When `UserLanguage` identifies a QSF language, a translated choice or matrix-scale label can also resolve a categorical answer. An unambiguous translated label points to the **base** `answer_option_id`; it never creates another fact or rewrites `answer_text`/`raw_value`. Explicit recodes and native IDs retain priority over labels. A translated label can disambiguate a collision with a different base-language display label, but duplicate labels within the respondent's language remain unlinked. Null or unknown `UserLanguage` provides no translated alias; text and continuous numeric answers are never promoted to options.
 
 For example, choice `1` with `Display: "Yes"` and recode `2` receives answers exported as either `2` or `Yes`, provided the selected matching level identifies one choice. A numeric display label can itself collide with another choice's recode; the explicit recode takes priority under this rule. Rebuild existing entities from the original CSV and matching QSF to apply the corrected links, then regenerate the report or semantic model.
 
@@ -71,6 +74,20 @@ Membership follows the question's response role and the effective field type. Su
 New `question_fields.is_comment_field` values carry nullable boolean classification evidence through entity files and into `dim_questions`. The parser prefers explicit source metadata, including unambiguous side-by-side column mappings. It does not guess an unknown side-by-side column's type from its label. Incomplete definitions and unsupported combinations can therefore omit fields from the comments projection while retaining their original answers.
 
 Legacy nine-table folders remain valid: loading reconstructs comments from the available question and field types when `is_comment_field` is absent or null. Reparse with the matching QSF to recover stronger source evidence. Parse, merge, load, entity write, and semantic build regenerate the projection; a supplied comments file must agree with its source answers and responses. Edit or reparse the authoritative data instead of maintaining a separate comments copy. Current exports write `comments.json`, `comments.csv`, or `comments.parquet`, including an empty table when no fields qualify.
+
+## Prepared comment translations
+
+`comment_translations` is an optional sidecar, never a replacement for `comments` or `response_answers`. Its grain is one `response_answer_id` × `target_language`. It records `translated_text`, nullable `source_language` from `responses.user_language`, and `source_text_hash`: a SHA-256 digest of the exact original `answer_text`, including whitespace. IDs derive from the answer ID and target language. Combining surveys retains the sidecar rows, and CSV/JSON/Parquet entity round-trips preserve them. No translation file is written when the sidecar is empty.
+
+Supply your own offline or network-backed translator through `prepare_comment_translations(entities, target_languages, translate)`. The callback receives `(original_text, source_language_or_none, target_language)` and returns text. Only requested, missing or stale targets are called; original answers stay unchanged. The toolkit includes no provider and makes no automatic translation request.
+
+Alternatively, import a prepared CSV or Parquet file with exactly `response_answer_id,target_language,source_text_hash,translated_text`:
+
+```bash
+qualtrics translations import data/entities data/prepared.csv --output data/translated
+```
+
+The command writes a new entity folder in Parquet by default; `--format csv` and `--format json` are also supported. Import rejects a source hash that no longer matches the written answer. A translation can later become stale if the source answer changes: loading preserves it, and `fact_comment_translations.is_current` marks the mismatch. Consumers must use only current translations and fall back to the original when a target is missing or stale.
 
 ## Answer value provenance
 
@@ -138,18 +155,24 @@ Reparse the original export to recover fields omitted by older versions. An olde
 - `dim_questions`
 - `dim_answer_options`
 - `fact_comments`
+- `fact_comment_translations`
+- `dim_display_languages`
+- `dim_question_labels`
+- `dim_answer_option_labels`
 
-The semantic model has six exported tables plus the sibling `manifest.json`. Its diagram shows the six relationships to configure in Power BI; DBML relationship symbols describe cardinality, while Power BI's cross-filter direction is a separate setting.
+The semantic model has ten exported tables plus `manifest.json`: six base-grain fact-path tables, three display-label tables, and an optional translation lookup exported with an empty schema when unused. Its diagram shows six fact-path and two label-only relationships; DBML symbols describe cardinality, while Power BI's cross-filter direction is a separate setting.
 
-<iframe class="dbml-model" title="Six-table Power BI semantic model" src="{{ dbml_power_bi_url }}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>
+<iframe class="dbml-model" title="Power BI semantic model" src="{{ dbml_power_bi_url }}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>
 
 <p><a href="{{ dbml_power_bi_url }}" target="_blank" rel="noopener">Open the Power BI diagram at full size</a></p>
 
-[Download the six-table Power BI DBML schema](power-bi-model.dbml). The interactive viewer requires an internet connection; the relationship instructions below also describe the model.
+[Download the Power BI DBML schema](power-bi-model.dbml). The interactive viewer requires an internet connection; the relationship instructions below also describe the model.
 
 `dim_questions` has one row per analyzable exported question field and flattens section, question, field, and catalog attributes. Create these active single-direction relationships in Power BI:
 
 The active `dim_questions` and `dim_answer_options` keep only base-language, exported rows. Definition-only and localized entity rows are reserved for the codebook and dedicated localization tables, so adding languages never duplicates measures or creates zero-looking answer categories.
+
+`dim_display_languages` lists each display code across the combined collection, including prepared-comment target codes. `is_available` marks codes declared available, used as a base, or backed by prepared comments in at least one survey. `dim_question_labels` maps each exported base `question_field_id` and display code to its question and field text; `dim_answer_option_labels` maps each base `answer_option_id` and display code to its choice text. Missing translations fall back to that survey's base labels, recorded in the source-language columns. These tables do not duplicate facts or replace the base IDs. Use a single-select display-language slicer separately from `fact_responses.user_language`; only the latter filters respondents. See the [Power BI display-label recipe](guides/power-bi.md#display-language-recipe).
 
 ```text
 dim_surveys[survey_id] 1 -> * fact_responses[survey_id]
@@ -166,7 +189,7 @@ Set cross-filter direction to **Single**, from each one side to its many side. S
 
 `dim_answer_options` has one row per field-specific option. Use `question_field_id` to associate it with `dim_questions`; keep the fact relationship on `answer_option_id`.
 
-Create a model-local Date table and relate it to `fact_responses[recorded_at]`. This optional table is created in Power BI and is not one of the six exported tables. Do not add parallel active paths from surveys, questions, or catalogs to the answer fact.
+Create a model-local Date table and relate it to `fact_responses[recorded_at]`. This optional table is created in Power BI and is not one of the exported tables. Do not add parallel active paths from surveys, questions, labels, catalogs, or translations to the answer fact.
 
 ## Baseline DAX
 

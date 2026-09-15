@@ -15,20 +15,21 @@
         {% for group in groups %}
         <details class='question-analysis catalog-group' data-catalog='{{ group.id }}'>
           <summary>
-            <span class='analysis-title'>{{ group.label }}{{ ui.occurrence_count(group.occurrences|length) }}</span>
+            <span class='analysis-title'><span class='question-label' data-question-id='{{ group.occurrences[0].question_id }}'>{{ group.label }}</span>{{ ui.occurrence_count(group.occurrences|length) }}</span>
           </summary>
           <div class='catalog-body'>
             {% for occurrence in group.occurrences %}
             <details class='survey-analysis survey-occurrence' data-survey='{{ occurrence.survey_id }}'
                      id='{{ occurrence.id }}' data-question='{{ occurrence.external_id }}'
                      data-label='{{ occurrence.label }}' data-section='{{ occurrence.section }}'
+                     data-question-id='{{ occurrence.question_id }}'
                      data-question-token='{{ occurrence.token }}'>
               <summary>
                 <span class='analysis-title'>{{ occurrence.survey_label }}<small>{{ occurrence.metadata }}</small></span>
                 <span class='analysis-summary'>
-                  <span><b>{{ '{:,}'.format(occurrence.respondents) }}</b> respondents</span>
-                  <span><b>{{ '{:.0f}'.format(occurrence.coverage) }}%</b> coverage</span>
-                  <span><b>{{ '{:,}'.format(occurrence.value_count) }}</b> {{ occurrence.value_label }}</span>
+                  <span class='respondent-summary'><b>{{ '{:,}'.format(occurrence.respondents) }}</b> respondents</span>
+                  <span class='coverage-summary'><b>{{ '{:.0f}'.format(occurrence.coverage) }}%</b> coverage</span>
+                  <span class='value-summary'><b>{{ '{:,}'.format(occurrence.value_count) }}</b> {{ occurrence.value_label }}</span>
                 </span>
               </summary>
               <div class='analysis-body'>{{ occurrence.body }}</div>

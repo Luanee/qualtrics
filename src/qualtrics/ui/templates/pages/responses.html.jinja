@@ -19,7 +19,7 @@
   </div>
   <div id='response-list'>
     {%- for card in cards %}
-    <details class='respondent' id='{{ card.id }}' data-survey='{{ card.survey_id }}'
+    <details class='respondent' id='{{ card.id }}' data-survey='{{ card.survey_id }}' data-user-language='{{ card.user_language }}'
              data-total-answers='{{ card.questions|length }}' data-search='{{ card.searchable }}'{% if card.open %} open{% endif %}>
       <summary>
         <span class='identity'>{{ card.label }}</span><span class='badge'>{{ card.questions|length }} answers</span>
@@ -46,11 +46,11 @@
         {% for question in card.questions %}
         <div class='answer' data-question='{{ question.token }}'>
           <div class='question-head'>
-            <span class='question'>{{ question.label }}</span><span class='question-meta'>{{ question.metadata }}</span>
+            <span class='question' data-question-id='{{ question.question_id }}'>{{ question.label }}</span><span class='question-meta'>{{ question.metadata }}</span>
           </div>
           {% for field in question.fields %}
-          <div class='field-answer{% if not field.label %} value-only{% elif field.text %} text-field{% endif %}' data-field-id='{{ field.id }}'>
-            {%- if field.label %}<span class='field'>{{ field.label }}</span>{% endif %}<span class='value'>{{ field.value }}</span>
+          <div class='field-answer{% if not field.label %} value-only{% elif field.text %} text-field{% endif %}' data-field-id='{{ field.id }}'{% if field.option_id %} data-option-id='{{ field.option_id }}' data-raw-value='{{ field.value }}'{% endif %}>
+            {%- if field.label %}<span class='field'>{{ field.label }}</span>{% endif %}<span class='value'>{{ field.value }}</span><small class='answer-original' hidden>Recorded: {{ field.value }}</small>
           </div>
           {% endfor %}
         </div>

@@ -67,7 +67,9 @@ def _numeric_data(answers: list[Row]) -> tuple[int, list[Row], str, Row] | None:
     return len(values), bins, note, metric
 
 
-def _categorical_data(answers: list[Row], options: list[Row], *, multiple: bool) -> tuple[int, list[Row], str] | None:
+def _categorical_data(
+    answers: list[Row], options: list[Row], *, multiple: bool, include_label_ids: bool = False
+) -> tuple[int, list[Row], str] | None:
     if not answers:
         return None
     counts = option_counts(answers, options)
@@ -75,7 +77,11 @@ def _categorical_data(answers: list[Row], options: list[Row], *, multiple: bool)
         return None
     denominator = len({str(answer["response_id"]) for answer in answers})
     bins = [
-        {"label": item.label + (" (unknown option)" if item.answer_id is None else ""), "count": item.count}
+        {
+            "label": item.label + (" (unknown option)" if item.answer_id is None else ""),
+            "count": item.count,
+            **({"option_id": item.option_id if item.answer_id is not None else ""} if include_label_ids else {}),
+        }
         for item in counts
     ]
     note = f"Percentages use {denominator:,} respondents with a recorded answer in this distribution."
@@ -89,7 +95,13 @@ def _categorical_data(answers: list[Row], options: list[Row], *, multiple: bool)
 
 
 def _question_spotlights(
-    question: Row, fields: list[Row], answers: list[Row], options: list[Row], occurrence: int
+    question: Row,
+    fields: list[Row],
+    answers: list[Row],
+    options: list[Row],
+    occurrence: int,
+    *,
+    include_label_ids: bool = False,
 ) -> list[Row]:
     resolved = resolve_question_type(
         question.get("question_type"), question.get("selector"), question.get("sub_selector")
@@ -136,7 +148,7 @@ def _question_spotlights(
             for field in group_fields:
                 scoped.extend(option_fields.get(str(field["field_id"]), []))
             multiple = canonical == "multiple_choice_multiple" or (canonical == "matrix" and len(group_fields) > 1)
-            categorical = _categorical_data(observed, scoped, multiple=multiple)
+            categorical = _categorical_data(observed, scoped, multiple=multiple, include_label_ids=include_label_ids)
             if categorical is None:
                 continue
             denominator, bins, note = categorical
@@ -150,6 +162,14 @@ def _question_spotlights(
             "survey": str(question["survey_id"]),
             "label": str(question.get("question_text") or question["question_id"]),
             "field": label,
+            **(
+                {
+                    "question_id": str(question["question_id"]),
+                    "field_id": str(group_fields[0]["field_id"]) if len(group_fields) == 1 else "",
+                }
+                if include_label_ids
+                else {}
+            ),
             "kind": kind,
             "target": f"question-detail-{occurrence}",
             "denominator": denominator,
@@ -160,7 +180,9 @@ def _question_spotlights(
     return spotlights
 
 
-def build_dashboard(entities: EntitySet, analysis: ReportAnalytics) -> dict[str, list[Row]]:
+def build_dashboard(
+    entities: EntitySet, analysis: ReportAnalytics, *, include_label_ids: bool = False
+) -> dict[str, list[Row]]:
     """Aggregate once in Python; browser filters never walk individual answers."""
     dates: dict[str, Counter[str]] = {}
     undated: Counter[str] = Counter()
@@ -194,6 +216,7 @@ def build_dashboard(entities: EntitySet, analysis: ReportAnalytics) -> dict[str,
     for occurrence, (key, question) in enumerate(analysis.response_questions.items(), 1):
         coverage.append({
             "survey": key[0],
+            **({"question_id": str(question["question_id"])} if include_label_ids else {}),
             "label": str(question.get("question_text") or question["question_id"]),
             "answered": len(analysis.question_responses.get(key, set())),
             "total": analysis.survey_response_counts[key[0]],
@@ -201,7 +224,12 @@ def build_dashboard(entities: EntitySet, analysis: ReportAnalytics) -> dict[str,
         })
         spotlights.extend(
             _question_spotlights(
-                question, fields.get(key, []), analysis.question_answers.get(key, []), options.get(key, []), occurrence
+                question,
+                fields.get(key, []),
+                analysis.question_answers.get(key, []),
+                options.get(key, []),
+                occurrence,
+                include_label_ids=include_label_ids,
             )
         )
     priority = {"nps": 0, "numeric": 1, "categorical": 2}
