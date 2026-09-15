@@ -163,7 +163,8 @@ def validate_entity_set(entities: EntitySet, *, strict: bool = False) -> None:
                     not isinstance(language_code, str)
                     or not language_code
                     or not isinstance(registry, dict)
-                    or language_code not in registry.get("all_languages", [])
+                    or language_code
+                    not in (set(registry.get("all_languages", [])) | set(registry.get("prepared_languages", [])))
                     or language_code == registry.get("base_language")
                 ):
                     raise ValueError(f"{name} localized row has invalid language_code")

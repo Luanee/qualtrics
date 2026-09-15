@@ -2,6 +2,7 @@ from ._common.analytics import ReportAnalytics, analyze_entities
 from ._common.models import EntitySet, merge_entity_sets
 from ._common.models.comment_translations import import_comment_translations, prepare_comment_translations
 from ._common.models.semantic import SemanticModel, build_semantic_model
+from ._common.models.translations import TranslationRequest, prepare_translations
 from ._common.parsers import parse_survey, parse_surveys
 from ._common.serialization import load_entities, write_entities
 from ._common.serialization.semantic import write_semantic_model
@@ -14,6 +15,7 @@ __all__ = [
     "QualtricsClient",
     "ReportAnalytics",
     "SemanticModel",
+    "TranslationRequest",
     "analyze_entities",
     "build_semantic_model",
     "import_comment_translations",
@@ -22,6 +24,7 @@ __all__ = [
     "parse_survey",
     "parse_surveys",
     "prepare_comment_translations",
+    "prepare_translations",
     "render_report",
     "write_entities",
     "write_semantic_model",
