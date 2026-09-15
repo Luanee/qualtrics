@@ -6,6 +6,7 @@ from .comment_translations import TRANSLATION_COLUMNS, translation_id
 from .comments import COMMENT_COLUMNS, build_comments
 from .entities import CORE_ENTITY_NAMES, EntitySet
 from .response_merge import merge_response_columns
+from .translation_columns import prepared_targets, target_from_column, translation_columns
 
 PRIMARY_KEYS = {
     "surveys": "survey_id",
@@ -237,14 +238,6 @@ def validate_entity_set(entities: EntitySet, *, strict: bool = False) -> None:
             option = options[str(option_id)]
             if str(option["question_field_id"]) != str(answer["question_field_id"]):
                 raise ValueError("response_answers option must belong to the referenced question field")
-    if entities.comments or "comments" in entities._present_entities:
-        columns = entities._present_columns.get("comments")
-        if columns is not None and columns != set(COMMENT_COLUMNS):
-            raise ValueError("comments schema must contain exactly the fixed comment columns")
-        expected = {row["response_answer_id"]: row for row in build_comments(entities)}
-        supplied = {row["response_answer_id"]: row for row in entities.comments}
-        if supplied != expected:
-            raise ValueError("comments must match the projection of response_answers and responses")
     if entities.comment_translations or "comment_translations" in entities._present_entities:
         columns = entities._present_columns.get("comment_translations")
         if columns is not None and columns != set(TRANSLATION_COLUMNS):
@@ -271,6 +264,23 @@ def validate_entity_set(entities: EntitySet, *, strict: bool = False) -> None:
                 raise ValueError("comment_translations ID must derive from answer and target language")
             if str(row.get("survey_id")) != str(comments[answer_id]["survey_id"]):
                 raise ValueError("comment_translations survey must match the written answer")
+    if entities.comments or "comments" in entities._present_entities:
+        columns = entities._present_columns.get("comments")
+        if columns is not None:
+            if not set(COMMENT_COLUMNS) <= columns:
+                raise ValueError("comments schema is missing fixed comment columns")
+            targets = prepared_targets(columns)
+            allowed = set(COMMENT_COLUMNS) | {column for target in targets for column in translation_columns(target)}
+            if columns != allowed:
+                raise ValueError("comments schema has incomplete or unknown translation columns")
+        for row in entities.comments:
+            for key in row:
+                if key not in COMMENT_COLUMNS and target_from_column(key) is None:
+                    raise ValueError("comments contains an unknown column")
+        expected = {row["response_answer_id"]: row for row in build_comments(entities)}
+        supplied = {row["response_answer_id"]: row for row in entities.comments}
+        if supplied != expected:
+            raise ValueError("comments must match the projection of response_answers and responses")
 
 
 def _catalog_comparison_row(name: str, row: dict[str, object]) -> dict[str, object]:
@@ -333,9 +343,9 @@ def merge_entity_sets(entity_sets: list[EntitySet]) -> EntitySet:
     result.surveys, result.responses, response_columns, result.survey_manifests = merge_response_columns(entity_sets)
     if response_columns:
         result._present_columns["responses"] = response_columns
-    result.comments = build_comments(result)
-    result._present_columns["comments"] = set(COMMENT_COLUMNS)
     result.comment_translations = [dict(row) for item in entity_sets for row in item.comment_translations]
+    result.comments = build_comments(result)
+    result._present_columns["comments"] = set(COMMENT_COLUMNS) | {key for row in result.comments for key in row}
     if result.comment_translations:
         result._present_entities.add("comment_translations")
         result._present_columns["comment_translations"] = set(TRANSLATION_COLUMNS)

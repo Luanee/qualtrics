@@ -10,6 +10,7 @@ from ..models.comments import COMMENT_COLUMNS, build_comments
 from ..models.entities import ALL_ENTITY_NAMES, EntitySet
 from ..models.response_columns import read_source_columns
 from ..models.survey_manifest import MANIFEST_FILENAME, load_manifest, validate_manifests, write_manifest
+from ..models.translation_columns import prepared_targets, translation_columns
 
 CSV_FIELD_TYPES: dict[str, dict[str, type[int] | type[float] | type[bool]]] = {
     "sections": {"section_order": int},
@@ -242,7 +243,13 @@ def _normalize_parquet_records(records: list[dict[str, object]]) -> list[dict[st
 
 def _column_names(entities: EntitySet, name: str) -> list[str]:
     if name == "comments":
-        return list(COMMENT_COLUMNS)
+        columns = list(COMMENT_COLUMNS)
+        targets = prepared_targets(
+            [key for row in build_comments(entities) for key in row]
+            + list(entities._present_columns.get("comments", set()))
+        )
+        columns.extend(column for target in sorted(targets) for column in translation_columns(target))
+        return columns
     if name == "comment_translations":
         return list(TRANSLATION_COLUMNS)
     keys = dict.fromkeys(ENTITY_COLUMNS[name])
@@ -366,5 +373,5 @@ def load_entities(folder: str | Path | None = None, **paths: str | Path) -> Enti
         result.survey_manifests = load_manifest(manifest_path, result.surveys)
     validate_entity_set(result, strict=folder is not None)
     result.comments = build_comments(result)
-    result._present_columns["comments"] = set(COMMENT_COLUMNS)
+    result._present_columns["comments"] = set(_column_names(result, "comments"))
     return result

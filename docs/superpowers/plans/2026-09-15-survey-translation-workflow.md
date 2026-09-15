@@ -46,10 +46,14 @@ assert loaded.response_answers[0]["answer_text"] == " Grüße <tag> "
 
 ```python
 def translation_columns(code: str) -> tuple[str, str, str]:
-    suffix = "".join(chr(byte) if 65 <= byte <= 90 or 48 <= byte <= 57 else f"_{byte:02X}_"
-                     for byte in code.upper().encode("utf-8"))
-    return (f"translated_text__{suffix}", f"translation_source_hash__{suffix}",
-            f"translation_source_language__{suffix}")
+    suffix = "".join(
+        chr(byte) if 65 <= byte <= 90 or 48 <= byte <= 57 else f"_{byte:02X}_" for byte in code.upper().encode("utf-8")
+    )
+    return (
+        f"translated_text__{suffix}",
+        f"translation_source_hash__{suffix}",
+        f"translation_source_language__{suffix}",
+    )
 ```
 
 - [ ] **Step 4: Replace fixed comment-column checks with fixed-plus-complete-target validation.** CSV/Parquet column discovery uses the union of prepared comment keys and present columns. Reject unknown extras, malformed hashes, and duplicate answer IDs; compare fixed columns against source rows.
@@ -79,8 +83,7 @@ assert source.comments == original_comments
 - [ ] **Step 3: Implement one callback-selection seam** using a structured request, with kind-specific overrides taking priority over the shared callback. Deep-copy input; resolve each survey's target; clone only missing locale rows; hash each callback-generated base label; prepare comments only when a comment callback exists and source differs from target. Add prepared target codes to per-survey manifest metadata, not `AvailableLanguages`.
 
 ```python
-callback = {"question": question, "field": field, "answer_option": answer_option,
-            "comment": comment}[kind] or translate
+callback = {"question": question, "field": field, "answer_option": answer_option, "comment": comment}[kind] or translate
 if callback is not None and source_language != target_language:
     translated = callback(request)
     if not isinstance(translated, str) or not translated.strip():

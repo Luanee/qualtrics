@@ -192,13 +192,16 @@ def test_optional_translations_roundtrip_and_survive_merge(tmp_path: Path, forma
     folder = tmp_path / format
     write_entities(first, folder, format)
     loaded = load_entities(folder)
-    assert loaded.comment_translations == first.comment_translations
+    assert loaded.comments[0]["translated_text__EN"] == " Greetings "
+    assert loaded.comments[0]["translation_source_hash__EN"] == source_text_hash(" Grüße <tag> ")
+    assert loaded.comments[0]["translation_source_language__EN"] == "DE"
     validate_entity_set(loaded, strict=True)
 
     second = _parsed(tmp_path, "SV_SECOND")
     merged = merge_entity_sets([loaded, second])
-    assert merged.comment_translations == first.comment_translations
     assert len(merged.comments) == 2
+    assert merged.comments[0]["translated_text__EN"] == " Greetings "
+    assert merged.comments[1]["translated_text__EN"] is None
 
 
 def test_translation_validation_rejects_wrong_lineage_and_duplicate_target(tmp_path: Path) -> None:
