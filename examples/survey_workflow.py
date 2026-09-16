@@ -87,7 +87,14 @@ def _load_translator(spec: str | None) -> Translator | None:
     function = getattr(importlib.import_module(module_name), function_name)
     if not callable(function):
         raise ValueError(f"{spec} is not callable")
-    return function
+
+    def translate(request: TranslationRequest) -> str:
+        result = function(request)
+        if not isinstance(result, str):
+            raise ValueError(f"{spec} must return text")
+        return result
+
+    return translate
 
 
 def _local_inputs(source_root: Path, survey_id: str) -> tuple[Path, Path]:
@@ -193,7 +200,7 @@ def _print_path(console: Console, label: str, path: Path) -> None:
 
 def print_result(result: WorkflowResult, console: Console | None = None) -> None:
     """Render one compact result table and copyable artifact paths."""
-    console = console or Console()
+    output_console = console if console is not None else Console()
     surveys = Table(title="Survey preparation", box=box.SIMPLE_HEAD, header_style="bold cyan")
     surveys.add_column("Survey", style="bold")
     surveys.add_column("Responses", justify="right")
@@ -206,7 +213,7 @@ def print_result(result: WorkflowResult, console: Console | None = None) -> None
             f"{survey.comment_count:,}",
             survey.target_language,
         )
-    console.print(surveys)
+    output_console.print(surveys)
 
     totals = Table(title="Output summary", box=box.SIMPLE, show_header=False)
     totals.add_column(style="bold")
@@ -214,11 +221,11 @@ def print_result(result: WorkflowResult, console: Console | None = None) -> None
     totals.add_row("Surveys", f"{result.survey_count:,}")
     totals.add_row("Responses", f"{result.response_count:,}")
     totals.add_row("Comments", f"{result.comment_count:,}")
-    console.print(totals)
-    _print_path(console, "Combined entities", result.combined_entities)
-    _print_path(console, "Power BI model", result.power_bi)
+    output_console.print(totals)
+    _print_path(output_console, "Combined entities", result.combined_entities)
+    _print_path(output_console, "Power BI model", result.power_bi)
     if result.combined_report is not None:
-        _print_path(console, "Combined report", result.combined_report)
+        _print_path(output_console, "Combined report", result.combined_report)
 
 
 @app.command()

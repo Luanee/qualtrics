@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from qualtrics import load_entities
+from qualtrics import TranslationRequest, load_entities
 
 
 def _module():
@@ -114,3 +114,18 @@ def test_example_cli_reports_validation_errors_without_a_traceback(tmp_path: Pat
     assert result.exit_code == 2
     assert "Survey IDs must be distinct" in result.output
     assert "Traceback" not in result.output
+
+
+def test_dynamic_translator_rejects_a_non_text_result(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    module_name = f"bad_adapter_{tmp_path.name.replace('-', '_')}"
+    (tmp_path / f"{module_name}.py").write_text(
+        "def translate(_request):\n    return 42\n",
+        encoding="utf-8",
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+    translator = _module()["_load_translator"](f"{module_name}:translate")
+    request = TranslationRequest("comment", "Hei", "NO", "EN", "SV_FIRST")
+
+    assert translator is not None
+    with pytest.raises(ValueError, match="must return text"):
+        translator(request)
