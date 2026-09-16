@@ -15,13 +15,15 @@ data/
 From the repository root:
 
 ```bash
-uv run --extra ui python examples/survey_workflow.py SV_123 SV_456 \
+uv run --extra cli --extra ui python examples/survey_workflow.py SV_123 SV_456 \
   --from-files data --output output/run --report
 ```
 
 Omit `--from-files` to download each QSF and response ZIP with your configured [Qualtrics API connection](api-access.md). `--report` is optional. Choose a fresh `--output` path for each snapshot; the example refuses a nonempty destination.
 
 The example writes per-survey Parquet entities, one combined entity folder, nine Power BI Parquet tables, and optional HTML reports. It rejects repeated survey IDs before downloading and confirms each QSF describes the requested survey. Repeated exports of **one** survey are not separate surveys and must not be passed to `merge_entity_sets`.
+
+The command prints one results table after the run. It lists each survey's response and comment counts, then prints the combined entities, Power BI, and optional report paths. Typer validates paths and options before work starts and reports invalid input without a Python traceback.
 
 ## Bring your own translator
 
@@ -44,7 +46,7 @@ def translate(request: TranslationRequest) -> str:
 Then run:
 
 ```bash
-uv run --extra ui python examples/survey_workflow.py SV_123 SV_456 \
+uv run --extra cli --extra ui python examples/survey_workflow.py SV_123 SV_456 \
   --from-files data --translator my_adapter:translate \
   --language EN --report --output output/english-run
 ```

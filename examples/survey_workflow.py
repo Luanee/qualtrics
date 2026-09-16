@@ -1,19 +1,25 @@
 """Download or reuse surveys, prepare optional translations, and build outputs.
 
 Examples:
-    uv run --extra ui python examples/survey_workflow.py SV_123 SV_456 --output output/run
-    uv run --extra ui python examples/survey_workflow.py SV_123 --from-files data \
+    uv run --extra cli --extra ui python examples/survey_workflow.py SV_123 SV_456 --output output/run
+    uv run --extra cli --extra ui python examples/survey_workflow.py SV_123 --from-files data \
         --translator my_adapter:translate --language EN --report --output output/run
 """
 
 from __future__ import annotations
 
-import argparse
 import importlib
 import json
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
+
+import typer
+from rich import box
+from rich.console import Console
+from rich.table import Table
+from rich.text import Text
 
 from qualtrics import (
     QualtricsClient,
@@ -29,6 +35,47 @@ from qualtrics import (
 from qualtrics.api import ResponseExportRequest
 
 Translator = Callable[[TranslationRequest], str]
+
+app = typer.Typer(
+    add_completion=False,
+    no_args_is_help=True,
+    rich_markup_mode="rich",
+    help="Prepare distinct Qualtrics surveys for reports and Power BI.",
+)
+
+
+@dataclass(frozen=True)
+class SurveyResult:
+    """Human-facing result for one prepared survey."""
+
+    survey_id: str
+    response_count: int
+    comment_count: int
+    target_language: str
+    entities: Path
+    report: Path | None
+
+
+@dataclass(frozen=True)
+class WorkflowResult:
+    """Paths and totals produced by one workflow run."""
+
+    surveys: tuple[SurveyResult, ...]
+    combined_entities: Path
+    power_bi: Path
+    combined_report: Path | None
+
+    @property
+    def survey_count(self) -> int:
+        return len(self.surveys)
+
+    @property
+    def response_count(self) -> int:
+        return sum(survey.response_count for survey in self.surveys)
+
+    @property
+    def comment_count(self) -> int:
+        return sum(survey.comment_count for survey in self.surveys)
 
 
 def _load_translator(spec: str | None) -> Translator | None:
@@ -77,7 +124,7 @@ def run_workflow(
     language: str | None = None,
     create_report: bool = False,
     client: Any | None = None,
-) -> None:
+) -> WorkflowResult:
     """Write one survey snapshot each, then combine once and export Power BI data."""
     ids = list(survey_ids)
     if not ids or any(not survey_id.strip() for survey_id in ids):
@@ -89,7 +136,7 @@ def run_workflow(
     local = [_local_inputs(source_root, survey_id) for survey_id in ids] if source_root else None
     if source_root is None and client is None:
         with QualtricsClient() as owned_client:
-            run_workflow(
+            return run_workflow(
                 ids,
                 output,
                 translator=translator,
@@ -101,6 +148,7 @@ def run_workflow(
 
     output.mkdir(parents=True, exist_ok=True)
     surveys = []
+    results = []
     for index, survey_id in enumerate(ids):
         source, definition = local[index] if local is not None else _download_inputs(client, output, survey_id)
         parsed = parse_survey(source, definition)
@@ -109,38 +157,108 @@ def run_workflow(
             raise ValueError(f"{definition} describes {actual}, not requested survey {survey_id}")
         prepared = prepare_translations(parsed, language=language, translate=translator)
         survey_output = output / "surveys" / survey_id
-        write_entities(prepared, survey_output / "entities", format="parquet")
-        if create_report:
-            render_report(prepared, survey_output / "report.html")
+        entities_output = survey_output / "entities"
+        write_entities(prepared, entities_output, format="parquet")
+        report_output = survey_output / "report.html" if create_report else None
+        if report_output is not None:
+            render_report(prepared, report_output)
         surveys.append(prepared)
-        print(f"{survey_id}: {len(prepared.responses)} responses, {len(prepared.comments)} comments")
+        registry = prepared.survey_manifests[survey_id]["languages"]
+        target = str(language or registry.get("base_language") or "—").upper()
+        results.append(
+            SurveyResult(
+                survey_id=survey_id,
+                response_count=len(prepared.responses),
+                comment_count=len(prepared.comments),
+                target_language=target,
+                entities=entities_output,
+                report=report_output,
+            )
+        )
 
     combined = merge_entity_sets(surveys)
-    write_entities(combined, output / "combined" / "entities", format="parquet")
-    write_semantic_model(build_semantic_model(combined), output / "power-bi", format="parquet")
-    if create_report:
-        render_report(combined, output / "combined" / "report.html")
-    print(f"Combined {len(ids)} surveys into {output / 'combined'} and {output / 'power-bi'}")
+    combined_entities = output / "combined" / "entities"
+    power_bi = output / "power-bi"
+    combined_report = output / "combined" / "report.html" if create_report else None
+    write_entities(combined, combined_entities, format="parquet")
+    write_semantic_model(build_semantic_model(combined), power_bi, format="parquet")
+    if combined_report is not None:
+        render_report(combined, combined_report)
+    return WorkflowResult(tuple(results), combined_entities, power_bi, combined_report)
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("survey_ids", nargs="+", help="Distinct Qualtrics survey IDs")
-    parser.add_argument("--output", type=Path, required=True, help="Fresh output directory")
-    parser.add_argument("--from-files", type=Path, help="Reuse ROOT/SV_ID/definition.qsf and export.zip")
-    parser.add_argument("--translator", help="Your Python callback as module:function")
-    parser.add_argument("--language", help="One target language across all surveys; otherwise each SurveyLanguage")
-    parser.add_argument("--report", action="store_true", help="Also create HTML reports")
-    args = parser.parse_args()
-    run_workflow(
-        args.survey_ids,
-        args.output,
-        source_root=args.from_files,
-        translator=_load_translator(args.translator),
-        language=args.language,
-        create_report=args.report,
-    )
+def _print_path(console: Console, label: str, path: Path) -> None:
+    console.print(Text.assemble((f"{label}:", "bold"), " ", str(path)), soft_wrap=True)
+
+
+def print_result(result: WorkflowResult, console: Console | None = None) -> None:
+    """Render one compact result table and copyable artifact paths."""
+    console = console or Console()
+    surveys = Table(title="Survey preparation", box=box.SIMPLE_HEAD, header_style="bold cyan")
+    surveys.add_column("Survey", style="bold")
+    surveys.add_column("Responses", justify="right")
+    surveys.add_column("Comments", justify="right")
+    surveys.add_column("Target", justify="center")
+    for survey in result.surveys:
+        surveys.add_row(
+            survey.survey_id,
+            f"{survey.response_count:,}",
+            f"{survey.comment_count:,}",
+            survey.target_language,
+        )
+    console.print(surveys)
+
+    totals = Table(title="Output summary", box=box.SIMPLE, show_header=False)
+    totals.add_column(style="bold")
+    totals.add_column(justify="right")
+    totals.add_row("Surveys", f"{result.survey_count:,}")
+    totals.add_row("Responses", f"{result.response_count:,}")
+    totals.add_row("Comments", f"{result.comment_count:,}")
+    console.print(totals)
+    _print_path(console, "Combined entities", result.combined_entities)
+    _print_path(console, "Power BI model", result.power_bi)
+    if result.combined_report is not None:
+        _print_path(console, "Combined report", result.combined_report)
+
+
+@app.command()
+def main(
+    survey_ids: Annotated[
+        list[str],
+        typer.Argument(help="Distinct Qualtrics survey IDs, for example SV_123 SV_456"),
+    ],
+    output: Annotated[Path, typer.Option("--output", "-o", help="Fresh output directory")],
+    source_root: Annotated[
+        Path | None,
+        typer.Option(
+            "--from-files",
+            exists=True,
+            file_okay=False,
+            readable=True,
+            help="Reuse ROOT/SV_ID/definition.qsf and export.zip or responses.csv",
+        ),
+    ] = None,
+    translator: Annotated[str | None, typer.Option(help="Python callback as module:function")] = None,
+    language: Annotated[
+        str | None,
+        typer.Option(help="One target language for all surveys; defaults to each SurveyLanguage"),
+    ] = None,
+    report: Annotated[bool, typer.Option("--report", help="Also create HTML reports")] = False,
+) -> None:
+    """Parse, translate, combine, and export one or more surveys."""
+    try:
+        result = run_workflow(
+            survey_ids,
+            output,
+            source_root=source_root,
+            translator=_load_translator(translator),
+            language=language,
+            create_report=report,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    print_result(result)
 
 
 if __name__ == "__main__":
-    main()
+    app()

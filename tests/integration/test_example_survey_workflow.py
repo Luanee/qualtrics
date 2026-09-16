@@ -8,12 +8,17 @@ import runpy
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
 from qualtrics import load_entities
 
 
+def _module():
+    return runpy.run_path(str(Path(__file__).parents[2] / "examples" / "survey_workflow.py"))
+
+
 def _example():
-    return runpy.run_path(str(Path(__file__).parents[2] / "examples" / "survey_workflow.py"))["run_workflow"]
+    return _module()["run_workflow"]
 
 
 def _inputs(root: Path, survey_id: str) -> None:
@@ -47,7 +52,7 @@ def test_example_combines_distinct_local_surveys_with_prepared_comments(tmp_path
         requests.append(request)
         return f"English: {request.text}"
 
-    _example()(
+    result = _example()(
         ["SV_FIRST", "SV_SECOND"],
         output,
         source_root=source,
@@ -64,9 +69,48 @@ def test_example_combines_distinct_local_surveys_with_prepared_comments(tmp_path
     assert (output / "power-bi" / "fact_comments.parquet").is_file()
     assert (output / "combined" / "report.html").is_file()
     assert requests and all(request.target_language == "EN" for request in requests)
+    assert result.survey_count == 2
+    assert result.response_count == 2
+    assert result.comment_count == 2
+    assert result.combined_entities == output / "combined" / "entities"
 
 
 def test_example_rejects_duplicate_ids_before_any_download(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="distinct"):
         _example()(["SV_FIRST", "SV_FIRST"], tmp_path / "output", client=object())
     assert not (tmp_path / "output").exists()
+
+
+def test_example_cli_uses_typer_and_prints_a_human_readable_summary(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    _inputs(source, "SV_FIRST")
+    output = tmp_path / "[readable]" / "output"
+
+    result = CliRunner().invoke(
+        _module()["app"],
+        ["SV_FIRST", "--from-files", str(source), "--output", str(output)],
+        color=False,
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Survey preparation" in result.output
+    assert "Survey" in result.output
+    assert "Responses" in result.output
+    assert "Comments" in result.output
+    assert "SV_FIRST" in result.output
+    assert "1" in result.output
+    assert "Output summary" in result.output
+    assert str(output / "combined" / "entities") in result.output
+    assert str(output / "power-bi") in result.output
+
+
+def test_example_cli_reports_validation_errors_without_a_traceback(tmp_path: Path) -> None:
+    result = CliRunner().invoke(
+        _module()["app"],
+        ["SV_REPEAT", "SV_REPEAT", "--output", str(tmp_path / "output")],
+        color=False,
+    )
+
+    assert result.exit_code == 2
+    assert "Survey IDs must be distinct" in result.output
+    assert "Traceback" not in result.output
