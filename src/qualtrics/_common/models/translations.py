@@ -7,9 +7,9 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Literal
 
-from ..parsers.localization import ensure_localized_entities
 from .comments import COMMENT_COLUMNS, build_comments
 from .entities import EntitySet
+from .localization import ensure_localized_entities
 from .translation_columns import source_text_hash, translation_columns
 
 TranslationKind = Literal["question", "field", "answer_option", "comment"]

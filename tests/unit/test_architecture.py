@@ -126,6 +126,19 @@ def _import_targets(path: Path, package_root: Path) -> set[str]:
     return targets
 
 
+def _dependency_violations(package: str, forbidden_prefix: str) -> list[str]:
+    package_root = Path(qualtrics.__file__).parent
+    package_path = package_root.joinpath(*package.split(".")[1:])
+    sources = list(package_path.rglob("*.py"))
+    assert sources, f"Implementation package is missing: {package}"
+    return [
+        f"{path.relative_to(package_root)} imports {target}"
+        for path in sources
+        for target in sorted(_import_targets(path, package_root))
+        if target == forbidden_prefix or target.startswith(forbidden_prefix + ".")
+    ]
+
+
 def test_common_dependencies_point_toward_shared_code() -> None:
     package_root = Path(qualtrics.__file__).parent
     sources = list((package_root / "_common").rglob("*.py"))
@@ -141,13 +154,16 @@ def test_common_dependencies_point_toward_shared_code() -> None:
 
 
 def test_analytics_does_not_depend_on_parsers() -> None:
-    package_root = Path(qualtrics.__file__).parent
-    sources = list((package_root / "_common" / "analytics").rglob("*.py"))
-    assert sources, "Shared analytics package is missing"
-    violations = [
-        f"{path.relative_to(package_root)} imports {target}"
-        for path in sources
-        for target in sorted(_import_targets(path, package_root))
-        if target == "qualtrics._common.parsers" or target.startswith("qualtrics._common.parsers.")
-    ]
+    violations = _dependency_violations(
+        package="qualtrics._common.analytics",
+        forbidden_prefix="qualtrics._common.parsers",
+    )
+    assert not violations, "\n".join(violations)
+
+
+def test_models_do_not_depend_on_parsers() -> None:
+    violations = _dependency_violations(
+        package="qualtrics._common.models",
+        forbidden_prefix="qualtrics._common.parsers",
+    )
     assert not violations, "\n".join(violations)
