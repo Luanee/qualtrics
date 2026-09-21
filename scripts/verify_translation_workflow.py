@@ -17,12 +17,15 @@ from rich.console import Console
 from rich.table import Table
 
 from qualtrics import (
+    EntitySet,
     TranslationRequest,
     build_semantic_model,
     merge_entity_sets,
     parse_survey,
     prepare_translations,
 )
+from qualtrics._common.models.comments import COMMENT_COLUMNS
+from qualtrics._common.models.translation_columns import translation_columns, translation_is_current
 
 app = typer.Typer(add_completion=False, no_args_is_help=True, help="Check local exports and translation invariants.")
 
@@ -65,6 +68,32 @@ def _answer_facts(entities) -> dict[str, tuple[str, str, str]]:
     }
 
 
+def _verified_comments(original: EntitySet, prepared: EntitySet, survey_id: str, target: str) -> int:
+    original_rows = {str(row["response_answer_id"]): row for row in original.comments}
+    prepared_rows = {str(row["response_answer_id"]): row for row in prepared.comments}
+    if (
+        len(original_rows) != len(original.comments)
+        or len(prepared_rows) != len(prepared.comments)
+        or original_rows.keys() != prepared_rows.keys()
+    ):
+        raise AssertionError(f"{survey_id}: comment identities changed during preparation")
+    text_key, hash_key, language_key = translation_columns(target)
+    translated_count = 0
+    for answer_id, source in original_rows.items():
+        row = prepared_rows[answer_id]
+        if any(source.get(column) != row.get(column) for column in COMMENT_COLUMNS):
+            raise AssertionError(f"{survey_id}: comment lineage changed for {answer_id}")
+        source_language = str(source.get("user_language") or "").strip()
+        if source_language.casefold() == target.casefold():
+            if any(row.get(column) is not None for column in (text_key, hash_key, language_key)):
+                raise AssertionError(f"{survey_id}: matching-language comment was translated for {answer_id}")
+            continue
+        if not translation_is_current(row, target) or row.get(text_key) != f"[{target}] {source['answer_text']}":
+            raise AssertionError(f"{survey_id}: missing or stale comment translation for {answer_id}")
+        translated_count += 1
+    return translated_count
+
+
 def verify_exports(source_root: Path, survey_ids: Sequence[str], *, target_language: str) -> VerificationSummary:
     """Assert that translation changes display content but never answer facts."""
     ids = tuple(survey_ids)
@@ -95,8 +124,7 @@ def verify_exports(source_root: Path, survey_ids: Sequence[str], *, target_langu
             prepared
         ):
             raise AssertionError(f"{survey_id}: answer identities or raw values changed during preparation")
-        if len(original.comments) != len(prepared.comments):
-            raise AssertionError(f"{survey_id}: original written-answer count changed during preparation")
+        translated_comments = _verified_comments(original, prepared, survey_id, target)
         localized_questions = sum(
             bool(row.get("is_localized")) and str(row.get("language_code") or "").casefold() == target.casefold()
             for row in prepared.questions
@@ -114,7 +142,7 @@ def verify_exports(source_root: Path, survey_ids: Sequence[str], *, target_langu
             "responses": len(prepared.responses),
             "answers": len(prepared.response_answers),
             "comments_original": len(prepared.comments),
-            "comments_translated": sum(bool(row.get(f"translated_text__{target}")) for row in prepared.comments),
+            "comments_translated": translated_comments,
             "localized_questions": localized_questions,
         })
         prepared_sets.append(prepared)
