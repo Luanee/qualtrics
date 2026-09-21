@@ -2,6 +2,18 @@
 
 Use one path for each survey: get its QSF and CSV/ZIP, parse, optionally prepare text, then combine **distinct** surveys once. The [runnable example](https://github.com/Luanee/qualtrics/blob/main/examples/survey_workflow.py) uses only public `qualtrics` imports for the data steps.
 
+The example's `run_workflow` follows seven named stages, each callable on its own:
+
+1. `acquire_survey_inputs` gets a QSF and CSV/ZIP from local files or the API.
+2. `parse_survey_input` checks that the QSF names the requested survey.
+3. `translate_survey` optionally prepares definition labels and comments through your callback.
+4. `write_survey_outputs` saves each survey's entities and optional report.
+5. `combine_survey_outputs` merges distinct surveys once; `write_combined_entities` saves the result.
+6. `write_combined_report` creates the optional cross-survey HTML report.
+7. `write_powerbi_model` exports the combined semantic tables.
+
+See the [complete example](https://github.com/Luanee/qualtrics/blob/main/examples/survey_workflow.py) for their typed inputs and CLI orchestration.
+
 ## Start with exports you already have
 
 Place each `definition.qsf` beside `export.zip` or `responses.csv` in a survey-ID folder. The ZIP can be parsed directly; there is no extraction step to maintain.

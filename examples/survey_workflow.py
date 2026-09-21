@@ -22,6 +22,7 @@ from rich.table import Table
 from rich.text import Text
 
 from qualtrics import (
+    EntitySet,
     QualtricsClient,
     TranslationRequest,
     build_semantic_model,
@@ -42,6 +43,15 @@ app = typer.Typer(
     rich_markup_mode="rich",
     help="Prepare distinct Qualtrics surveys for reports and Power BI.",
 )
+
+
+@dataclass(frozen=True)
+class SurveyInputs:
+    """Raw response export and matching definition for one survey."""
+
+    survey_id: str
+    source: Path
+    definition: Path
 
 
 @dataclass(frozen=True)
@@ -122,6 +132,79 @@ def _download_inputs(client: Any, output: Path, survey_id: str) -> tuple[Path, P
     return archive, definition
 
 
+def acquire_survey_inputs(
+    survey_id: str, output: Path, *, source_root: Path | None = None, client: Any | None = None
+) -> SurveyInputs:
+    """Reuse a local CSV/ZIP and QSF or download both from Qualtrics."""
+    if source_root is not None:
+        source, definition = _local_inputs(source_root, survey_id)
+    elif client is not None:
+        source, definition = _download_inputs(client, output, survey_id)
+    else:
+        raise ValueError("A local source or Qualtrics client is required")
+    return SurveyInputs(survey_id, source, definition)
+
+
+def parse_survey_input(inputs: SurveyInputs) -> EntitySet:
+    """Parse one export and verify the QSF identifies the requested survey."""
+    entities = parse_survey(inputs.source, inputs.definition)
+    actual = [str(row["survey_id"]) for row in entities.surveys]
+    if actual != [inputs.survey_id]:
+        raise ValueError(f"{inputs.definition} describes {actual}, not requested survey {inputs.survey_id}")
+    return entities
+
+
+def translate_survey(entities: EntitySet, *, target_language: str | None, translator: Translator | None) -> EntitySet:
+    """Prepare optional definition labels and comments without changing facts."""
+    return prepare_translations(entities, language=target_language, translate=translator)
+
+
+def write_survey_outputs(
+    survey_id: str, entities: EntitySet, output: Path, *, create_report: bool, target_language: str | None = None
+) -> SurveyResult:
+    """Save one survey's Parquet entities and optional HTML report."""
+    survey_output = output / "surveys" / survey_id
+    entities_output = survey_output / "entities"
+    write_entities(entities, entities_output, format="parquet")
+    report_output = survey_output / "report.html" if create_report else None
+    if report_output is not None:
+        render_report(entities, report_output)
+    registry = entities.survey_manifests[survey_id]["languages"]
+    prepared = registry.get("prepared_languages", [])
+    target = str(target_language or (prepared[-1] if prepared else registry.get("base_language")) or "—").upper()
+    return SurveyResult(
+        survey_id, len(entities.responses), len(entities.comments), target, entities_output, report_output
+    )
+
+
+def combine_survey_outputs(surveys: Sequence[EntitySet]) -> EntitySet:
+    """Combine distinct surveys once, preserving nullable translation targets."""
+    return merge_entity_sets(list(surveys))
+
+
+def write_combined_entities(entities: EntitySet, output: Path) -> Path:
+    """Save the combined entity collection as Parquet."""
+    destination = output / "combined" / "entities"
+    write_entities(entities, destination, format="parquet")
+    return destination
+
+
+def write_combined_report(entities: EntitySet, output: Path, *, create_report: bool) -> Path | None:
+    """Write a combined HTML report only when requested."""
+    if not create_report:
+        return None
+    destination = output / "combined" / "report.html"
+    render_report(entities, destination)
+    return destination
+
+
+def write_powerbi_model(entities: EntitySet, output: Path) -> Path:
+    """Export semantic-model Parquet tables for Power BI."""
+    destination = output / "power-bi"
+    write_semantic_model(build_semantic_model(entities), destination, format="parquet")
+    return destination
+
+
 def run_workflow(
     survey_ids: Sequence[str],
     output: Path,
@@ -140,7 +223,11 @@ def run_workflow(
         raise ValueError("Survey IDs must be distinct; repeated exports must not be combined")
     if output.exists() and any(output.iterdir()):
         raise ValueError(f"Choose a fresh output directory: {output}")
-    local = [_local_inputs(source_root, survey_id) for survey_id in ids] if source_root else None
+    local = (
+        [acquire_survey_inputs(survey_id, output, source_root=source_root) for survey_id in ids]
+        if source_root
+        else None
+    )
     if source_root is None and client is None:
         with QualtricsClient() as owned_client:
             return run_workflow(
@@ -151,46 +238,23 @@ def run_workflow(
                 create_report=create_report,
                 client=owned_client,
             )
-        return
 
     output.mkdir(parents=True, exist_ok=True)
-    surveys = []
-    results = []
+    surveys: list[EntitySet] = []
+    results: list[SurveyResult] = []
     for index, survey_id in enumerate(ids):
-        source, definition = local[index] if local is not None else _download_inputs(client, output, survey_id)
-        parsed = parse_survey(source, definition)
-        actual = [str(row["survey_id"]) for row in parsed.surveys]
-        if actual != [survey_id]:
-            raise ValueError(f"{definition} describes {actual}, not requested survey {survey_id}")
-        prepared = prepare_translations(parsed, language=language, translate=translator)
-        survey_output = output / "surveys" / survey_id
-        entities_output = survey_output / "entities"
-        write_entities(prepared, entities_output, format="parquet")
-        report_output = survey_output / "report.html" if create_report else None
-        if report_output is not None:
-            render_report(prepared, report_output)
+        inputs = local[index] if local is not None else acquire_survey_inputs(survey_id, output, client=client)
+        parsed = parse_survey_input(inputs)
+        prepared = translate_survey(parsed, target_language=language, translator=translator)
         surveys.append(prepared)
-        registry = prepared.survey_manifests[survey_id]["languages"]
-        target = str(language or registry.get("base_language") or "—").upper()
         results.append(
-            SurveyResult(
-                survey_id=survey_id,
-                response_count=len(prepared.responses),
-                comment_count=len(prepared.comments),
-                target_language=target,
-                entities=entities_output,
-                report=report_output,
-            )
+            write_survey_outputs(survey_id, prepared, output, create_report=create_report, target_language=language)
         )
 
-    combined = merge_entity_sets(surveys)
-    combined_entities = output / "combined" / "entities"
-    power_bi = output / "power-bi"
-    combined_report = output / "combined" / "report.html" if create_report else None
-    write_entities(combined, combined_entities, format="parquet")
-    write_semantic_model(build_semantic_model(combined), power_bi, format="parquet")
-    if combined_report is not None:
-        render_report(combined, combined_report)
+    combined = combine_survey_outputs(surveys)
+    combined_entities = write_combined_entities(combined, output)
+    combined_report = write_combined_report(combined, output, create_report=create_report)
+    power_bi = write_powerbi_model(combined, output)
     return WorkflowResult(tuple(results), combined_entities, power_bi, combined_report)
 
 
