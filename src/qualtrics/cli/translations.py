@@ -8,9 +8,9 @@ from typing import Annotated
 
 import typer
 
-from .._common.models.comment_translations import import_comment_translations
 from .._common.models.entities import ALL_ENTITY_NAMES
 from .._common.models.survey_manifest import MANIFEST_FILENAME
+from .._common.models.translations import import_comment_translation_records
 from .._common.serialization import load_entities, write_entities
 from .entity_folders import ENTITY_EXTENSIONS, validate_entity_collection
 
@@ -63,7 +63,7 @@ def import_prepared(
     try:
         entities = load_entities(folder)
         rows = _read_prepared(prepared_file)
-        translated = import_comment_translations(entities, rows)
+        translated = import_comment_translation_records(entities, rows)
         write_entities(translated, output, format)
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc

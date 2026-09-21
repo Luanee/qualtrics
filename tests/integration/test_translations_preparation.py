@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 import qualtrics
+from qualtrics._common.models import translations as translation_model
 from qualtrics._common.models.entity_set import validate_entity_set
 from qualtrics._common.models.semantic import SEMANTIC_TABLE_NAMES
 from qualtrics._common.parsers.localization import link_translated_answers
@@ -55,6 +56,12 @@ def _prepare(entities, **kwargs):
     prepare = getattr(qualtrics, "prepare_translations", None)
     assert prepare is not None, "public prepare_translations is missing"
     return prepare(entities, **kwargs)
+
+
+def test_translation_preparation_has_one_public_entry_point() -> None:
+    assert callable(qualtrics.prepare_translations)
+    assert not hasattr(qualtrics, "prepare_comment_translations")
+    assert not hasattr(qualtrics, "import_comment_translations")
 
 
 def test_english_target_outside_qsf_keeps_base_catalogs_and_fact_count(tmp_path: Path) -> None:
@@ -340,6 +347,29 @@ def test_stale_generated_question_label_falls_back_to_current_base(tmp_path: Pat
     }
     assert "id='display-language-note'" in document
     assert "Prepared labels are out of date" in document
+
+
+def test_definition_label_freshness_is_shared_by_semantic_and_report(tmp_path: Path) -> None:
+    prepared = _prepare(_survey(tmp_path), language="EN", question=lambda request: f"English: {request.text}")
+    base = next(row for row in prepared.questions if row["question_external_id"] == "QID1" and not row["is_localized"])
+    variant = next(
+        row for row in prepared.questions if row["question_external_id"] == "QID1" and row.get("language_code") == "EN"
+    )
+    current_label = getattr(translation_model, "current_definition_label", None)
+    assert current_label is not None, "model-layer definition label freshness helper is missing"
+    assert current_label(base, variant, "question_text") is variant
+    assert (
+        build_report_languages(prepared)["labels"]["EN"]["questions"][base["question_id"]] == variant["question_text"]
+    )
+
+    base["question_text"] = "Updated base label"
+    assert current_label(base, variant, "question_text") is base
+    assert build_report_languages(prepared)["labels"]["EN"]["questions"][base["question_id"]] == "Updated base label"
+    assert any(
+        row["question_text"] == "Updated base label"
+        for row in qualtrics.build_semantic_model(prepared).dim_question_labels
+        if row["language_code"] == "EN" and row["question_external_id"] == "QID1"
+    )
 
 
 def test_semantic_labels_fall_back_when_callback_source_changes(tmp_path: Path) -> None:

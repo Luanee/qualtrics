@@ -10,10 +10,10 @@ from .entity_set import validate_entity_set
 from .identity import entity_id
 from .translation_columns import (
     prepared_targets,
-    source_text_hash,
     translation_is_current,
     translation_is_current_column,
 )
+from .translations import current_definition_label
 
 SEMANTIC_TABLE_NAMES = (
     "fact_responses",
@@ -77,13 +77,6 @@ def _language_dimensions(
         ): row
         for row in entities.answer_options
     }
-
-    def current_label(variant: dict[str, Any], base_row: dict[str, Any], key: str) -> dict[str, Any]:
-        if variant.get("label_origin") == "callback" and variant.get("label_source_text_hash") != source_text_hash(
-            str(base_row.get(key) or "")
-        ):
-            return base_row
-        return variant
 
     registries = {
         str(survey["survey_id"]): entities.survey_manifests.get(str(survey["survey_id"]), {}).get("languages", {})
@@ -154,8 +147,8 @@ def _language_dimensions(
                 )
                 if question is None or base_question is None:
                     continue
-                question = current_label(question, base_question, "question_text")
-                translated_field = current_label(translated_field, field_dimension, "field_text")
+                question = current_definition_label(base_question, question, "question_text")
+                translated_field = current_definition_label(field_dimension, translated_field, "field_text")
                 question_labels.append({
                     "question_field_label_id": entity_id(
                         "question-field-label", field_dimension["question_field_id"], language
@@ -185,7 +178,7 @@ def _language_dimensions(
                     language.casefold(),
                 ))
                 translated_option = translated_option or option
-                translated_option = current_label(translated_option, option, "answer_text")
+                translated_option = current_definition_label(option, translated_option, "answer_text")
                 option_labels.append({
                     "answer_option_label_id": entity_id("answer-option-label", option["answer_option_id"], language),
                     "survey_id": survey_id,

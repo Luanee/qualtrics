@@ -1,6 +1,5 @@
 from ._common.analytics import ReportAnalytics, analyze_entities
 from ._common.models import EntitySet, merge_entity_sets
-from ._common.models.comment_translations import import_comment_translations, prepare_comment_translations
 from ._common.models.semantic import SemanticModel, build_semantic_model
 from ._common.models.translations import TranslationRequest, prepare_translations
 from ._common.parsers import parse_survey, parse_surveys
@@ -18,12 +17,10 @@ __all__ = [
     "TranslationRequest",
     "analyze_entities",
     "build_semantic_model",
-    "import_comment_translations",
     "load_entities",
     "merge_entity_sets",
     "parse_survey",
     "parse_surveys",
-    "prepare_comment_translations",
     "prepare_translations",
     "render_report",
     "write_entities",

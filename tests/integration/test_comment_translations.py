@@ -6,7 +6,7 @@ import builtins
 import csv
 import json
 import sqlite3
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import cast
 
@@ -14,10 +14,11 @@ import pytest
 from typer.testing import CliRunner
 
 import qualtrics
-from qualtrics._common.models.comment_translations import source_text_hash
 from qualtrics._common.models.entities import EntitySet
 from qualtrics._common.models.entity_set import merge_entity_sets, validate_entity_set
 from qualtrics._common.models.semantic import build_semantic_model
+from qualtrics._common.models.translation_columns import source_text_hash
+from qualtrics._common.models.translations import import_comment_translation_records
 from qualtrics._common.serialization.io import load_entities, write_entities
 from qualtrics._common.serialization.semantic import write_semantic_model
 from qualtrics.cli.app import app
@@ -48,14 +49,13 @@ def test_callback_prepares_only_requested_targets_and_preserves_source_answer() 
     source = _entities()
     calls = []
 
-    def translate(text: str, source_language: str | None, target_language: str) -> str:
-        calls.append((text, source_language, target_language))
+    def translate(request: qualtrics.TranslationRequest) -> str:
+        calls.append((request.text, request.source_language, request.target_language))
         return " Greetings "
 
-    prepare = getattr(qualtrics, "prepare_comment_translations", lambda *_args, **_kwargs: None)
-    prepared = prepare(source, ["EN", "DE"], translate)
+    prepared = qualtrics.prepare_translations(source, language="EN", comment=translate)
+    prepared = qualtrics.prepare_translations(prepared, language="DE", comment=translate)
 
-    assert prepared is not None
     assert calls == [(" Grüße <tag> ", "DE", "EN")]
     assert source.comments == []
     assert source.response_answers[0]["answer_text"] == " Grüße <tag> "
@@ -96,23 +96,25 @@ def _parsed(tmp_path: Path, survey_id: str = "SV_TRANSLATIONS") -> EntitySet:
 
 
 def _prepared(tmp_path: Path, survey_id: str = "SV_TRANSLATIONS") -> EntitySet:
-    return qualtrics.prepare_comment_translations(_parsed(tmp_path, survey_id), ["EN"], lambda *_args: " Greetings ")
+    return qualtrics.prepare_translations(
+        _parsed(tmp_path, survey_id), language="EN", comment=lambda _request: " Greetings "
+    )
 
 
 def test_callback_refreshes_stale_rows_without_calling_for_current_targets() -> None:
     original = _entities()
-    prepared = qualtrics.prepare_comment_translations(original, ["EN"], lambda *_args: "First")
+    prepared = qualtrics.prepare_translations(original, language="EN", comment=lambda _request: "First")
     calls: list[tuple[str, str | None, str]] = []
 
-    def translator(text: str, source_language: str | None, target_language: str) -> str:
-        calls.append((text, source_language, target_language))
+    def translator(request: qualtrics.TranslationRequest) -> str:
+        calls.append((request.text, request.source_language, request.target_language))
         return "Second"
 
-    current = qualtrics.prepare_comment_translations(prepared, ["EN"], translator)
+    current = qualtrics.prepare_translations(prepared, language="EN", comment=translator)
     assert calls == []
     assert current.comments == prepared.comments
     prepared.response_answers[0]["answer_text"] = "Revised"
-    refreshed = qualtrics.prepare_comment_translations(prepared, ["EN"], translator)
+    refreshed = qualtrics.prepare_translations(prepared, language="EN", comment=translator)
     assert calls == [("Revised", "DE", "EN")]
     assert refreshed.comments[0]["translation_source_hash__EN"] == source_text_hash("Revised")
     assert refreshed.comments[0]["translated_text__EN"] == "Second"
@@ -122,17 +124,17 @@ def test_convenience_callback_keeps_target_schema_when_no_comments(tmp_path: Pat
     source = _parsed(tmp_path)
     source.response_answers = []
     source.comments = []
-    prepared = qualtrics.prepare_comment_translations(source, ["EN"], lambda *_args: "Never called")
+    prepared = qualtrics.prepare_translations(source, language="EN", comment=lambda _request: "Never called")
 
     assert prepared.comments == []
     assert "translated_text__EN" in prepared._present_columns["comments"]
     validate_entity_set(prepared, strict=True)
 
 
-@pytest.mark.parametrize("targets", [[""], [" EN"], ["EN "]])
-def test_callback_rejects_invalid_target_languages(targets: list[str]) -> None:
+@pytest.mark.parametrize("target", ["", " EN", "EN "])
+def test_callback_rejects_invalid_target_languages(target: str) -> None:
     with pytest.raises(ValueError, match="Target languages"):
-        qualtrics.prepare_comment_translations(_entities(), targets, lambda *_args: "Translated")
+        qualtrics.prepare_translations(_entities(), language=target, comment=lambda _request: "Translated")
 
 
 def test_callback_handles_unknown_response_language_and_rejects_empty_output() -> None:
@@ -140,19 +142,19 @@ def test_callback_handles_unknown_response_language_and_rejects_empty_output() -
     entities.responses[0]["user_language"] = None
     calls = []
 
-    def translate(text: str, source: str | None, target: str) -> str:
-        calls.append((text, source, target))
+    def translate(request: qualtrics.TranslationRequest) -> str:
+        calls.append((request.text, request.source_language, request.target_language))
         return " "
 
     with pytest.raises(ValueError, match="Translator returned no text"):
-        qualtrics.prepare_comment_translations(entities, ["EN"], translate)
+        qualtrics.prepare_translations(entities, language="EN", comment=translate)
     assert calls == [(" Grüße <tag> ", None, "EN")]
     assert entities.comments == []
 
 
 def test_callback_rejects_non_string_target_language() -> None:
     with pytest.raises(ValueError, match="Target languages"):
-        qualtrics.prepare_comment_translations(_entities(), cast(Iterable[str], [42]), lambda *_args: "Translated")
+        qualtrics.prepare_translations(_entities(), language=cast(str, 42), comment=lambda _request: "Translated")
 
 
 @pytest.mark.parametrize(
@@ -174,7 +176,7 @@ def test_python_import_rejects_invalid_prepared_rows(change: dict[str, str], mes
     }
     record.update(change)
     with pytest.raises(ValueError, match=message):
-        qualtrics.import_comment_translations(_entities(), [record])
+        import_comment_translation_records(_entities(), [record])
 
 
 def test_python_import_rejects_duplicate_answer_and_target() -> None:
@@ -185,7 +187,7 @@ def test_python_import_rejects_duplicate_answer_and_target() -> None:
         "translated_text": "Greetings",
     }
     with pytest.raises(ValueError, match="Duplicate translation"):
-        qualtrics.import_comment_translations(_entities(), [record, dict(record)])
+        import_comment_translation_records(_entities(), [record, dict(record)])
 
 
 @pytest.mark.parametrize("format", ["json", "csv", "parquet"])

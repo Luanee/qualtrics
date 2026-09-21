@@ -6,7 +6,8 @@ from dataclasses import replace
 from typing import Any
 
 from .._common.models.entities import EntitySet
-from .._common.models.translation_columns import prepared_targets, source_text_hash
+from .._common.models.translation_columns import prepared_targets
+from .._common.models.translations import current_definition_label
 from .context import ReportContext
 from .dashboard import build_dashboard
 from .pages.overview import build_quality_panels
@@ -21,16 +22,6 @@ def response_language(response: dict[str, Any]) -> str:
     return str(response.get("user_language") or "").strip().upper() or MISSING_LANGUAGE
 
 
-def _current_variant(base: dict[str, Any], variant: dict[str, Any] | None, text_key: str) -> dict[str, Any]:
-    if variant is None:
-        return base
-    if variant.get("label_origin") == "callback" and variant.get("label_source_text_hash") != source_text_hash(
-        str(base.get(text_key) or "")
-    ):
-        return base
-    return variant
-
-
 def _display_variant(
     base: dict[str, Any],
     variant: dict[str, Any] | None,
@@ -42,7 +33,7 @@ def _display_variant(
     base_code: str,
     cues: dict[str, dict[str, dict[str, str]]],
 ) -> dict[str, Any]:
-    chosen = _current_variant(base, variant, key)
+    chosen = current_definition_label(base, variant, key)
     source = str(chosen.get("label_source_language") or base_code)
     if source.casefold() != target_code.casefold():
         stale = variant is not None and variant.get("label_origin") == "callback" and chosen is base

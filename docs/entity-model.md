@@ -80,7 +80,7 @@ Legacy nine-table folders remain valid: loading reconstructs comments from the a
 
 Free-text translations share the original comment's grain: one row per `response_answer_id`, not one row per target language. Each target adds three nullable columns such as `translated_text__EN`, `translation_source_hash__EN`, and `translation_source_language__EN`. Earlier targets survive when another is added; combining surveys unions the columns with nulls where a target was absent. The hash covers the exact original `answer_text` including whitespace. A changed answer or `UserLanguage` makes prepared text stale. Reports and Power BI use the original until refreshed. No callback leaves raw comments only; no provider or automatic network call is bundled.
 
-The simpler `prepare_comment_translations(entities, target_languages, translate)` wrapper accepts `(text, source_language_or_none, target_language)` and writes those same comment columns. It skips a callback when the known source already equals the target and never changes `response_answers`.
+For comments only, call `prepare_translations(entities, language="EN", comment=your_callback)`. The structured callback receives the text, source language, target language, and answer lineage in a `TranslationRequest`. It skips answers whose known source language equals the target and never changes `response_answers`.
 
 Alternatively, import a prepared CSV or Parquet file with exactly `response_answer_id,target_language,source_text_hash,translated_text`:
 

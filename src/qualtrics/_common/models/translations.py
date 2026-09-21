@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Mapping
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, TypeVar
 
 from .comments import COMMENT_COLUMNS, build_comments
 from .entities import EntitySet
@@ -31,6 +31,18 @@ class TranslationRequest:
 
 
 TranslationCallback = Callable[[TranslationRequest], str]
+LabelRow = TypeVar("LabelRow", bound=Mapping[str, object])
+
+
+def current_definition_label(base: LabelRow, variant: LabelRow | None, text_key: str) -> LabelRow:
+    """Return a usable localized row, falling back when callback text is stale."""
+    if variant is None:
+        return base
+    if variant.get("label_origin") == "callback" and variant.get("label_source_text_hash") != source_text_hash(
+        str(base.get(text_key) or "")
+    ):
+        return base
+    return variant
 
 
 def _call(callback: TranslationCallback, request: TranslationRequest) -> str:
@@ -213,9 +225,7 @@ def _written_answers(entities: EntitySet, survey_id: str, target: str, callback:
             continue
         source_language = str(row.get("user_language") or "").strip() or None
         if source_language is not None and source_language.casefold() == target.casefold():
-            row[text_key] = None
-            row[hash_key] = None
-            row[language_key] = None
+            _set_comment_translation(row, target, None)
             continue
         text = str(row["answer_text"])
         digest = source_text_hash(text)
@@ -231,19 +241,75 @@ def _written_answers(entities: EntitySet, survey_id: str, target: str, callback:
             question_field_id=str(row["question_field_id"]),
             response_answer_id=str(row["response_answer_id"]),
         )
-        row[text_key] = _call(callback, request)
-        row[hash_key] = digest
-        row[language_key] = source_language
-    for row in entities.comments:
-        row.setdefault(text_key, None)
-        row.setdefault(hash_key, None)
-        row.setdefault(language_key, None)
+        _set_comment_translation(row, target, _call(callback, request))
     entities._present_columns["comments"] = (
         set(COMMENT_COLUMNS)
         | set(entities._present_columns.get("comments", set()))
         | {text_key, hash_key, language_key}
         | {key for row in entities.comments for key in row}
     )
+
+
+def _set_comment_translation(row: dict, target: str, text: str | None) -> None:
+    text_key, hash_key, language_key = translation_columns(target)
+    row[text_key] = text
+    row[hash_key] = source_text_hash(str(row["answer_text"])) if text is not None else None
+    row[language_key] = (str(row.get("user_language") or "").strip() or None) if text is not None else None
+
+
+def _register_comment_target(entities: EntitySet, survey_id: str, target: str) -> None:
+    manifest = entities.survey_manifests.get(survey_id)
+    if manifest is None:
+        return
+    registry = manifest.setdefault("languages", {})
+    targets = registry.setdefault("prepared_languages", [])
+    if target not in targets:
+        targets.append(target)
+
+
+def _finalize_comments(entities: EntitySet) -> EntitySet:
+    entities.comments = build_comments(entities)
+    entities._present_columns["comments"] = (
+        set(COMMENT_COLUMNS)
+        | set(entities._present_columns.get("comments", set()))
+        | {key for row in entities.comments for key in row}
+    )
+    entities._present_entities.add("comments")
+    return entities
+
+
+def import_comment_translation_records(entities: EntitySet, records: Iterable[Mapping[str, object]]) -> EntitySet:
+    """Import prepared records after checking original-text hashes and identity."""
+    prepared = deepcopy(entities)
+    prepared.comments = build_comments(prepared)
+    comments = {str(row["response_answer_id"]): row for row in prepared.comments}
+    incoming: set[tuple[str, str]] = set()
+    required = {"response_answer_id", "target_language", "source_text_hash", "translated_text"}
+    for record in records:
+        if set(record) != required:
+            raise ValueError(
+                "Translation input must have exactly response_answer_id, target_language, "
+                "source_text_hash, translated_text"
+            )
+        answer_id, target = record["response_answer_id"], record["target_language"]
+        if not isinstance(answer_id, str) or answer_id not in comments:
+            raise ValueError(f"Unknown written response answer: {answer_id}")
+        if not isinstance(target, str):
+            raise ValueError("Translation target_language must be a nonblank language code")
+        translation_columns(target)
+        row = comments[answer_id]
+        if record["source_text_hash"] != source_text_hash(str(row["answer_text"])):
+            raise ValueError(f"Translation source hash does not match answer {answer_id}")
+        translated = record["translated_text"]
+        if not isinstance(translated, str) or not translated.strip():
+            raise ValueError(f"Translation text must be nonblank for {answer_id}")
+        key = answer_id, target
+        if key in incoming:
+            raise ValueError(f"Duplicate translation for {answer_id} in {target}")
+        incoming.add(key)
+        _set_comment_translation(row, target, translated)
+        _register_comment_target(prepared, str(row["survey_id"]), target)
+    return _finalize_comments(prepared)
 
 
 def prepare_translations(
@@ -269,25 +335,7 @@ def prepare_translations(
     for survey in prepared.surveys:
         survey_id = str(survey["survey_id"])
         target = _target(prepared, survey_id, language)
-        manifest = prepared.survey_manifests.get(survey_id)
-        if manifest is not None:
-            registry = manifest.setdefault(
-                "languages",
-                {
-                    "base_language": survey.get("default_language"),
-                    "available_languages": [],
-                    "all_languages": [str(survey["default_language"])] if survey.get("default_language") else [],
-                },
-            )
-            targets = registry.setdefault("prepared_languages", [])
-            if target not in targets:
-                targets.append(target)
+        _register_comment_target(prepared, survey_id, target)
         _definition_labels(prepared, survey_id, target, callbacks)
         _written_answers(prepared, survey_id, target, callbacks["comment"])
-    prepared.comments = build_comments(prepared)
-    prepared._present_columns["comments"] = (
-        set(COMMENT_COLUMNS)
-        | set(prepared._present_columns.get("comments", set()))
-        | {key for row in prepared.comments for key in row}
-    )
-    return prepared
+    return _finalize_comments(prepared)
