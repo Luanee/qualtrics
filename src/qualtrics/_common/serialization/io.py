@@ -5,11 +5,11 @@ import json
 import sys
 from pathlib import Path
 
-from ..models.comment_translations import TRANSLATION_COLUMNS
 from ..models.comments import COMMENT_COLUMNS, build_comments
 from ..models.entities import ALL_ENTITY_NAMES, EntitySet
 from ..models.response_columns import read_source_columns
 from ..models.survey_manifest import MANIFEST_FILENAME, load_manifest, validate_manifests, write_manifest
+from ..models.translation_columns import prepared_targets, translation_columns
 
 CSV_FIELD_TYPES: dict[str, dict[str, type[int] | type[float] | type[bool]]] = {
     "sections": {"section_order": int},
@@ -165,7 +165,6 @@ ENTITY_COLUMNS: dict[str, tuple[str, ...]] = {
         "user_language",
     ),
     "comments": COMMENT_COLUMNS,
-    "comment_translations": TRANSLATION_COLUMNS,
 }
 
 
@@ -242,9 +241,20 @@ def _normalize_parquet_records(records: list[dict[str, object]]) -> list[dict[st
 
 def _column_names(entities: EntitySet, name: str) -> list[str]:
     if name == "comments":
-        return list(COMMENT_COLUMNS)
-    if name == "comment_translations":
-        return list(TRANSLATION_COLUMNS)
+        columns = list(COMMENT_COLUMNS)
+        comments = build_comments(entities)
+        targets = prepared_targets(
+            [key for row in comments for key in row] + list(entities._present_columns.get("comments", set()))
+        )
+        if not comments:
+            targets.update(
+                str(code).upper()
+                for manifest in entities.survey_manifests.values()
+                if isinstance(registry := manifest.get("languages"), dict)
+                for code in registry.get("prepared_languages", [])
+            )
+        columns.extend(column for target in sorted(targets) for column in translation_columns(target))
+        return columns
     keys = dict.fromkeys(ENTITY_COLUMNS[name])
     keys.update(dict.fromkeys(key for row in getattr(entities, name) for key in row))
     keys.update(dict.fromkeys(sorted(entities._present_columns.get(name, set()))))
@@ -266,8 +276,6 @@ def write_entities(entities: EntitySet, folder: str | Path, format: str = "json"
     folder.mkdir(parents=True, exist_ok=True)
     for name in ALL_ENTITY_NAMES:
         records = build_comments(entities) if name == "comments" else getattr(entities, name)
-        if name == "comment_translations" and not records:
-            continue
         path = folder / f"{name}.{format}"
         if format == "json":
             path.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -330,7 +338,7 @@ def load_entities(folder: str | Path | None = None, **paths: str | Path) -> Enti
             continue
         if path.suffix == ".json":
             records = json.loads(path.read_text(encoding="utf-8"))
-            if name in {"comments", "comment_translations"} and (
+            if name == "comments" and (
                 not isinstance(records, list) or any(not isinstance(record, dict) for record in records)
             ):
                 raise ValueError(f"{name} must contain a JSON list of records")
@@ -366,5 +374,5 @@ def load_entities(folder: str | Path | None = None, **paths: str | Path) -> Enti
         result.survey_manifests = load_manifest(manifest_path, result.surveys)
     validate_entity_set(result, strict=folder is not None)
     result.comments = build_comments(result)
-    result._present_columns["comments"] = set(COMMENT_COLUMNS)
+    result._present_columns["comments"] = set(_column_names(result, "comments"))
     return result

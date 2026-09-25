@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from .question_types import classify_entity_question_role, field_value_type, resolve_question_type
+from .translation_columns import prepared_targets, target_from_column, translation_columns
 
 if TYPE_CHECKING:
     from .entities import EntitySet
@@ -46,6 +47,17 @@ def is_comment_answer(question: dict[str, Any], field: dict[str, Any], answer: d
 
 def build_comments(entities: EntitySet) -> list[dict[str, Any]]:
     """Return fresh comment rows; language is authoritative only on the response."""
+    prepared = {
+        str(row.get("response_answer_id")): {
+            key: value for key, value in row.items() if target_from_column(key) is not None
+        }
+        for row in entities.comments
+        if row.get("response_answer_id") is not None
+    }
+    targets = prepared_targets(
+        [key for values in prepared.values() for key in values] + list(entities._present_columns.get("comments", set()))
+    )
+    prepared_columns = [column for target in sorted(targets) for column in translation_columns(target)]
     questions = {(str(row.get("survey_id")), str(row.get("question_id"))): row for row in entities.questions}
     question_fields: dict[tuple[str, str], list[dict[str, Any]]] = {}
     fields = {
@@ -82,5 +94,7 @@ def build_comments(entities: EntitySet) -> list[dict[str, Any]]:
         comment = {column: answer.get(column) for column in COMMENT_COLUMNS}
         comment["question_field_id"] = field_id
         comment["user_language"] = response.get("user_language")
+        prepared_answer = prepared.get(str(answer.get("response_answer_id")), {})
+        comment.update({column: prepared_answer.get(column) for column in prepared_columns})
         comments.append(comment)
     return comments

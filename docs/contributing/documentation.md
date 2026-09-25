@@ -31,8 +31,6 @@ Start with the reader's task, the files they need, and the command they should r
 - Give images descriptive alternative text and explain a diagram's meaning in prose.
 - Keep the [entity contract](../entity-model.md), [entity DBML](../entity-model.dbml), and [Power BI DBML](../power-bi-model.dbml) aligned with the parser and semantic projection. Existing tests depend on the entity contract paths.
 
-`docs/superpowers/` contains internal implementation history. The `exclude_docs` setting keeps it out of the generated site and search index while preserving the files in Git.
-
 ## Maintain the data model diagrams
 
 Edit the checked-in DBML sources when the exported schema changes:
@@ -144,7 +142,7 @@ These plugins are recommendations for specific future needs, rather than depende
 | [mkdocs-panzoom-plugin](https://pypi.org/project/mkdocs-panzoom-plugin/) | 0.5.2, 22 December 2025 | Readers need to move around a large diagram. Avoid overlapping its image behavior with GLightbox. |
 | [mkdocs-d2-plugin](https://pypi.org/project/mkdocs-d2-plugin/) | 1.7.0, 9 April 2026 | You need D2-specific diagrams and can install the D2 rendering tool in CI. |
 | [mkdocs-kroki-plugin](https://pypi.org/project/mkdocs-kroki-plugin/) | 1.6.0, 13 April 2026 | You need several diagram languages. Review its extra dependencies and rendering service: the default server is `kroki.io`. |
-| [plantuml-markdown](https://pypi.org/project/plantuml-markdown/) | 3.11.2, 18 April 2026 | You already maintain PlantUML diagrams and have a rendering setup. |
+| [plantuml-Markdown](https://pypi.org/project/plantuml-markdown/) | 3.11.2, 18 April 2026 | You already maintain PlantUML diagrams and have a rendering setup. |
 
 The table-reader plugin remains [documented by Material](https://squidfunk.github.io/mkdocs-material/reference/data-tables/#import-table-from-file), but its [latest release](https://pypi.org/project/mkdocs-table-reader-plugin/) was 3.1.0 on 29 August 2024. It is a mature, quiet project; we do not label it recently maintained. Our small tables do not justify adding pandas and another plugin.
 

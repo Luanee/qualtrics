@@ -1,6 +1,6 @@
 # Prepare data for Power BI
 
-Export ten analysis and display-label tables as Parquet files or one SQLite database, then connect the tables you need in Power BI. You can follow the export steps on any supported operating system; the import steps use Power BI Desktop.
+Export nine analysis and display-label tables as Parquet files or one SQLite database, then connect the tables you need in Power BI. You can follow the export steps on any supported operating system; the import steps use Power BI Desktop.
 
 You need the [installed project](../getting-started/installation.md) and a complete entity folder. The base package supports Parquet and SQLite output. The commands below use the folder from [your first report](../getting-started/first-report.md). Run them from the project folder; for an isolated CLI installation, replace `uv run --extra cli --extra ui qualtrics` with `qualtrics`.
 
@@ -22,18 +22,17 @@ data/first-report/power-bi/
 ├── dim_questions.parquet
 ├── dim_answer_options.parquet
 ├── fact_comments.parquet
-├── fact_comment_translations.parquet
 ├── dim_display_languages.parquet
 ├── dim_question_labels.parquet
 ├── dim_answer_option_labels.parquet
 └── manifest.json
 ```
 
-You should see `Wrote 10 parquet semantic tables to data/first-report/power-bi`.
+You should see `Wrote 9 parquet semantic tables to data/first-report/power-bi`.
 
 ### SQLite database
 
-To keep all ten tables in one file, choose SQLite:
+To keep all nine tables in one file, choose SQLite:
 
 ```text
 uv run --extra cli --extra ui qualtrics semantic-model build data/first-report/entities --output data/first-report/power-bi-sqlite --format sqlite
@@ -43,9 +42,9 @@ This creates `data/first-report/power-bi-sqlite/semantic_model.sqlite` and a sib
 
 The command refuses an output folder that already contains recognized semantic table files or `semantic_model.sqlite`. Choose a fresh folder for a later export. SQLite writes complete before the final database appears; a failed build does not leave a partial database. CSV and JSON remain available with `--format csv` or `--format json`.
 
-The input must be a complete entity folder. Current parses contain nine core tables, derived `comments`, and `manifest.json`; optional `comment_translations` appears only after prepared text is imported. Older nine-table folders without `comments` remain valid. To prepare several surveys, [combine their entities](combine-surveys.md) first. The manifest keeps flow, source-column, and language descriptors for each survey ID; it is not a semantic table.
+The input must be a complete entity folder: nine core tables, derived `comments`, and `manifest.json`. Prepared translation columns, when present, are stored on `comments` rather than in another table. To prepare several surveys, [combine their entities](combine-surveys.md) first. The manifest keeps flow, source-column, and language descriptors for each survey ID; it is not a semantic table.
 
-## 2. Understand the ten tables
+## 2. Understand the nine tables
 
 A **fact table** holds the records you count or measure. A **dimension table** describes those records and supplies labels and filters.
 
@@ -56,8 +55,7 @@ A **fact table** holds the records you count or measure. A **dimension table** d
 | `dim_surveys` | One survey. | Display survey names. |
 | `dim_questions` | One exported base-language question field, with its question and block details. | Label and filter the exact field you want to analyze without multiplying answer facts by language. |
 | `dim_answer_options` | One choice defined for one question field. | Show choice labels and definition order, including unused choices. |
-| `fact_comments` | One nonblank text answer field, derived from all answers. | Read comments or count submissions with a written answer. |
-| `fact_comment_translations` | One prepared written answer × target language, or no rows if none were imported. | Look up current translated text; fall back when missing or stale. |
+| `fact_comments` | One nonblank text answer field, with optional prepared target-language columns. | Read original or current translated comments without multiplying rows. |
 | `dim_display_languages` | One display-language code across the combined model. | Populate a single-select label-language slicer. |
 | `dim_question_labels` | One exported base question field × display language. | Show translated question and field labels with base fallback. |
 | `dim_answer_option_labels` | One exported base option × display language. | Show translated choice labels without changing option IDs. |
@@ -68,7 +66,7 @@ QSF-only questions stay in the entity codebook. They have no answer facts and ar
 
 `fact_comments` contains the same text answers already present in `fact_response_answers`. It reuses each `response_answer_id` and keeps `answer_text` and available `raw_value` unchanged. Two matching comments remain two records; multiple text boxes in one response remain separate. Do not append the subset to all answers or add their row counts together.
 
-`fact_comment_translations` is a separate lookup keyed by `response_answer_id` and `target_language`. Its `is_current` flag compares the stored source hash with the present comment text. Do not use a stale translation or add a second active path to the answer facts. Prepared text is optional; the original comment remains the fallback.
+For each prepared target, `fact_comments` adds `translated_text__CODE`, `translation_source_hash__CODE`, `translation_source_language__CODE`, and `translation_is_current__CODE`. For example, English adds `__EN`. The last field verifies both the original-text hash and respondent-language lineage. Null or stale targets fall back to `answer_text`. No callback means no prepared target columns.
 
 Comment membership follows the report's **Written answers** view. Supported text-entry, form, matrix-text, and attached “Other” text fields qualify; choice labels, numeric fields, response properties, and whitespace-only cells do not. `dim_questions.is_comment_field` records nullable classification evidence on new exports. Older folders fall back to their available types; incomplete side-by-side metadata is not guessed from labels. See [the comments contract](../entity-model.md#comments) for scope and compatibility.
 
@@ -86,7 +84,7 @@ If you parsed without a QSF, you will have no definition-based option records. R
 
 1. In Power BI Desktop, open **Get data** and choose **Parquet**.
 2. Enter the full local path to `fact_responses.parquet`, then load it or choose **Transform Data** to inspect it.
-3. Repeat for the other nine files. Keep the table names shown above so the measure examples work.
+3. Repeat for the other eight files. Keep the table names shown above so the measure examples work.
 
 Microsoft documents the file connection in its [Parquet connector guide](https://learn.microsoft.com/en-us/power-query/connectors/parquet).
 
@@ -106,7 +104,7 @@ In Power Query, keep IDs as text; use a decimal type for `answer_numeric` and a 
 
 ## 4. Create the relationships
 
-Explore the ten exported tables below. The diagram's relationship symbols describe one-to-many cardinality; configure Power BI's cross-filter direction separately as explained below. The viewer needs an internet connection and requires no account or API key.
+Explore the nine exported tables below. The diagram's relationship symbols describe one-to-many cardinality; configure Power BI's cross-filter direction separately as explained below. The viewer needs an internet connection and requires no account or API key.
 
 <iframe class="dbml-model" title="Nine-table Power BI semantic model" src="{{ dbml_power_bi_url }}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>
 
@@ -161,6 +159,8 @@ RETURN COALESCE(
 
 Use the same pattern for `dim_question_labels[field_text]` and `dim_answer_option_labels[answer_text]`, looking up by base `question_field_id` or `answer_option_id`. For a chart axis built from `dim_answer_option_labels[answer_text]`, apply the axis's base IDs to the existing option dimension inside the measure:
 
+When a label's `question_label_source_language`, `field_label_source_language`, or `label_source_language` differs from the selected display code, show an “Original · SOURCE” cue beside it. These source-language fields record both missing and stale prepared-label fallbacks; the exported label already contains the safe base text.
+
 ```dax
 Localized Answer Rows =
 CALCULATE(
@@ -176,47 +176,23 @@ This is a display measure, not a new relationship. Keep one display language sel
 
 ### Prepared written-answer translations
 
-`fact_comment_translations` is an optional lookup, not another answer fact. Do not add an active relationship from it to `fact_comments` or `fact_response_answers`. In a table visual with one `fact_comments[response_answer_id]` per row, these measures use the same display-language slicer while retaining the original as fallback. Convert `is_current` to a Boolean when loading SQLite's `0`/`1` values.
+Prepared text lives on the same `fact_comments` row as its original. There is no translation lookup or extra relationship. In a table visual with one `response_answer_id` per row, use the display-language slicer and the freshness flag. This example assumes English (`__EN`) was prepared:
 
 ```dax
 Displayed Comment =
-VAR AnswerId = SELECTEDVALUE(fact_comments[response_answer_id])
 VAR Original = SELECTEDVALUE(fact_comments[answer_text])
 VAR Source = SELECTEDVALUE(fact_comments[user_language])
 VAR Target = SELECTEDVALUE(dim_display_languages[language_code])
-VAR Current = LOOKUPVALUE(
-    fact_comment_translations[is_current],
-    fact_comment_translations[response_answer_id], AnswerId,
-    fact_comment_translations[target_language], Target
-)
-VAR Prepared = LOOKUPVALUE(
-    fact_comment_translations[translated_text],
-    fact_comment_translations[response_answer_id], AnswerId,
-    fact_comment_translations[target_language], Target
-)
-RETURN IF(NOT ISBLANK(Target) && Target <> Source && Current = TRUE(), COALESCE(Prepared, Original), Original)
+RETURN
+    IF(
+        Target = "EN" && Target <> Source
+            && SELECTEDVALUE(fact_comments[translation_is_current__EN]) = TRUE(),
+        COALESCE(SELECTEDVALUE(fact_comments[translated_text__EN]), Original),
+        Original
+    )
 ```
 
-```dax
-Comment Translation Status =
-VAR AnswerId = SELECTEDVALUE(fact_comments[response_answer_id])
-VAR Source = SELECTEDVALUE(fact_comments[user_language])
-VAR Target = SELECTEDVALUE(dim_display_languages[language_code])
-VAR Current = LOOKUPVALUE(
-    fact_comment_translations[is_current],
-    fact_comment_translations[response_answer_id], AnswerId,
-    fact_comment_translations[target_language], Target
-)
-RETURN SWITCH(
-    TRUE(),
-    ISBLANK(Target) || Target = Source, "Original",
-    ISBLANK(Current), "Translation unavailable · showing original",
-    Current = FALSE(), "Translation out of date · showing original",
-    "Translated · original available in fact_comments[answer_text]"
-)
-```
-
-Use `Displayed Comment` and `Comment Translation Status` together. Keep `fact_comments[answer_text]` available for audit or drill-through; no measure should overwrite it. Empty translation tables are valid and simply produce the original with an unavailable cue when a different display language is selected.
+For another prepared language, add a `SWITCH` arm using that language's four columns; DAX cannot select a physical column by a string variable. Keep `fact_comments[answer_text]` for audit or drill-through. If `translation_is_current__EN` is False, show a visible “translation out of date” cue; if the target column is absent or null, show “translation unavailable.” Convert SQLite's `0`/`1` freshness values to Boolean in Power Query.
 
 ## 5. Add measures with the right denominator
 

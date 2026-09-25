@@ -61,26 +61,44 @@
   }
   function applyLabels() {
     const labels = languageData.labels?.[displayLanguage()];
+    const fallbacks = languageData.label_fallbacks?.[displayLanguage()] || {};
+    const note = $('#display-language-note');
+    const stale = languageData.stale_labels?.[displayLanguage()] || 0;
+    const missing = Object.values(fallbacks).reduce(
+      (count, kind) => count + Object.values(kind).filter(cue => cue.reason === 'missing').length, 0
+    );
+    if (note) {
+      note.hidden = !stale && !missing;
+      note.textContent = [
+        stale ? 'Prepared labels are out of date; showing base definition text.' : '',
+        missing ? 'Some labels have no translation; showing their original survey language.' : ''
+      ].filter(Boolean).join(' ');
+    }
     if (!labels) return;
+    const displayLabel = (kind, id, raw = '') => {
+      const value = labels[kind]?.[id] || raw;
+      const source = fallbacks[kind]?.[id]?.source;
+      return source ? value + ' · original ' + source : value;
+    };
     all('.question-label[data-question-id], .question[data-question-id], .written-question[data-question-id], .finding a[data-question-id]')
-      .forEach(node => { node.textContent = labels.questions[node.dataset.questionId] || node.textContent; });
+      .forEach(node => { node.textContent = displayLabel('questions', node.dataset.questionId, node.textContent); });
     all('.survey-analysis[data-question-id]').forEach(node => {
       node.dataset.label = labels.questions[node.dataset.questionId] || node.dataset.label;
     });
     all('.field-answer[data-field-id]').forEach(node => {
       const label = node.querySelector('.field');
-      if (label && labels.fields[node.dataset.fieldId]) label.textContent = labels.fields[node.dataset.fieldId];
+      if (label && labels.fields[node.dataset.fieldId]) label.textContent = displayLabel('fields', node.dataset.fieldId);
       const value = node.querySelector('.value');
       if (value && node.dataset.optionId) {
         const raw = node.dataset.rawValue || '';
-        value.textContent = labels.options[node.dataset.optionId] || raw;
+        value.textContent = displayLabel('options', node.dataset.optionId, raw);
         const original = node.querySelector('.answer-original');
         if (original) original.hidden = value.textContent === raw;
       }
     });
     all('.written-answer[data-field-id]').forEach(node => {
       const field = node.querySelector('.written-field');
-      if (field && labels.fields[node.dataset.fieldId]) field.textContent = labels.fields[node.dataset.fieldId];
+      if (field && labels.fields[node.dataset.fieldId]) field.textContent = displayLabel('fields', node.dataset.fieldId);
     });
     all('#written-question option[data-question-id]').forEach(node => {
       node.dataset.label = labels.questions[node.dataset.questionId] || node.dataset.label;
@@ -88,16 +106,16 @@
     all('.option-row[data-option-id]').forEach(node => {
       const label = node.querySelector('.option-label');
       if (label && labels.options[node.dataset.optionId]) {
-        label.textContent = labels.options[node.dataset.optionId]; label.title = label.textContent;
+        label.textContent = displayLabel('options', node.dataset.optionId); label.title = label.textContent;
       }
     });
     all('.field-analysis[data-field-id], .matrix-summary tr[data-field-id]').forEach(node => {
       const heading = node.querySelector('h4, th[scope="row"]');
-      if (heading && labels.fields[node.dataset.fieldId]) heading.textContent = labels.fields[node.dataset.fieldId];
+      if (heading && labels.fields[node.dataset.fieldId]) heading.textContent = displayLabel('fields', node.dataset.fieldId);
     });
     all('.matrix-summary th[data-option-id]').forEach(node => {
       const label = node.querySelector('span');
-      if (label && labels.options[node.dataset.optionId]) label.textContent = labels.options[node.dataset.optionId];
+      if (label && labels.options[node.dataset.optionId]) label.textContent = displayLabel('options', node.dataset.optionId);
     });
     const flowLabels = languageData.flow_labels?.[displayLanguage()] || {};
     all('.flow-question-label[data-question-external-id]').forEach(node => {
@@ -107,7 +125,11 @@
     });
     window.ReportFlow?.setLanguage?.(flowLabels);
     responses.refreshCache(); writtenPage.refreshCache();
-    window.ReportDashboard?.setLabels?.(labels);
+    window.ReportDashboard?.setLabels?.({
+      questions: Object.fromEntries(Object.keys(labels.questions).map(id => [id, displayLabel('questions', id)])),
+      fields: Object.fromEntries(Object.keys(labels.fields).map(id => [id, displayLabel('fields', id)])),
+      options: Object.fromEntries(Object.keys(labels.options).map(id => [id, displayLabel('options', id)]))
+    });
   }
   function updateAll() {
     applySnapshot(); applyLabels();

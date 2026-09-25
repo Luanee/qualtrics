@@ -12,15 +12,15 @@ from qualtrics import (
     QualtricsClient,
     ReportAnalytics,
     SemanticModel,
+    TranslationRequest,
     __version__,
     analyze_entities,
     build_semantic_model,
-    import_comment_translations,
     load_entities,
     merge_entity_sets,
     parse_survey,
     parse_surveys,
-    prepare_comment_translations,
+    prepare_translations,
     render_report,
     write_entities,
     write_semantic_model,
@@ -50,7 +50,7 @@ Use the root imports for shared data operations. Treat `_common` and its submodu
 
 ## Offline functions
 
-The signatures below use `Path` from `pathlib` and `Sequence`, `Iterable`, `Callable`, and `Mapping` from `collections.abc`.
+The signatures below use `Path` from `pathlib` and `Sequence` and `Callable` from `collections.abc`.
 
 ```text
 parse_survey(
@@ -72,15 +72,15 @@ write_entities(entities: EntitySet, folder: str | Path, format: str = "json") ->
 
 load_entities(folder: str | Path | None = None, **paths: str | Path) -> EntitySet
 
-prepare_comment_translations(
+prepare_translations(
     entities: EntitySet,
-    target_languages: Iterable[str],
-    translate: Callable[[str, str | None, str], str],
-) -> EntitySet
-
-import_comment_translations(
-    entities: EntitySet,
-    records: Iterable[Mapping[str, object]],
+    *,
+    language: str | None = None,
+    translate: Callable[[TranslationRequest], str] | None = None,
+    question: Callable[[TranslationRequest], str] | None = None,
+    field: Callable[[TranslationRequest], str] | None = None,
+    answer_option: Callable[[TranslationRequest], str] | None = None,
+    comment: Callable[[TranslationRequest], str] | None = None,
 ) -> EntitySet
 
 render_report(entities: EntitySet, output: str | Path) -> None
@@ -101,16 +101,17 @@ write_semantic_model(
 | `parse_survey` | Accepts a CSV, a ZIP containing one CSV, or a wildcard pattern matching several inputs. Discovers a same-stem `.qsf` then `.json` definition if you omit `qsf_path`. A `survey_id` override applies to one input only. |
 | `parse_surveys` | Expands wildcard patterns in each supplied path, sorting each pattern's matches. Explicit definitions pair with inputs by position; supply one per input or omit them for adjacent discovery. |
 | `merge_entity_sets` | Combines distinct survey IDs and deduplicates identical records in the two catalogs. Raises `ValueError` for repeated survey IDs or conflicting records with the same catalog ID. |
-| `write_entities` | Writes nine core entities and derived `comments` as `json`, `csv`, or `parquet`, plus `manifest.json`. Writes optional `comment_translations` only when populated. Creates the folder and overwrites matching files. |
+| `write_entities` | Writes nine core entities and derived `comments` as `json`, `csv`, or `parquet`, plus `manifest.json`. Prepared targets are nullable `comments` columns, not a sidecar file. Creates the folder and overwrites matching files. |
 | `load_entities` | Loads entity files named for their tables. Explicit keyword paths use table names, such as `responses="responses.json"`; `manifest="metadata.json"` selects a separate manifest. When explicit table paths share a folder, its sibling `manifest.json` is loaded automatically. Validates the full contract when you supply a folder; without a folder, validates the supplied subset's keys and relationships. Rejects multiple formats for the same entity in a folder. |
-| `prepare_comment_translations` | Calls your translator for requested missing or stale targets and returns a new collection. Does not change raw answers or call a built-in provider. |
-| `import_comment_translations` | Attaches prepared records only when their SHA-256 hash matches the current original answer text. Returns a new collection. |
+| `prepare_translations` | Calls your shared or kind-specific callback for missing definition labels and written answers. QSF labels win; callback-generated choice labels never resolve categorical facts. Returns a new collection; without a callback, it makes no service calls. |
 | `render_report` | Writes a self-contained HTML report with the built-in design. The output's parent directory must exist. Overwrites the target file. |
 | `analyze_entities` | Calculates response counts, question roles, answer groupings, and unused or unanswered content for reports. Returns a `ReportAnalytics` without requiring the `ui` extra. |
-| `build_semantic_model` | Requires a complete, valid entity collection. Returns ten tables in a `SemanticModel`, including an optional translation lookup. |
-| `write_semantic_model` | Writes all ten tables as `json`, `csv`, `parquet`, or one SQLite database. Creates the folder and overwrites matching files. |
+| `build_semantic_model` | Requires a complete, valid entity collection. Returns nine tables; prepared text and freshness flags are columns of `fact_comments`. |
+| `write_semantic_model` | Writes all nine tables as `json`, `csv`, `parquet`, or one SQLite database. Creates the folder and overwrites matching files. |
 
 The Python writers do not apply the CLI combine and semantic commands' occupied-output checks. Choose a fresh output directory for each run or format. The base package supports reading and writing Parquet.
+
+Use `prepare_translations(entities, language="EN", comment=your_callback)` to prepare written answers alone; pass `translate=your_callback` to use one structured callback for labels and comments. Each callback receives a `TranslationRequest`. To attach translations prepared outside Python, use the [CLI import command](cli.md#translations-import) with a hash-checked CSV or Parquet file. Raw answers remain unchanged and the toolkit never calls a translation service without your callback.
 
 ### Parse, save, and report
 
@@ -151,9 +152,9 @@ Use the downloadable inputs in [your first report](../getting-started/first-repo
 
 ### Collections and table names
 
-`EntitySet` is a dataclass with lists of dictionaries named `surveys`, `sections`, `question_catalog`, `question_field_catalog`, `questions`, `answer_options`, `question_fields`, `responses`, `response_answers`, `comments`, and optional `comment_translations`. Its keyword-only `survey_manifests` map holds the per-survey metadata in memory. Prefer `parse_survey` or `load_entities` to construct a collection with the metadata needed for strict validation.
+`EntitySet` is a dataclass with lists of dictionaries named `surveys`, `sections`, `question_catalog`, `question_field_catalog`, `questions`, `answer_options`, `question_fields`, `responses`, `response_answers`, and `comments`. Its keyword-only `survey_manifests` map holds the per-survey metadata in memory. Prefer `parse_survey` or `load_entities` to construct a collection with the metadata needed for strict validation.
 
-`SemanticModel` also includes display-language and localized-label tables and `fact_comment_translations`; the latter has one row per written answer and target language, with `is_current` indicating whether its source hash still matches. `dim_questions` has one row per exported question field.
+`SemanticModel` also includes display-language and localized-label tables. `fact_comments` remains one row per original written answer, with optional prepared target columns and `translation_is_current__CODE` freshness flags. `dim_questions` has one row per exported question field.
 
 `entities.comments` and `semantic.fact_comments` are derived text-answer subsets. They reuse `response_answer_id`, preserve the answer text, and copy nullable `user_language` only from the linked response. The original nine entity lists remain authoritative; a legacy folder without `comments` reconstructs it from available types. New fields carry nullable boolean `is_comment_field` on `question_fields` and `dim_questions` so source classification survives serialization. See the [comments contract](../entity-model.md#comments) for membership and validation rules. Do not count comments again when using the complete answer table.
 

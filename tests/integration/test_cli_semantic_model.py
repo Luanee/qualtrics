@@ -9,7 +9,7 @@ from qualtrics._common.models.semantic import SEMANTIC_TABLE_NAMES
 from qualtrics.cli.app import app
 
 
-def test_semantic_model_cli_writes_ten_json_tables(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
+def test_semantic_model_cli_writes_nine_json_tables(tmp_path: Path, survey_files: tuple[Path, Path]) -> None:
     source = tmp_path / "entities"
     output = tmp_path / "semantic"
     write_entities(parse_survey(*survey_files), source, "json")
@@ -22,7 +22,6 @@ def test_semantic_model_cli_writes_ten_json_tables(tmp_path: Path, survey_files:
         "fact_responses.json",
         "fact_response_answers.json",
         "fact_comments.json",
-        "fact_comment_translations.json",
         "dim_surveys.json",
         "dim_questions.json",
         "dim_answer_options.json",

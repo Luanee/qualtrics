@@ -32,8 +32,10 @@ def validate_manifests(survey_ids: set[str], manifests: dict[str, dict[str, Any]
         base = languages.get("base_language")
         if base is not None and (not isinstance(base, str) or not base.strip()):
             raise ValueError(f"Manifest languages base_language for {survey_id} must be a code or null")
-        for key in ("available_languages", "all_languages"):
+        for key in ("available_languages", "all_languages", "prepared_languages"):
             codes = languages.get(key)
+            if key == "prepared_languages" and codes is None:
+                continue
             if not isinstance(codes, list) or any(not isinstance(code, str) or not code.strip() for code in codes):
                 raise ValueError(f"Manifest languages {key} for {survey_id} must be a list of codes")
             if len(set(codes)) != len(codes):

@@ -18,9 +18,6 @@ watch:
   - scripts/survey_flow_showcase.py
   - src/qualtrics
 
-exclude_docs: |
-  /superpowers/
-
 validation:
   nav:
     omitted_files: warn
@@ -104,6 +101,7 @@ nav:
       - Read and share reports: guides/reports.md
       - Understand a survey flow: guides/survey-flow.md
       - Combine surveys: guides/combine-surveys.md
+      - Survey to analysis workflow: guides/survey-workflow.md
       - Connect to Qualtrics: guides/api-access.md
       - Prepare a Power BI model: guides/power-bi.md
   - Understand your data:

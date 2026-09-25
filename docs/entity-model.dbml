@@ -178,18 +178,7 @@ Table comments [headercolor: #C57622] {
   answer_text text [not null]
   raw_value text [note: 'Exact original CSV cell when available; null for legacy answers without raw_value']
   user_language varchar [note: 'Copied only from the linked response; null when absent; no survey default or language detection']
-  Note: 'Derived subset of response_answers: one nonblank text answer field per response, retaining the original key and unchanged text. Identical text in different answers remains separate. Eligibility follows response-question role and effective field type; whitespace-only cells and numeric, categorical, technical, structured, file and unsupported fields are excluded. Rebuilt from the nine authoritative entities, including when a legacy folder has no comments file.'
-}
-
-Table comment_translations [headercolor: #6A5ACD] {
-  comment_translation_id varchar [pk]
-  response_answer_id varchar [not null, ref: > response_answers.response_answer_id]
-  survey_id varchar [not null, ref: > surveys.survey_id]
-  source_language varchar [note: 'Nullable UserLanguage copied from the linked response when prepared']
-  target_language varchar [not null]
-  source_text_hash varchar [not null, note: 'SHA-256 of the exact original answer_text']
-  translated_text text [not null]
-  Note: 'Optional prepared text, one row per written answer and target language. The source hash is checked on import; a later source edit makes the row stale without overwriting the original answer. No translation provider is bundled.'
+  Note: 'Derived subset of response_answers: one nonblank text answer field per response. Prepared translations add nullable translated_text__CODE, translation_source_hash__CODE, and translation_source_language__CODE columns. Eligibility follows response-question role and effective field type; source text is never replaced.'
 }
 
 TableGroup canonical_catalogs {
@@ -209,5 +198,4 @@ TableGroup collected_responses {
   responses
   response_answers
   comments
-  comment_translations
 }
