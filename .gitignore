@@ -206,3 +206,5 @@ data/
 
 # Disposable installed-wheel smoke environments and outputs.
 /.wheel*
+
+knowledge/
