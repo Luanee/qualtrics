@@ -16,7 +16,7 @@ function node(dataset = {}, selectors = {}) {
     addEventListener(event, callback) { this.handlers[event] = callback; },
     setAttribute() {}, closest() { return null; }, contains() { return false; }, focus() {}, scrollIntoView() {}};
 }
-function fixture({paginated = false, properties = false, languages = false, translations = false} = {}) {
+function fixture({paginated = false, properties = false, languages = false, translations = false, labelFallbacks = false, lowercaseSource = false} = {}) {
   const surveyA = node(), surveyB = node();
   surveyA.value = 'a'; surveyB.value = 'b';
   surveyA.closest = () => ({textContent: 'Survey A'});
@@ -60,7 +60,7 @@ function fixture({paginated = false, properties = false, languages = false, tran
   const cards = [card], written = [a, b];
   if (languages) {
     card.dataset.userLanguage = 'DE';
-    a.dataset.userLanguage = 'DE';
+    a.dataset.userLanguage = lowercaseSource ? 'en' : 'DE';
     b.dataset.userLanguage = '__missing__';
     cards.push(node({survey: 'b', userLanguage: '__missing__'}));
   }
@@ -79,7 +79,7 @@ function fixture({paginated = false, properties = false, languages = false, tran
   flowCard.closest = selector => selector === '[data-survey]' ? flowCard : null;
   flowView.contains = item => item === flowCard;
   const reportSearch = node(), responseSearch = node(), searchResults = node(), searchClear = node(), theme = node(), other = node();
-  const respondentLanguage = node(), displayLanguage = node(), languageData = node();
+  const respondentLanguage = node(), displayLanguage = node(), languageData = node(), displayLanguageNote = node();
   const translationData = node();
   translationData.textContent = JSON.stringify({A1: {
     EN: {text: 'Translated Lee', current: true}, FR: {text: null, current: false},
@@ -88,6 +88,10 @@ function fixture({paginated = false, properties = false, languages = false, tran
   languageData.textContent = JSON.stringify({
     labels: {EN: {questions: {Q1: 'Question'}, fields: {first: 'Choice'}, options: {O1: 'Yes'}},
       DE: {questions: {Q1: 'Frage'}, fields: {first: 'Auswahl'}, options: {O1: 'Ja'}}},
+    label_fallbacks: labelFallbacks ? {EN: {questions: {Q1: {source: 'NO', reason: 'missing'}},
+      fields: {first: {source: 'NO', reason: 'missing'}},
+      options: {O1: {source: 'NO', reason: 'out_of_date'}}}} : {},
+    stale_labels: labelFallbacks ? {EN: 1} : {},
     snapshots: {
       all: {surveys: {a: {responses: 1}, b: {responses: 1}}, questions: {}, findings: [], quality: {}},
       DE: {surveys: {a: {responses: 1}, b: {responses: 0}}, questions: {}, findings: [], quality: {}},
@@ -103,6 +107,7 @@ function fixture({paginated = false, properties = false, languages = false, tran
     '#written-translation-data': translations ? [translationData] : [],
     '#respondent-language': languages ? [respondentLanguage] : [],
     '#display-language': languages ? [displayLanguage] : [],
+    '#display-language-note': labelFallbacks ? [displayLanguageNote] : [],
     '.field-answer[data-field-id]': languages ? [field1] : [],
     '.question-label[data-question-id], .question[data-question-id], .written-question[data-question-id], .finding a[data-question-id]':
       languages ? [questionLabel, writtenLabel] : []};
@@ -134,7 +139,7 @@ function fixture({paginated = false, properties = false, languages = false, tran
     cards, written, responsePagination, writtenPagination, window, location, document,
     overview, responseView, reportSearch, searchResults, searchClear, theme, other, dashboardSelections, dashboardResizes,
     flowView, flowCard, flowSelections, flowReveals, flowResizes, content, responseSearch, propertyRows, propertyDetails,
-    respondentLanguage, displayLanguage, questionLabel, writtenLabel, choiceLabel, rawChoice, recorded,
+    respondentLanguage, displayLanguage, displayLanguageNote, questionLabel, writtenLabel, choiceLabel, rawChoice, recorded,
     writtenValue, translationCue, originalDisclosure, originalText};
 }
 
@@ -157,6 +162,15 @@ test('prepared comments switch by display language and keep the original accessi
   assert.match(f.translationCue.textContent, /unavailable/);
   f.respondentLanguage.value = 'DE'; f.respondentLanguage.handlers.change();
   assert.equal(f.writtenValue.textContent, 'Lee');
+});
+
+test('a lowercase original language matching the target never shows an unavailable cue', () => {
+  const f = fixture({languages: true, translations: true, lowercaseSource: true});
+  assert.equal(f.writtenValue.textContent, 'Lee');
+  assert.equal(f.translationCue.hidden, true);
+  assert.equal(f.originalDisclosure.hidden, true);
+  f.respondentLanguage.value = 'EN'; f.respondentLanguage.handlers.change();
+  assert.equal(f.a.hidden, false);
 });
 
 test('respondent language changes response, written and summary cohorts without rewriting raw text', () => {
@@ -191,6 +205,23 @@ test('definition language changes labels while preserving the recorded choice an
   assert.equal(f.rawChoice.textContent, 'Yes');
   assert.equal(f.recorded.hidden, true);
   assert.equal(f.surveyA.dataset.responses, '1');
+});
+
+test('missing and stale definition labels show original-language cues across language switches', () => {
+  const f = fixture({languages: true, labelFallbacks: true});
+  assert.equal(f.displayLanguageNote.hidden, false);
+  assert.match(f.displayLanguageNote.textContent, /out of date/);
+  assert.match(f.displayLanguageNote.textContent, /no translation/);
+  assert.equal(f.questionLabel.textContent, 'Question · original NO');
+  assert.equal(f.choiceLabel.textContent, 'Choice · original NO');
+  assert.equal(f.rawChoice.textContent, 'Yes · original NO');
+  f.displayLanguage.value = 'DE'; f.displayLanguage.handlers.change();
+  assert.equal(f.displayLanguageNote.hidden, true);
+  assert.equal(f.questionLabel.textContent, 'Frage');
+  assert.equal(f.rawChoice.textContent, 'Ja');
+  f.displayLanguage.value = 'EN'; f.displayLanguage.handlers.change();
+  assert.equal(f.questionLabel.textContent, 'Question · original NO');
+  assert.equal(f.rawChoice.textContent, 'Yes · original NO');
 });
 
 test('response properties participate in local search without requiring question selection', () => {

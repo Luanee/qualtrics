@@ -6,7 +6,7 @@ import csv
 import json
 from pathlib import Path
 
-from qualtrics import build_semantic_model, parse_survey, prepare_comment_translations, render_report
+from qualtrics import build_semantic_model, parse_survey, prepare_translations, render_report
 
 
 def _entities(tmp_path: Path):
@@ -48,7 +48,7 @@ def _translation_payload(document: str) -> dict[str, dict[str, dict[str, object]
 
 def test_report_embeds_current_prepared_text_with_original_preserved(tmp_path: Path) -> None:
     entities = _entities(tmp_path)
-    prepared = prepare_comment_translations(entities, ["EN"], lambda *_args: "<translated> & text")
+    prepared = prepare_translations(entities, language="EN", comment=lambda _request: "<translated> & text")
     report = tmp_path / "report.html"
     render_report(prepared, report)
     document = report.read_text(encoding="utf-8")
@@ -64,7 +64,7 @@ def test_report_embeds_current_prepared_text_with_original_preserved(tmp_path: P
 
 
 def test_report_marks_stale_prepared_text_without_exposing_it_as_display_text(tmp_path: Path) -> None:
-    entities = prepare_comment_translations(_entities(tmp_path), ["EN"], lambda *_args: "Old translation")
+    entities = prepare_translations(_entities(tmp_path), language="EN", comment=lambda _request: "Old translation")
     entities.response_answers[0]["answer_text"] = "New original"
     report = tmp_path / "stale.html"
     render_report(entities, report)
@@ -84,9 +84,9 @@ def test_report_without_prepared_translations_stays_offline_and_shows_original(t
     assert _translation_payload(document) == {}
 
 
-def test_report_ignores_translation_rows_without_a_rendered_written_answer(tmp_path: Path) -> None:
+def test_report_ignores_comment_rows_without_a_rendered_written_answer(tmp_path: Path) -> None:
     entities = _entities(tmp_path)
-    entities.comment_translations.append({"response_answer_id": "not-in-report", "target_language": "EN"})
+    entities.comments.append({"response_answer_id": "not-in-report", "translated_text__EN": "Unrelated"})
     report = tmp_path / "unrelated.html"
     render_report(entities, report)
     document = report.read_text(encoding="utf-8")
@@ -95,7 +95,7 @@ def test_report_ignores_translation_rows_without_a_rendered_written_answer(tmp_p
 
 
 def test_semantic_display_languages_include_prepared_target_without_qsf_labels(tmp_path: Path) -> None:
-    prepared = prepare_comment_translations(_entities(tmp_path), ["EN"], lambda *_args: "Translation")
+    prepared = prepare_translations(_entities(tmp_path), language="EN", comment=lambda _request: "Translation")
     model = build_semantic_model(prepared)
     target = next(row for row in model.dim_display_languages if row["language_code"] == "EN")
     assert target == {

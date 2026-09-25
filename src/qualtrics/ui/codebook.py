@@ -6,6 +6,7 @@ from typing import Any
 
 from .._common.models import EntitySet
 from .._common.models.response_columns import read_source_columns
+from .._common.models.translation_columns import source_text_hash
 from .components.primitives import page_heading, search_control
 from .templating import render_template, trusted_html
 
@@ -68,6 +69,13 @@ def _choice(option: dict[str, Any]) -> str:
     return text + (f" ({'; '.join(details)})" if details else "")
 
 
+def _current_label(base: dict[str, Any], row: dict[str, Any], key: str) -> tuple[dict[str, Any], bool]:
+    stale = row.get("label_origin") == "callback" and row.get("label_source_text_hash") != source_text_hash(
+        str(base.get(key) or "")
+    )
+    return (base if stale else row), stale
+
+
 def build_codebook(entities: EntitySet) -> list[dict[str, str]]:
     """Describe question fields and response properties without reading their values."""
     surveys = {str(row["survey_id"]): row for row in entities.surveys}
@@ -88,6 +96,35 @@ def build_codebook(entities: EntitySet) -> list[dict[str, str]]:
         if column.get("storage_table") == "response_answers"
     }
     questions = {(str(row["survey_id"]), str(row["question_id"])): row for row in entities.questions}
+    base_questions = {
+        (str(row["survey_id"]), str(row.get("question_external_id"))): row
+        for row in entities.questions
+        if not row.get("is_localized")
+    }
+    base_fields = {
+        (str(row["survey_id"]), str(row.get("question_external_id")), str(row.get("field_external_id"))): row
+        for row in entities.question_fields
+        if not row.get("is_localized")
+    }
+    fields_by_id = {
+        (str(row["survey_id"]), str(row.get("question_field_id") or row.get("field_id"))): row
+        for row in entities.question_fields
+    }
+    base_options = {
+        (
+            str(row["survey_id"]),
+            str(row.get("question_external_id")),
+            str(
+                fields_by_id[(str(row["survey_id"]), str(row.get("question_field_id") or row.get("field_id")))].get(
+                    "field_external_id"
+                )
+            ),
+            str(row.get("answer_external_id")),
+        ): row
+        for row in entities.answer_options
+        if not row.get("is_localized")
+        and (str(row["survey_id"]), str(row.get("question_field_id") or row.get("field_id"))) in fields_by_id
+    }
     sections = {(str(row["survey_id"]), str(row["section_id"])): row for row in entities.sections}
     domains: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
     for option in entities.answer_options:
@@ -125,38 +162,70 @@ def build_codebook(entities: EntitySet) -> list[dict[str, str]]:
             continue
         question_id = str(field["question_id"])
         question = questions.get((survey_id, question_id), {})
+        base_question = base_questions.get((survey_id, str(question.get("question_external_id"))), question)
+        display_question, stale_question = _current_label(base_question, question, "question_text")
+        base_field = base_fields.get(
+            (
+                survey_id,
+                str(field.get("question_external_id")),
+                str(field.get("field_external_id")),
+            ),
+            field,
+        )
+        display_field, stale_field = _current_label(base_field, field, "field_text")
         section = sections.get((survey_id, str(question.get("section_id"))), {})
         field_id = str(field.get("question_field_id") or field.get("field_id"))
         options = sorted(
             domains.get((survey_id, question_id, field_id), []), key=lambda row: _order(row.get("answer_order"))
         )
+        display_options = []
+        stale_option = False
+        for option in options:
+            base_option = base_options.get(
+                (
+                    survey_id,
+                    str(option.get("question_external_id")),
+                    str(field.get("field_external_id")),
+                    str(option.get("answer_external_id")),
+                ),
+                option,
+            )
+            display_option, stale = _current_label(base_option, option, "answer_text")
+            display_options.append(display_option)
+            stale_option |= stale
         definition_only = bool(field.get("is_definition_only"))
         no_export = definition_only or localized
         entries.append({
             "survey_id": survey_id,
             "survey": _text(surveys.get(survey_id, {}).get("survey_name") or survey_id),
             "language_code": _text(field.get("language_code")),
-            "label_source_language": _text(field.get("label_source_language")),
+            "label_source_language": _text(display_field.get("label_source_language")),
             "export_column": "" if no_export else _text(source.get("source_column") or external_field),
             "import_id": _text(
                 source.get("source_import_id") or field.get("import_external_id") or field.get("source_import_id")
             ),
             "question_id": _text(question.get("question_external_id") or question_id),
-            "question": _text(question.get("question_text")),
-            "field": _text(field.get("field_text")),
+            "question": _text(display_question.get("question_text")),
+            "field": _text(display_field.get("field_text")),
             "section": _text(section.get("section_name") or question.get("block_name")),
             "question_type": _text(
                 question.get("canonical_question_type") or question.get("question_type") or "Unknown"
             ),
             "value_type": _text(field.get("answer_value_type") or question.get("answer_value_type") or "Unknown"),
-            "choices": "\n".join(_choice(option) for option in options),
+            "choices": "\n".join(_choice(option) for option in display_options),
             "source_column_index": _text(source.get("source_column_index", field.get("source_column_index"))),
             "kind": "translation"
             if localized
             else "definition"
             if definition_only
             else _text(source.get("kind") or "question"),
-            "reason": "Localized QSF definition; no separate response column"
+            "reason": (
+                "Prepared label out of date; showing base definition"
+                if stale_question or stale_field or stale_option
+                else "Prepared callback label; no separate response column"
+                if field.get("label_origin") == "callback"
+                else "Localized QSF label or base fallback; no separate response column"
+            )
             if localized
             else "Defined in QSF; no exported column"
             if definition_only

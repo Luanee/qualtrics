@@ -151,6 +151,9 @@ def link_translated_answers(entities: EntitySet) -> None:
                 if value is not None:
                     protected_aliases.add((field_id, str(value).casefold()))
             continue
+        if option.get("label_origin") == "callback":
+            # A prepared display label is not evidence from the QSF export.
+            continue
         language = str(option.get("language_code") or "").casefold()
         if str(option.get("label_source_language") or "").casefold() != language:
             continue

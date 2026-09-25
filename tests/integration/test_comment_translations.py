@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import builtins
 import csv
-import hashlib
 import json
 import sqlite3
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import cast
 
@@ -15,10 +14,11 @@ import pytest
 from typer.testing import CliRunner
 
 import qualtrics
-from qualtrics._common.models.comment_translations import source_text_hash
 from qualtrics._common.models.entities import EntitySet
 from qualtrics._common.models.entity_set import merge_entity_sets, validate_entity_set
 from qualtrics._common.models.semantic import build_semantic_model
+from qualtrics._common.models.translation_columns import source_text_hash
+from qualtrics._common.models.translations import import_comment_translation_records
 from qualtrics._common.serialization.io import load_entities, write_entities
 from qualtrics._common.serialization.semantic import write_semantic_model
 from qualtrics.cli.app import app
@@ -49,28 +49,19 @@ def test_callback_prepares_only_requested_targets_and_preserves_source_answer() 
     source = _entities()
     calls = []
 
-    def translate(text: str, source_language: str | None, target_language: str) -> str:
-        calls.append((text, source_language, target_language))
+    def translate(request: qualtrics.TranslationRequest) -> str:
+        calls.append((request.text, request.source_language, request.target_language))
         return " Greetings "
 
-    prepare = getattr(qualtrics, "prepare_comment_translations", lambda *_args, **_kwargs: None)
-    prepared = prepare(source, ["EN", "DE"], translate)
+    prepared = qualtrics.prepare_translations(source, language="EN", comment=translate)
+    prepared = qualtrics.prepare_translations(prepared, language="DE", comment=translate)
 
-    assert prepared is not None
     assert calls == [(" Grüße <tag> ", "DE", "EN")]
-    assert source.comment_translations == []
+    assert source.comments == []
     assert source.response_answers[0]["answer_text"] == " Grüße <tag> "
-    assert prepared.comment_translations == [
-        {
-            "comment_translation_id": prepared.comment_translations[0]["comment_translation_id"],
-            "response_answer_id": "a",
-            "survey_id": "s",
-            "source_language": "DE",
-            "target_language": "EN",
-            "source_text_hash": hashlib.sha256(" Grüße <tag> ".encode()).hexdigest(),
-            "translated_text": " Greetings ",
-        }
-    ]
+    assert prepared.comments[0]["translated_text__EN"] == " Greetings "
+    assert prepared.comments[0]["translation_source_hash__EN"] == source_text_hash(" Grüße <tag> ")
+    assert prepared.comments[0]["translation_source_language__EN"] == "DE"
 
 
 def _parsed(tmp_path: Path, survey_id: str = "SV_TRANSLATIONS") -> EntitySet:
@@ -105,32 +96,45 @@ def _parsed(tmp_path: Path, survey_id: str = "SV_TRANSLATIONS") -> EntitySet:
 
 
 def _prepared(tmp_path: Path, survey_id: str = "SV_TRANSLATIONS") -> EntitySet:
-    return qualtrics.prepare_comment_translations(_parsed(tmp_path, survey_id), ["EN"], lambda *_args: " Greetings ")
+    return qualtrics.prepare_translations(
+        _parsed(tmp_path, survey_id), language="EN", comment=lambda _request: " Greetings "
+    )
 
 
 def test_callback_refreshes_stale_rows_without_calling_for_current_targets() -> None:
     original = _entities()
-    prepared = qualtrics.prepare_comment_translations(original, ["EN"], lambda *_args: "First")
+    prepared = qualtrics.prepare_translations(original, language="EN", comment=lambda _request: "First")
     calls: list[tuple[str, str | None, str]] = []
 
-    def translator(text: str, source_language: str | None, target_language: str) -> str:
-        calls.append((text, source_language, target_language))
+    def translator(request: qualtrics.TranslationRequest) -> str:
+        calls.append((request.text, request.source_language, request.target_language))
         return "Second"
 
-    current = qualtrics.prepare_comment_translations(prepared, ["EN"], translator)
+    current = qualtrics.prepare_translations(prepared, language="EN", comment=translator)
     assert calls == []
-    assert current.comment_translations == prepared.comment_translations
+    assert current.comments == prepared.comments
     prepared.response_answers[0]["answer_text"] = "Revised"
-    refreshed = qualtrics.prepare_comment_translations(prepared, ["EN"], translator)
+    refreshed = qualtrics.prepare_translations(prepared, language="EN", comment=translator)
     assert calls == [("Revised", "DE", "EN")]
-    assert refreshed.comment_translations[0]["source_text_hash"] == source_text_hash("Revised")
-    assert refreshed.comment_translations[0]["translated_text"] == "Second"
+    assert refreshed.comments[0]["translation_source_hash__EN"] == source_text_hash("Revised")
+    assert refreshed.comments[0]["translated_text__EN"] == "Second"
 
 
-@pytest.mark.parametrize("targets", [[""], [" EN"], ["EN "]])
-def test_callback_rejects_invalid_target_languages(targets: list[str]) -> None:
+def test_convenience_callback_keeps_target_schema_when_no_comments(tmp_path: Path) -> None:
+    source = _parsed(tmp_path)
+    source.response_answers = []
+    source.comments = []
+    prepared = qualtrics.prepare_translations(source, language="EN", comment=lambda _request: "Never called")
+
+    assert prepared.comments == []
+    assert "translated_text__EN" in prepared._present_columns["comments"]
+    validate_entity_set(prepared, strict=True)
+
+
+@pytest.mark.parametrize("target", ["", " EN", "EN "])
+def test_callback_rejects_invalid_target_languages(target: str) -> None:
     with pytest.raises(ValueError, match="Target languages"):
-        qualtrics.prepare_comment_translations(_entities(), targets, lambda *_args: "Translated")
+        qualtrics.prepare_translations(_entities(), language=target, comment=lambda _request: "Translated")
 
 
 def test_callback_handles_unknown_response_language_and_rejects_empty_output() -> None:
@@ -138,26 +142,26 @@ def test_callback_handles_unknown_response_language_and_rejects_empty_output() -
     entities.responses[0]["user_language"] = None
     calls = []
 
-    def translate(text: str, source: str | None, target: str) -> str:
-        calls.append((text, source, target))
+    def translate(request: qualtrics.TranslationRequest) -> str:
+        calls.append((request.text, request.source_language, request.target_language))
         return " "
 
     with pytest.raises(ValueError, match="Translator returned no text"):
-        qualtrics.prepare_comment_translations(entities, ["EN"], translate)
+        qualtrics.prepare_translations(entities, language="EN", comment=translate)
     assert calls == [(" Grüße <tag> ", None, "EN")]
-    assert entities.comment_translations == []
+    assert entities.comments == []
 
 
 def test_callback_rejects_non_string_target_language() -> None:
     with pytest.raises(ValueError, match="Target languages"):
-        qualtrics.prepare_comment_translations(_entities(), cast(Iterable[str], [42]), lambda *_args: "Translated")
+        qualtrics.prepare_translations(_entities(), language=cast(str, 42), comment=lambda _request: "Translated")
 
 
 @pytest.mark.parametrize(
     "change, message",
     [
         ({"response_answer_id": "unknown"}, "Unknown written"),
-        ({"target_language": ""}, "target_language"),
+        ({"target_language": ""}, "Target languages"),
         ({"translated_text": " "}, "nonblank"),
         ({"source_text_hash": "0" * 64}, "source hash"),
         ({"extra": "value"}, "exactly"),
@@ -172,7 +176,7 @@ def test_python_import_rejects_invalid_prepared_rows(change: dict[str, str], mes
     }
     record.update(change)
     with pytest.raises(ValueError, match=message):
-        qualtrics.import_comment_translations(_entities(), [record])
+        import_comment_translation_records(_entities(), [record])
 
 
 def test_python_import_rejects_duplicate_answer_and_target() -> None:
@@ -183,66 +187,62 @@ def test_python_import_rejects_duplicate_answer_and_target() -> None:
         "translated_text": "Greetings",
     }
     with pytest.raises(ValueError, match="Duplicate translation"):
-        qualtrics.import_comment_translations(_entities(), [record, dict(record)])
+        import_comment_translation_records(_entities(), [record, dict(record)])
 
 
 @pytest.mark.parametrize("format", ["json", "csv", "parquet"])
 def test_optional_translations_roundtrip_and_survive_merge(tmp_path: Path, format: str) -> None:
     first = _prepared(tmp_path)
+    assert "EN" in first.survey_manifests["SV_TRANSLATIONS"]["languages"]["prepared_languages"]
     folder = tmp_path / format
     write_entities(first, folder, format)
     loaded = load_entities(folder)
-    assert loaded.comment_translations == first.comment_translations
+    assert loaded.comments[0]["translated_text__EN"] == " Greetings "
+    assert loaded.comments[0]["translation_source_hash__EN"] == source_text_hash(" Grüße <tag> ")
+    assert loaded.comments[0]["translation_source_language__EN"] == "DE"
     validate_entity_set(loaded, strict=True)
 
     second = _parsed(tmp_path, "SV_SECOND")
     merged = merge_entity_sets([loaded, second])
-    assert merged.comment_translations == first.comment_translations
     assert len(merged.comments) == 2
+    assert merged.comments[0]["translated_text__EN"] == " Greetings "
+    assert merged.comments[1]["translated_text__EN"] is None
 
 
-def test_translation_validation_rejects_wrong_lineage_and_duplicate_target(tmp_path: Path) -> None:
+def test_translation_validation_rejects_wrong_lineage_and_duplicate_comment(tmp_path: Path) -> None:
     entities = _prepared(tmp_path)
-    entities.comment_translations[0]["survey_id"] = "other"
-    with pytest.raises(ValueError, match="comment_translations"):
+    entities.comments[0]["survey_id"] = "other"
+    with pytest.raises(ValueError, match="comments"):
         validate_entity_set(entities, strict=True)
     entities = _prepared(tmp_path)
-    entities.comment_translations.append(dict(entities.comment_translations[0]))
-    with pytest.raises(ValueError, match="comment_translations"):
+    entities.comments.append(dict(entities.comments[0]))
+    with pytest.raises(ValueError, match="comments"):
         validate_entity_set(entities, strict=True)
 
 
 @pytest.mark.parametrize(
     "field, bad_value, expected",
     [
-        ("target_language", "", "target_language"),
-        ("source_text_hash", "invalid", "source_text_hash"),
-        ("translated_text", " ", "translated_text"),
-        ("comment_translation_id", "wrong-id", "ID must derive"),
-        ("survey_id", "other", "survey must match"),
+        ("translation_source_hash__EN", "invalid", "translation_source_hash"),
+        ("translated_text__EN", " ", "translated_text"),
+        ("survey_id", "other", "comments"),
     ],
 )
-def test_translation_validation_checks_each_sidecar_field(
+def test_translation_validation_checks_each_comment_field(
     tmp_path: Path, field: str, bad_value: str, expected: str
 ) -> None:
     entities = _prepared(tmp_path)
     if field == "survey_id":
         entities.surveys.append({"survey_id": "other", "survey_name": "Other"})
-    entities.comment_translations[0][field] = bad_value
+    entities.comments[0][field] = bad_value
     with pytest.raises(ValueError, match=expected):
         validate_entity_set(entities, strict=False)
 
 
-def test_translation_validation_rejects_non_comment_and_extra_schema_column(tmp_path: Path) -> None:
+def test_translation_validation_rejects_extra_schema_column(tmp_path: Path) -> None:
     entities = _prepared(tmp_path)
-    entities._present_columns["comment_translations"] = {"unexpected"}
-    with pytest.raises(ValueError, match="schema must contain exactly"):
-        validate_entity_set(entities, strict=False)
-    entities._present_columns.pop("comment_translations")
-    entities.question_fields[0]["is_comment_field"] = False
-    entities.comments = []
-    entities._present_entities.discard("comments")
-    with pytest.raises(ValueError, match="must reference a written answer"):
+    entities._present_columns["comments"].add("unexpected")
+    with pytest.raises(ValueError, match="unknown translation columns"):
         validate_entity_set(entities, strict=False)
 
 
@@ -250,37 +250,39 @@ def test_translation_validation_rejects_non_comment_and_extra_schema_column(tmp_
 def test_semantic_export_keeps_current_and_stale_translations_visible(tmp_path: Path, format: str) -> None:
     entities = _prepared(tmp_path)
     model = build_semantic_model(entities)
-    assert model.fact_comment_translations[0]["is_current"] is True
+    assert model.fact_comments[0]["translation_is_current__EN"] is True
     entities.response_answers[0]["answer_text"] = "Changed"
     stale = build_semantic_model(entities)
-    assert stale.fact_comment_translations[0]["is_current"] is False
+    assert stale.fact_comments[0]["translation_is_current__EN"] is False
     write_semantic_model(stale, tmp_path / format, format)
     if format == "json":
-        rows = json.loads((tmp_path / format / "fact_comment_translations.json").read_text())
+        rows = json.loads((tmp_path / format / "fact_comments.json").read_text())
     elif format == "csv":
-        with (tmp_path / format / "fact_comment_translations.csv").open(newline="") as handle:
+        with (tmp_path / format / "fact_comments.csv").open(newline="") as handle:
             rows = list(csv.DictReader(handle))
     elif format == "parquet":
         import pyarrow.parquet as pq
 
-        rows = pq.read_table(tmp_path / format / "fact_comment_translations.parquet").to_pylist()
+        rows = pq.read_table(tmp_path / format / "fact_comments.parquet").to_pylist()
     else:
         with sqlite3.connect(tmp_path / format / "semantic_model.sqlite") as connection:
             rows = [
-                dict(zip(("translated_text", "is_current"), row, strict=True))
-                for row in connection.execute("SELECT translated_text, is_current FROM fact_comment_translations")
+                dict(zip(("translated_text__EN", "translation_is_current__EN"), row, strict=True))
+                for row in connection.execute(
+                    'SELECT "translated_text__EN", "translation_is_current__EN" FROM fact_comments'
+                )
             ]
-    assert rows[0]["translated_text"] == " Greetings "
-    assert str(rows[0]["is_current"]).lower() in {"false", "0"}
+    assert rows[0]["translated_text__EN"] == " Greetings "
+    assert str(rows[0]["translation_is_current__EN"]).lower() in {"false", "0"}
 
 
 def test_semantic_writer_rechecks_hash_after_model_answer_changes(tmp_path: Path) -> None:
     model = build_semantic_model(_prepared(tmp_path))
     model.fact_response_answers[0]["answer_text"] = "Changed after model build"
-    assert model.fact_comment_translations[0]["is_current"] is True
+    assert model.fact_comments[0]["translation_is_current__EN"] is True
     write_semantic_model(model, tmp_path / "out", "json")
-    rows = json.loads((tmp_path / "out" / "fact_comment_translations.json").read_text())
-    assert rows[0]["is_current"] is False
+    rows = json.loads((tmp_path / "out" / "fact_comments.json").read_text())
+    assert rows[0]["translation_is_current__EN"] is False
 
 
 @pytest.mark.parametrize("input_format", ["csv", "parquet"])
@@ -315,11 +317,11 @@ def test_cli_imports_prepared_translations_without_modifying_raw_answers(tmp_pat
         app, ["translations", "import", str(source_folder), str(input_file), "--output", str(output)]
     )
     assert result.exit_code == 0, result.output
-    assert (output / "comment_translations.parquet").exists()
+    assert not (output / "comment_translations.parquet").exists()
     imported = load_entities(output)
     assert imported.response_answers == original.response_answers
-    assert imported.comment_translations[0]["translated_text"] == " Greetings "
-    assert imported.comment_translations[0]["source_language"] == "DE"
+    assert imported.comments[0]["translated_text__EN"] == " Greetings "
+    assert imported.comments[0]["translation_source_language__EN"] == "DE"
 
 
 def test_cli_rejects_translation_with_wrong_source_hash(tmp_path: Path) -> None:
@@ -388,14 +390,14 @@ def test_cli_rejects_occupied_output_and_unsupported_format(tmp_path: Path) -> N
     "corruption, expected",
     [
         ("object", "JSON list"),
-        ("extra_column", "schema must contain exactly"),
+        ("extra_column", "unknown translation columns"),
         ("duplicate_format", "Multiple formats"),
     ],
 )
-def test_load_rejects_malformed_optional_translation_sidecar(tmp_path: Path, corruption: str, expected: str) -> None:
+def test_load_rejects_malformed_comment_translation_columns(tmp_path: Path, corruption: str, expected: str) -> None:
     folder = tmp_path / "entities"
     write_entities(_prepared(tmp_path), folder)
-    path = folder / "comment_translations.json"
+    path = folder / "comments.json"
     if corruption == "object":
         path.write_text("{}", encoding="utf-8")
     elif corruption == "extra_column":
@@ -403,7 +405,7 @@ def test_load_rejects_malformed_optional_translation_sidecar(tmp_path: Path, cor
         rows[0]["unexpected"] = "value"
         path.write_text(json.dumps(rows), encoding="utf-8")
     else:
-        (folder / "comment_translations.csv").write_text("comment_translation_id\n", encoding="utf-8")
+        (folder / "comments.csv").write_text("response_answer_id\n", encoding="utf-8")
     with pytest.raises(ValueError, match=expected):
         load_entities(folder)
 
