@@ -357,6 +357,67 @@ def test_label_pr_command_reads_event_and_assigns_label(tmp_path: Path, monkeypa
     assert assigned == ["bug"]
 
 
+@pytest.mark.parametrize(
+    ("stdout", "stderr", "expected_details"),
+    [
+        ("", "gh: Resource not accessible by integration (HTTP 403)\n", ("HTTP 403",)),
+        (
+            '{"message":"Validation Failed","errors":[{"field":"labels","code":"invalid"}]}\n',
+            "gh: Validation Failed (HTTP 422)\n",
+            ("HTTP 422", '"field":"labels"', '"code":"invalid"'),
+        ),
+        (None, None, ()),
+    ],
+)
+def test_label_pr_command_reports_github_failure_details(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    stdout: str | None,
+    stderr: str | None,
+    expected_details: tuple[str, ...],
+) -> None:
+    event_path = tmp_path / "event.json"
+    event_path.write_text(
+        json.dumps({
+            "pull_request": {
+                "number": 72,
+                "title": "Add survey translation workflow",
+                "head": {"ref": "feat/survey-translation-workflow"},
+                "labels": [],
+            }
+        }),
+        encoding="utf-8",
+    )
+
+    def fake_run(
+        command: tuple[str, ...], *, check: bool, capture_output: bool, text: bool
+    ) -> subprocess.CompletedProcess[str]:
+        if command[:3] == ("gh", "label", "list"):
+            return subprocess.CompletedProcess(
+                command, 0, json.dumps([{"name": label} for label in prepare_release.RELEASE_LABELS]), ""
+            )
+        if command[:3] == ("gh", "api", "--paginate"):
+            return subprocess.CompletedProcess(command, 0, "", "")
+        if command[:4] == ("gh", "api", "--method", "POST"):
+            raise subprocess.CalledProcessError(1, command, output=stdout, stderr=stderr)
+        raise AssertionError(f"Unexpected GitHub command: {command}")
+
+    monkeypatch.setattr(prepare_release.subprocess, "run", fake_run)
+
+    result = CliRunner().invoke(
+        prepare_release.app,
+        ["label-pr", "--event", str(event_path), "--repository", "Luanee/qualtrics"],
+    )
+
+    assert result.exit_code == 1
+    assert "Release labeling failed for Luanee/qualtrics" in result.stderr
+    assert "exit 1" in result.stderr
+    for detail in expected_details:
+        assert detail in result.stderr
+    assert "Assigned" not in result.output
+    assert "Traceback" not in result.output
+
+
 def test_render_section_rejects_release_without_pull_requests() -> None:
     with pytest.raises(ValueError, match="No merged pull requests"):
         render_section("0.4.0", "2026-08-30", [], "Luanee/qualtrics")
