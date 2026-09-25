@@ -66,5 +66,6 @@ See [installation options](https://luanee.github.io/qualtrics/getting-started/in
 - **Commands and configuration:** [CLI reference](https://luanee.github.io/qualtrics/reference/cli/) · [API credentials](https://luanee.github.io/qualtrics/reference/configuration/)
 - **Data and relationships:** [Output tables](https://luanee.github.io/qualtrics/understand/your-data/) · [Entity and Power BI models](https://luanee.github.io/qualtrics/entity-model/)
 - **Help and development:** [Troubleshooting](https://luanee.github.io/qualtrics/help/troubleshooting/) · [Contributor guide](https://luanee.github.io/qualtrics/contributing/documentation/) · [Release notes](https://github.com/Luanee/qualtrics/blob/main/release-notes.md)
+- **Repository design:** [Architecture](ARCHITECTURE.md) · [Agent guide](AGENTS.md) · [Architecture decisions](docs/adr/index.md)
 
 The report workflow was inspired by the [Qualtrics Report Generator](https://github.com/hihipy/qualtrics-report-generator).

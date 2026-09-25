@@ -36,7 +36,7 @@ Start with the reader's task, the files they need, and the command they should r
 Edit the checked-in DBML sources when the exported schema changes:
 
 - `docs/entity-model.dbml` describes the nine authoritative entities and their derived comments table, including their IDs and relationships.
-- `docs/power-bi-model.dbml` describes the six semantic tables and the six recommended Power BI relationships. A Date table created in Power BI is outside this export.
+- `docs/power-bi-model.dbml` describes the six tables on the fact path, three display-label tables, and their relationships. The six recommended active Power BI relationships filter facts; label tables support display-language selection. A Date table created in Power BI is outside this export.
 
 The MkDocs hook in `scripts/docs_dbml.py`, registered in `mkdocs.yml`, reads these files during each build and replaces the diagram placeholders with dbdiagram.io embed URLs. It encodes the UTF-8 DBML as Base64 in the URL fragment. The same generated URL supplies each iframe and its full-size link, so there is no separately published diagram to update. The source files are also copied into the site as downloads. No dbdiagram.io account, API key, or extra build dependency is needed.
 
@@ -66,20 +66,9 @@ The [flow example](../examples/survey-flow.md) has a separate generator, `script
 
 ## Package architecture
 
-Keep implementation code in four packages under `src/qualtrics/`:
+Read the root [architecture guide](https://github.com/Luanee/qualtrics/blob/main/ARCHITECTURE.md) for package responsibilities, dependency direction, public interfaces, and data invariants. Update it in the same change as those contracts. [Architecture decision records](../adr/index.md) explain durable choices; the [agent guide](https://github.com/Luanee/qualtrics/blob/main/AGENTS.md) lists setup, verification, and Git conventions.
 
-| Package | Responsibility |
-| --- | --- |
-| `api/` | Remote SDK: HTTP clients, endpoints, API models, settings, and errors. |
-| `cli/` | Typer commands and terminal progress. |
-| `ui/` | Report preparation, Jinja templates, and bundled browser assets. |
-| `_common/` | Shared `models`, `parsers`, `analytics`, and `serialization` implementations. |
-
-Keep public exports, command entry points, version information, and `py.typed` at the package root. Use root imports for shared operations in examples and application code; `_common` is private. See [Python import migration](../reference/python.md#migrate-earlier-deep-imports) for the removed deep paths and their replacements.
-
-Keep `_common/__init__.py` minimal. Shared code must not import `api`, `cli`, `ui`, Typer, Rich, or Jinja. Parsers, analytics, and serialization can use shared models; analytics must not depend on parsers. Put question-role classification in the shared question models. Preserve the separate identity algorithms in the parser and model modules when changing them, since their identifiers serve different contracts.
-
-The base package installs the remote SDK dependencies and PyArrow, and supports parsing, analytics, and JSON/CSV/Parquet serialization. Keep Typer/Rich in `cli` and Jinja/MarkupSafe in `ui`. Import PyArrow only when a Parquet operation needs it, and keep the root `render_report` import usable before installing UI dependencies.
+Use root imports for shared operations in examples and application code; `_common` is private. See [Python import migration](../reference/python.md#migrate-earlier-deep-imports) for removed deep paths and their replacements. The report-specific module map and checks follow below.
 
 ## Maintain the report components
 
