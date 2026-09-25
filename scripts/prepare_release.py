@@ -311,7 +311,14 @@ def label_pr(
     payload = json.loads(event.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError("GitHub event payload must be an object")
-    label = apply_release_label(payload, repository)
+    try:
+        label = apply_release_label(payload, repository)
+    except subprocess.CalledProcessError as exc:
+        typer.echo(f"Release labeling failed for {repository} (GitHub CLI exit {exc.returncode}).", err=True)
+        for output in (exc.stderr, exc.stdout):
+            if output and output.strip():
+                typer.echo(output.strip(), err=True)
+        raise typer.Exit(code=1) from exc
     typer.echo(f"Assigned {label}" if label else "No release category assigned")
 
 
