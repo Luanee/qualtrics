@@ -115,3 +115,6 @@ nav:
   - Help & contributing:
       - Troubleshooting: help/troubleshooting.md
       - Documentation & plugins: contributing/documentation.md
+      - Architecture decisions:
+          - Index: adr/index.md
+          - "0001: Model boundaries": adr/0001-protect-the-domain-model-from-adapters.md
