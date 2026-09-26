@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import csv
 import json
-import sys
 from pathlib import Path
 
+from ..csv_support import ensure_csv_field_size_limit
 from ..models.comments import COMMENT_COLUMNS, build_comments
 from ..models.entities import ALL_ENTITY_NAMES, EntitySet
 from ..models.response_columns import read_source_columns
@@ -193,19 +193,6 @@ def _coerce_csv_records(name: str, records: list[dict[str, str]]) -> list[dict[s
     return coerced_records
 
 
-def _ensure_csv_field_size_limit() -> None:
-    # This limit is process-global. Raise it monotonically and leave it raised so
-    # another active CSV reader is never exposed to a lower limit after this load.
-    candidate = sys.maxsize
-    while candidate > csv.field_size_limit():
-        try:
-            csv.field_size_limit(candidate)
-            return
-        except OverflowError:
-            # Some platforms represent C long with fewer bits than Py_ssize_t.
-            candidate //= 2
-
-
 def _normalize_parquet_records(records: list[dict[str, object]]) -> list[dict[str, object]]:
     keys = {key for record in records for key in record}
     conversions: dict[str, object] = {}
@@ -347,7 +334,7 @@ def load_entities(folder: str | Path | None = None, **paths: str | Path) -> Enti
             )
         elif path.suffix == ".csv":
             with path.open(encoding="utf-8", newline="") as handle:
-                _ensure_csv_field_size_limit()
+                ensure_csv_field_size_limit()
                 reader = csv.DictReader(handle)
                 records = _coerce_csv_records(name, list(reader))
                 result._present_columns[name] = set(reader.fieldnames or [])
