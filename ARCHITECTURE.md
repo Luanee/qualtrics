@@ -86,6 +86,8 @@ Preparation returns a separate collection and retains raw values, answer identit
 
 Each comment remains one row. A prepared target adds nullable text, source-hash, and source-language columns using the reversible encoding in `translation_columns.py`. Matching source and target languages keep the original text without a prepared translation. Shared freshness helpers detect source changes so both the report and semantic consumers fall back to the original. A failed callback must not publish a partial result or mutate the input collection.
 
+`models/definition_labels.py` owns occurrence-scoped display-label lookup and callback-label freshness for reports, the codebook, and semantic tables. Consumers build an index for each operation, not a persistent cache. A legacy field without native lineage may use its catalog only when that catalog identifies one base field; ambiguous matches never borrow another occurrence's labels. Translation preparation and parser alias matching retain their separate mutation and response-resolution rules.
+
 ## Consumer boundaries
 
 Reports use a shared `ReportContext`, page renderers, reusable components, and a Jinja document layout. `assets.py` orders the CSS and JavaScript that the renderer embeds into one HTML file. Survey selection and respondent-language filtering recalculate views; display-language selection changes labels and prepared text without changing answer counts.

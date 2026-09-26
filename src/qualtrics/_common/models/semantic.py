@@ -5,6 +5,7 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from .comments import COMMENT_COLUMNS, build_comments
+from .definition_labels import DefinitionLabelIndex, current_definition_label
 from .entities import EntitySet
 from .entity_set import validate_entity_set
 from .identity import entity_id
@@ -13,7 +14,6 @@ from .translation_columns import (
     translation_is_current,
     translation_is_current_column,
 )
-from .translations import current_definition_label
 
 SEMANTIC_TABLE_NAMES = (
     "fact_responses",
@@ -48,35 +48,7 @@ def _language_dimensions(
     active_fields: list[dict[str, Any]],
     active_options: list[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
-    questions = {
-        (str(row["survey_id"]), str(row["question_external_id"]), str(row.get("language_code") or "").casefold()): row
-        for row in entities.questions
-    }
-    base_questions = {
-        (str(row["survey_id"]), str(row["question_external_id"])): row
-        for row in entities.questions
-        if not row.get("is_localized")
-    }
-    fields = {
-        (
-            str(row["survey_id"]),
-            str(row["question_external_id"]),
-            str(row.get("field_external_id")),
-            str(row.get("language_code") or "").casefold(),
-        ): row
-        for row in entities.question_fields
-    }
-    fields_by_id = {str(row["question_field_id"]): row for row in entities.question_fields}
-    options = {
-        (
-            str(row["survey_id"]),
-            str(row["question_external_id"]),
-            str(fields_by_id[str(row["question_field_id"])].get("field_external_id")),
-            str(row["answer_external_id"]),
-            str(row.get("language_code") or "").casefold(),
-        ): row
-        for row in entities.answer_options
-    }
+    index = DefinitionLabelIndex(entities)
 
     registries = {
         str(survey["survey_id"]): entities.survey_manifests.get(str(survey["survey_id"]), {}).get("languages", {})
@@ -135,16 +107,11 @@ def _language_dimensions(
                 if str(field_dimension["survey_id"]) != survey_id:
                     continue
                 native_question = str(field_dimension["question_external_id"])
-                native_field = str(field_dimension.get("field_external_id"))
-                base_question = base_questions.get((survey_id, native_question))
-                question = questions.get((survey_id, native_question, language.casefold())) or questions.get((
-                    survey_id,
-                    native_question,
-                    str(base or "").casefold(),
-                ))
-                translated_field = (
-                    fields.get((survey_id, native_question, native_field, language.casefold())) or field_dimension
+                base_question = index.get("question", field_dimension)
+                question = index.get("question", field_dimension, language) or index.get(
+                    "question", field_dimension, str(base or "")
                 )
+                translated_field = index.get("field", field_dimension, language) or field_dimension
                 if question is None or base_question is None:
                     continue
                 question = current_definition_label(base_question, question, "question_text")
@@ -166,18 +133,9 @@ def _language_dimensions(
             for option in active_options:
                 if str(option["survey_id"]) != survey_id:
                     continue
-                base_field = fields_by_id[str(option["question_field_id"])]
                 native_question = str(option["question_external_id"])
-                native_field = str(base_field.get("field_external_id"))
                 native_option = str(option["answer_external_id"])
-                translated_option = options.get((
-                    survey_id,
-                    native_question,
-                    native_field,
-                    native_option,
-                    language.casefold(),
-                ))
-                translated_option = translated_option or option
+                translated_option = index.get("answer_option", option, language) or option
                 translated_option = current_definition_label(option, translated_option, "answer_text")
                 option_labels.append({
                     "answer_option_label_id": entity_id("answer-option-label", option["answer_option_id"], language),

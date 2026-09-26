@@ -5,8 +5,8 @@ from io import StringIO
 from typing import Any
 
 from .._common.models import EntitySet
+from .._common.models.definition_labels import DefinitionLabelIndex, definition_label_is_stale
 from .._common.models.response_columns import read_source_columns
-from .._common.models.translation_columns import source_text_hash
 from .components.primitives import page_heading, search_control
 from .templating import render_template, trusted_html
 
@@ -69,11 +69,9 @@ def _choice(option: dict[str, Any]) -> str:
     return text + (f" ({'; '.join(details)})" if details else "")
 
 
-def _current_label(base: dict[str, Any], row: dict[str, Any], key: str) -> tuple[dict[str, Any], bool]:
-    stale = row.get("label_origin") == "callback" and row.get("label_source_text_hash") != source_text_hash(
-        str(base.get(key) or "")
-    )
-    return (base if stale else row), stale
+def _current_label(base: dict[str, Any] | None, row: dict[str, Any], key: str) -> tuple[dict[str, Any], bool]:
+    stale = base is not None and definition_label_is_stale(base, row, key)
+    return (base if stale and base is not None else row), stale
 
 
 def build_codebook(entities: EntitySet) -> list[dict[str, str]]:
@@ -96,35 +94,7 @@ def build_codebook(entities: EntitySet) -> list[dict[str, str]]:
         if column.get("storage_table") == "response_answers"
     }
     questions = {(str(row["survey_id"]), str(row["question_id"])): row for row in entities.questions}
-    base_questions = {
-        (str(row["survey_id"]), str(row.get("question_external_id"))): row
-        for row in entities.questions
-        if not row.get("is_localized")
-    }
-    base_fields = {
-        (str(row["survey_id"]), str(row.get("question_external_id")), str(row.get("field_external_id"))): row
-        for row in entities.question_fields
-        if not row.get("is_localized")
-    }
-    fields_by_id = {
-        (str(row["survey_id"]), str(row.get("question_field_id") or row.get("field_id"))): row
-        for row in entities.question_fields
-    }
-    base_options = {
-        (
-            str(row["survey_id"]),
-            str(row.get("question_external_id")),
-            str(
-                fields_by_id[(str(row["survey_id"]), str(row.get("question_field_id") or row.get("field_id")))].get(
-                    "field_external_id"
-                )
-            ),
-            str(row.get("answer_external_id")),
-        ): row
-        for row in entities.answer_options
-        if not row.get("is_localized")
-        and (str(row["survey_id"]), str(row.get("question_field_id") or row.get("field_id"))) in fields_by_id
-    }
+    labels = DefinitionLabelIndex(entities)
     sections = {(str(row["survey_id"]), str(row["section_id"])): row for row in entities.sections}
     domains: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
     for option in entities.answer_options:
@@ -162,17 +132,14 @@ def build_codebook(entities: EntitySet) -> list[dict[str, str]]:
             continue
         question_id = str(field["question_id"])
         question = questions.get((survey_id, question_id), {})
-        base_question = base_questions.get((survey_id, str(question.get("question_external_id"))), question)
+        base_question = labels.get("question", question)
         display_question, stale_question = _current_label(base_question, question, "question_text")
-        base_field = base_fields.get(
-            (
-                survey_id,
-                str(field.get("question_external_id")),
-                str(field.get("field_external_id")),
-            ),
-            field,
-        )
+        base_field = labels.get("field", field)
         display_field, stale_field = _current_label(base_field, field, "field_text")
+        unverified_label = any(
+            base is None and row.get("label_origin") == "callback"
+            for base, row in ((base_question, question), (base_field, field))
+        )
         section = sections.get((survey_id, str(question.get("section_id"))), {})
         field_id = str(field.get("question_field_id") or field.get("field_id"))
         options = sorted(
@@ -181,15 +148,8 @@ def build_codebook(entities: EntitySet) -> list[dict[str, str]]:
         display_options = []
         stale_option = False
         for option in options:
-            base_option = base_options.get(
-                (
-                    survey_id,
-                    str(option.get("question_external_id")),
-                    str(field.get("field_external_id")),
-                    str(option.get("answer_external_id")),
-                ),
-                option,
-            )
+            base_option = labels.get("answer_option", option)
+            unverified_label |= base_option is None and option.get("label_origin") == "callback"
             display_option, stale = _current_label(base_option, option, "answer_text")
             display_options.append(display_option)
             stale_option |= stale
@@ -220,7 +180,9 @@ def build_codebook(entities: EntitySet) -> list[dict[str, str]]:
             if definition_only
             else _text(source.get("kind") or "question"),
             "reason": (
-                "Prepared label out of date; showing base definition"
+                "Prepared label cannot be verified; base definition is ambiguous or unavailable"
+                if unverified_label
+                else "Prepared label out of date; showing base definition"
                 if stale_question or stale_field or stale_option
                 else "Prepared callback label; no separate response column"
                 if field.get("label_origin") == "callback"
