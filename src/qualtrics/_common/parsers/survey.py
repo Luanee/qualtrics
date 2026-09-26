@@ -308,8 +308,8 @@ def _build_answer_option_domains(entities: EntitySet, definitions: dict[str, dic
             for field in fields_by_question.get(question_id, []):
                 field["statement_text"] = statement_labels.get(str(field.get("choice_external_id"))) or None
         domains: list[tuple[dict[str, object], list[tuple[str, object, int]]]] = []
-        if resolved.canonical_question_type == "multiple_choice_single" and fields:
-            domains = [(fields[0], choices)]
+        if resolved.canonical_question_type == "multiple_choice_single":
+            domains = [(field, choices) for field in fields]
         elif resolved.canonical_question_type == "multiple_choice_multiple":
             choice_by_id = {item_id: (item, order) for item_id, item, order in choices}
             domains = [
