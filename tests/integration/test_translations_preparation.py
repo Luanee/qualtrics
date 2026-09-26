@@ -10,7 +10,6 @@ from pathlib import Path
 import pytest
 
 import qualtrics
-from qualtrics._common.models import translations as translation_model
 from qualtrics._common.models.entity_set import validate_entity_set
 from qualtrics._common.models.semantic import SEMANTIC_TABLE_NAMES
 from qualtrics._common.parsers.localization import link_translated_answers
@@ -355,7 +354,8 @@ def test_definition_label_freshness_is_shared_by_semantic_and_report(tmp_path: P
     variant = next(
         row for row in prepared.questions if row["question_external_id"] == "QID1" and row.get("language_code") == "EN"
     )
-    current_label = getattr(translation_model, "current_definition_label", None)
+    from qualtrics._common.models.definition_labels import current_definition_label as current_label
+
     assert current_label is not None, "model-layer definition label freshness helper is missing"
     assert current_label(base, variant, "question_text") is variant
     assert (
@@ -423,3 +423,20 @@ def test_codebook_marks_stale_prepared_labels_and_shows_base_text(tmp_path: Path
     assert localized["question"] == "Revised question"
     assert localized["field"] == "Revised field"
     assert "out of date" in localized["reason"]
+
+
+def test_codebook_warns_when_prepared_label_has_no_unambiguous_base(tmp_path: Path) -> None:
+    prepared = _prepare(_survey(tmp_path), language="EN", translate=lambda request: f"English: {request.text}")
+    for row in prepared.question_fields:
+        row["field_external_id"] = None
+    base = next(row for row in prepared.question_fields if not row.get("is_localized"))
+    prepared.question_fields.append({**base, "question_field_id": "second-occurrence", "field_id": "second-occurrence"})
+    base["field_text"] = "Changed original"
+    validate_entity_set(prepared, strict=True)
+    localized = next(
+        row
+        for row in build_codebook(prepared)
+        if row["question_id"] == base["question_external_id"] and row["language_code"] == "EN"
+    )
+    assert localized["field"].startswith("English:")
+    assert localized["reason"] == "Prepared label cannot be verified; base definition is ambiguous or unavailable"
