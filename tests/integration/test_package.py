@@ -509,11 +509,13 @@ def test_parse_survey_accepts_api_definition_wrapper(tmp_path: Path, survey_file
     assert entities.surveys[0]["survey_name"] == "API definition survey"
     assert len(entities.sections) == 3
     assert next(item for item in entities.questions if item["question_external_id"] == "QID30")["question_type"] == "MC"
-    assert [item["answer_text"] for item in entities.answer_options if item["question_external_id"] == "QID30"] == [
-        "Robot",
-        "Human",
-    ]
-    assert [item["answer_id"] for item in entities.answer_options if item["question_external_id"] == "QID18"] == [
-        "R",
-        "H",
-    ]
+    for question_id, column, expected, field_count in (
+        ("QID30", "answer_text", ["Robot", "Human"], 6),
+        ("QID18", "answer_id", ["R", "H"], 10),
+    ):
+        fields = [row for row in entities.question_fields if row["question_external_id"] == question_id]
+        assert len(fields) == field_count
+        for field in fields:
+            assert [
+                row[column] for row in entities.answer_options if row["question_field_id"] == field["question_field_id"]
+            ] == expected
