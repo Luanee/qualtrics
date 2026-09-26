@@ -16,7 +16,7 @@ from ..models.identity import canonicalize, entity_id, semantic_id
 from ..models.question_types import classify_question_role, field_value_type, resolve_question_type
 from ..models.response_columns import RESPONSE_SYSTEM_COLUMNS
 from .columns import classify_columns, field_source_parts, parse_column_metadata
-from .identity import _clean, _field_text, _hash
+from .identity import _clean, _field_text
 from .localization import append_localized_entities, link_translated_answers
 from .paths import _expand_paths
 from .qsf import _matching_definition, _qsf
@@ -381,14 +381,12 @@ def _append_definition_only_questions(
         if question_id in exported_ids or not isinstance(definition, dict):
             continue
         question_text = _clean(definition.get("QuestionText")) or _clean(definition.get("DataExportTag")) or question_id
-        catalog_id = _hash(question_text.casefold())
         resolved = resolve_question_type(
             definition.get("QuestionType"), definition.get("Selector"), definition.get("SubSelector")
         )
         entities.questions.append({
             "survey_id": survey_id,
             "question_id": question_id,
-            "question_catalog_id": catalog_id,
             "question_text": question_text,
             "question_description": definition.get("DataExportTag"),
             "question_type": definition.get("QuestionType"),
@@ -443,8 +441,6 @@ def _append_definition_only_questions(
                 "source_import_id": None,
                 "source_field_suffix": "TEXT" if is_text else None,
                 "source_column_index": None,
-                "question_catalog_id": catalog_id,
-                "question_field_catalog_id": _hash(catalog_id, field_text.casefold()),
                 "field_text": field_text,
                 "statement_text": None,
                 "is_text_field": is_text,
@@ -575,6 +571,7 @@ def _apply_identity_contract(entities: EntitySet) -> None:
             ),
         }
     entities.question_field_catalog = list(field_catalog_rows.values())
+    fields_by_id = {field["question_field_id"]: field for field in entities.question_fields}
 
     option_lookup: dict[str, dict[str, list[dict[str, object]]]] = {}
     recode_lookup: dict[str, dict[str, list[dict[str, object]]]] = {}
@@ -633,9 +630,7 @@ def _apply_identity_contract(entities: EntitySet) -> None:
         answer["question_field_id"] = field_ids[external_field_id]
         answer["field_id"] = field_ids[external_field_id]
         answer["question_catalog_id"] = catalog_ids[external_question_id]
-        field = next(
-            item for item in entities.question_fields if item["question_field_id"] == field_ids[external_field_id]
-        )
+        field = fields_by_id[field_ids[external_field_id]]
         answer["question_field_catalog_id"] = field["question_field_catalog_id"]
         answer["answer_value_type"] = field["answer_value_type"]
         answer["response_answer_id"] = entity_id("response-answer", answer["response_id"], answer["question_field_id"])
@@ -747,7 +742,6 @@ def _parse_survey_file(
             else:
                 prefixes = [text.split(" - ", 1)[0] for text in grouped_headers[question_id]]
                 question_text = prefixes[0] if len(set(prefixes)) == 1 else header
-        catalog_id = _hash(question_text.casefold())
         if question_id not in seen:
             question_import_ids = [
                 item.source_import_id for item in field_specs if item.question_external_id == question_id
@@ -758,7 +752,6 @@ def _parse_survey_file(
             entities.questions.append({
                 "survey_id": sid,
                 "question_id": question_id,
-                "question_catalog_id": catalog_id,
                 "question_text": question_text,
                 "question_description": definition.get("DataExportTag"),
                 "question_type": definition.get("QuestionType"),
@@ -783,8 +776,6 @@ def _parse_survey_file(
             "source_import_id": import_id or None,
             "source_field_suffix": suffix,
             "source_column_index": index,
-            "question_catalog_id": catalog_id,
-            "question_field_catalog_id": _hash(catalog_id, _clean(field_text).casefold()),
             "field_text": field_text,
             "statement_text": None,
             "is_text_field": bool(suffix and "TEXT" in suffix),
@@ -794,27 +785,6 @@ def _parse_survey_file(
         })
     _append_definition_only_questions(entities, qsf_questions, question_blocks, sid)
     _build_answer_option_domains(entities, qsf_questions)
-    entities.question_catalog = list(
-        {
-            item["question_catalog_id"]: {
-                "question_catalog_id": item["question_catalog_id"],
-                "question_text": item["question_text"],
-                "normalized_question_text": _clean(item["question_text"]).casefold(),
-            }
-            for item in entities.questions
-        }.values()
-    )
-    entities.question_field_catalog = list(
-        {
-            item["question_field_catalog_id"]: {
-                "question_field_catalog_id": item["question_field_catalog_id"],
-                "question_catalog_id": item["question_catalog_id"],
-                "field_text": item["field_text"],
-                "normalized_field_text": _clean(item["field_text"]).casefold(),
-            }
-            for item in entities.question_fields
-        }.values()
-    )
     for values in rows[3 if has_import else 2 :]:
         response: dict[str, object] = dict.fromkeys(RESPONSE_SYSTEM_COLUMNS)
         for specification in source_columns:
