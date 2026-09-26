@@ -239,14 +239,13 @@ def _normalize_parquet_records(records: list[dict[str, object]]) -> list[dict[st
     ]
 
 
-def _column_names(entities: EntitySet, name: str) -> list[str]:
+def _column_names(entities: EntitySet, name: str, records: list[dict[str, object]]) -> list[str]:
     if name == "comments":
         columns = list(COMMENT_COLUMNS)
-        comments = build_comments(entities)
         targets = prepared_targets(
-            [key for row in comments for key in row] + list(entities._present_columns.get("comments", set()))
+            [key for row in records for key in row] + list(entities._present_columns.get("comments", set()))
         )
-        if not comments:
+        if not records:
             targets.update(
                 str(code).upper()
                 for manifest in entities.survey_manifests.values()
@@ -256,7 +255,7 @@ def _column_names(entities: EntitySet, name: str) -> list[str]:
         columns.extend(column for target in sorted(targets) for column in translation_columns(target))
         return columns
     keys = dict.fromkeys(ENTITY_COLUMNS[name])
-    keys.update(dict.fromkeys(key for row in getattr(entities, name) for key in row))
+    keys.update(dict.fromkeys(key for row in records for key in row))
     keys.update(dict.fromkeys(sorted(entities._present_columns.get(name, set()))))
     if name == "responses":
         keys.update(
@@ -280,7 +279,7 @@ def write_entities(entities: EntitySet, folder: str | Path, format: str = "json"
         if format == "json":
             path.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
         elif format == "csv":
-            keys = _column_names(entities, name)
+            keys = _column_names(entities, name, records)
             with path.open("w", encoding="utf-8", newline="") as handle:
                 writer = csv.DictWriter(handle, fieldnames=keys)
                 writer.writeheader()
@@ -291,7 +290,7 @@ def write_entities(entities: EntitySet, folder: str | Path, format: str = "json"
                 import pyarrow.parquet as pq
             except ImportError as exc:
                 raise RuntimeError("PyArrow is required for Parquet output") from exc
-            keys = _column_names(entities, name)
+            keys = _column_names(entities, name, records)
             normalized_records = _normalize_parquet_records(records)
             fields = []
             for key in keys:
@@ -374,5 +373,5 @@ def load_entities(folder: str | Path | None = None, **paths: str | Path) -> Enti
         result.survey_manifests = load_manifest(manifest_path, result.surveys)
     validate_entity_set(result, strict=folder is not None)
     result.comments = build_comments(result)
-    result._present_columns["comments"] = set(_column_names(result, "comments"))
+    result._present_columns["comments"] = set(_column_names(result, "comments", result.comments))
     return result
