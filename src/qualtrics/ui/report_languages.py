@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import replace
 from typing import Any
 
@@ -45,6 +46,14 @@ def _with_original_cue(value: str, cue: dict[str, str] | None) -> str:
     return f"{value} · original {cue['source']}" if cue else value
 
 
+def _field_label_key(row: dict[str, Any]) -> tuple[str, ...]:
+    survey_id = str(row.get("survey_id"))
+    question_id, field_id = row.get("question_external_id"), row.get("field_external_id")
+    if question_id is not None and field_id is not None:
+        return survey_id, "occurrence", str(question_id), str(field_id)
+    return survey_id, "catalog", str(row.get("question_field_catalog_id"))
+
+
 def _definition_labels(
     entities: EntitySet,
 ) -> tuple[list[str], dict[str, dict[str, dict[str, str]]], dict[str, dict[str, dict[str, dict[str, str]]]]]:
@@ -83,23 +92,23 @@ def _definition_labels(
         (str(row["survey_id"]), str(row.get("question_external_id")), str(row.get("language_code")).casefold()): row
         for row in entities.questions
     }
+    # Legacy rows can lack native lineage. Use their catalog only when it
+    # identifies one base field; otherwise retain each field's original label.
+    field_key_counts = Counter(_field_label_key(row) for row in fields)
     f_variants = {
-        (
-            str(row["survey_id"]),
-            str(row.get("question_field_catalog_id")),
-            str(row.get("language_code")).casefold(),
-        ): row
+        (*_field_label_key(row), str(row.get("language_code")).casefold()): row
         for row in entities.question_fields
+        if field_key_counts[_field_label_key(row)] == 1
     }
     field_by_id = {str(row.get("question_field_id")): row for row in entities.question_fields}
     o_variants = {
         (
-            str(row["survey_id"]),
-            str(field_by_id.get(str(row.get("question_field_id")), {}).get("question_field_catalog_id")),
+            *_field_label_key(field_by_id.get(str(row.get("question_field_id")), {})),
             str(row.get("answer_external_id")),
             str(row.get("language_code")).casefold(),
         ): row
         for row in entities.answer_options
+        if field_key_counts[_field_label_key(field_by_id.get(str(row.get("question_field_id")), {}))] == 1
     }
     labels = {}
     fallbacks = {}
@@ -125,11 +134,7 @@ def _definition_labels(
             q_labels[identifier] = str(chosen.get("question_text") or row.get("question_text") or identifier)
         for row in fields:
             identifier = str(row.get("question_field_id") or row.get("field_id"))
-            variant = f_variants.get((
-                str(row["survey_id"]),
-                str(row.get("question_field_catalog_id")),
-                code.casefold(),
-            ))
+            variant = f_variants.get((*_field_label_key(row), code.casefold()))
             chosen = _display_variant(
                 row,
                 variant,
@@ -145,10 +150,8 @@ def _definition_labels(
             if not row.get("answer_option_id"):
                 continue
             identifier = str(row["answer_option_id"])
-            catalog_id = str(field_by_id.get(str(row.get("question_field_id")), {}).get("question_field_catalog_id"))
             variant = o_variants.get((
-                str(row["survey_id"]),
-                catalog_id,
+                *_field_label_key(field_by_id.get(str(row.get("question_field_id")), {})),
                 str(row.get("answer_external_id")),
                 code.casefold(),
             ))
