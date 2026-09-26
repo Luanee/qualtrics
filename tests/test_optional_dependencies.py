@@ -87,6 +87,25 @@ def test_root_semantic_and_analytics_workflow_without_optional_dependencies(surv
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+def test_parquet_writers_explain_missing_arrow(tmp_path: Path) -> None:
+    result = isolated(
+        """
+        from pathlib import Path
+        from qualtrics import EntitySet, SemanticModel, write_entities, write_semantic_model
+        for writer, collection in ((write_entities, EntitySet()), (write_semantic_model, SemanticModel())):
+            try:
+                writer(collection, Path(sys.argv[1]) / writer.__name__, 'parquet')
+            except RuntimeError as exc:
+                assert str(exc) == 'PyArrow is required for Parquet output'
+            else:
+                raise AssertionError('Parquet writing should require Arrow')
+        """,
+        ("pyarrow",),
+        tmp_path,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
 @pytest.mark.parametrize("missing", [("typer",), ("rich",)])
 def test_console_entrypoint_explains_missing_cli_extra(missing):
     result = isolated(
