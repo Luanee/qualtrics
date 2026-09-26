@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import csv
 import json
+from copy import deepcopy
+from pathlib import Path
 
-from qualtrics import parse_survey
-from qualtrics._common.models.entity_set import merge_entity_sets
+import pytest
+
+from qualtrics import build_semantic_model, parse_survey
+from qualtrics._common.models.entity_set import merge_entity_sets, validate_entity_set
 from qualtrics.ui.report import render_report
 from qualtrics.ui.report_languages import build_report_languages
 
@@ -113,3 +117,131 @@ def test_combined_report_preserves_nullable_cohorts_and_base_label_fallback(tmp_
         row for row in second.questions if row.get("question_external_id") == "QID1" and not row.get("is_localized")
     )
     assert data["labels"]["DE"]["questions"][second_question["question_id"]] == "Choice"
+
+
+def test_localized_labels_follow_occurrences_not_shared_catalogs(tmp_path: Path) -> None:
+    collections = []
+    for survey_id in ("SV_FIRST", "SV_SECOND"):
+        source = tmp_path / f"{survey_id}.csv"
+        columns = [f"QID{question}_{row}" for question in (1, 2) for row in (1, 2)]
+        with source.open("w", newline="", encoding="utf-8") as handle:
+            csv.writer(handle).writerows([
+                ["ResponseId", "UserLanguage", *columns],
+                ["Response ID", "Language", *["Choice - Item"] * 4],
+                ["{}", "{}", *[json.dumps({"ImportId": column}) for column in columns]],
+                ["R_1", "DE", "1", "2", "1", "2"],
+            ])
+        definition = tmp_path / f"{survey_id}.qsf"
+        definition.write_text(
+            json.dumps({
+                "SurveyID": survey_id,
+                "SurveyOptions": {"SurveyLanguage": "EN", "AvailableLanguages": {"DE": []}},
+                "Questions": {
+                    f"QID{question}": {
+                        "QuestionID": f"QID{question}",
+                        "QuestionText": "Choice",
+                        "QuestionType": "Matrix",
+                        "Selector": "Likert",
+                        "SubSelector": "SingleAnswer",
+                        "Choices": {"1": {"Display": "Item"}, "2": {"Display": "Item"}},
+                        "Answers": {"1": {"Display": "Yes"}, "2": {"Display": "No"}},
+                        "Language": {
+                            "DE": {
+                                "QuestionText": f"Auswahl {survey_id} QID{question}",
+                                "Choices": {
+                                    str(row): {"Display": f"Zeile {survey_id} QID{question}_{row}"} for row in (1, 2)
+                                },
+                                "Answers": {
+                                    "1": {"Display": f"Ja {survey_id} QID{question}"},
+                                    "2": {"Display": f"Nein {survey_id} QID{question}"},
+                                },
+                            }
+                        },
+                    }
+                    for question in (1, 2)
+                },
+            }),
+            encoding="utf-8",
+        )
+        collections.append(parse_survey(source, definition))
+    entities = merge_entity_sets(collections)
+    before = deepcopy(entities)
+    assert len(entities.question_catalog) == 1
+    assert len(entities.question_field_catalog) == 1
+
+    report = build_report_languages(entities)
+    semantic = build_semantic_model(entities)
+    labels = report["labels"]["DE"]
+    fields = {row["question_field_id"]: row for row in entities.question_fields if not row["is_localized"]}
+    assert len(fields) == 8
+    for field_id, row in fields.items():
+        expected = f"Zeile {row['survey_id']} {row['field_external_id']}"
+        assert labels["fields"][field_id] == expected
+    for row in entities.answer_options:
+        if row["is_localized"]:
+            continue
+        prefix = "Ja" if row["answer_external_id"] == "1" else "Nein"
+        assert (
+            labels["options"][row["answer_option_id"]] == f"{prefix} {row['survey_id']} {row['question_external_id']}"
+        )
+    for row in semantic.dim_question_labels:
+        if row["language_code"] == "DE":
+            assert labels["fields"][row["question_field_id"]] == row["field_text"]
+            assert labels["questions"][row["question_id"]] == row["question_text"]
+    for row in semantic.dim_answer_option_labels:
+        if row["language_code"] == "DE":
+            assert labels["options"][row["answer_option_id"]] == row["answer_text"]
+    assert len(semantic.fact_response_answers) == 8
+    assert entities == before
+
+
+@pytest.mark.parametrize("include_german", [False, True])
+def test_missing_native_field_lineage_preserves_unambiguous_labels(tmp_path: Path, include_german: bool) -> None:
+    entities = _survey(tmp_path, include_german=include_german)
+    for row in entities.question_fields:
+        row["field_external_id"] = None
+        if not include_german:
+            row["question_external_id"] = None
+    validate_entity_set(entities, strict=True)
+
+    report = build_report_languages(entities)
+
+    for row in entities.question_fields:
+        if row.get("is_localized"):
+            continue
+        assert report["labels"]["EN"]["fields"][row["question_field_id"]] == row["field_text"]
+        if include_german:
+            expected = {"QID1": "Auswahl", "QID2": "Kommentar", "QID3": "Definition only"}
+            assert report["labels"]["DE"]["fields"][row["question_field_id"]] == expected[row["question_external_id"]]
+    for row in entities.answer_options:
+        if row.get("is_localized"):
+            continue
+        assert report["labels"]["EN"]["options"][row["answer_option_id"]] == row["answer_text"]
+        if include_german:
+            assert report["labels"]["DE"]["options"][row["answer_option_id"]] == (
+                "Ja" if row["answer_external_id"] == "1" else "No"
+            )
+
+
+def test_ambiguous_legacy_field_catalog_keeps_original_labels(tmp_path: Path) -> None:
+    entities = _survey(tmp_path)
+    for row in entities.question_fields:
+        row["field_external_id"] = None
+    original = next(row for row in entities.question_fields if not row["is_localized"])
+    duplicate = {
+        **original,
+        "question_field_id": "second-occurrence",
+        "field_id": "second-occurrence",
+        "field_text": "CHOICE",
+    }
+    entities.question_fields.append(duplicate)
+    validate_entity_set(entities, strict=True)
+
+    report = build_report_languages(entities)
+
+    for row in (original, duplicate):
+        assert report["labels"]["DE"]["fields"][row["question_field_id"]] == row["field_text"]
+        assert report["label_fallbacks"]["DE"]["fields"][row["question_field_id"]]["reason"] == "missing"
+    for row in entities.answer_options:
+        if not row["is_localized"]:
+            assert report["labels"]["DE"]["options"][row["answer_option_id"]] == row["answer_text"]
