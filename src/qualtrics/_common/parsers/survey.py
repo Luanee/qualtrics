@@ -9,6 +9,7 @@ from io import TextIOWrapper
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 
+from ..csv_support import ensure_csv_field_size_limit
 from ..models.comments import COMMENT_COLUMNS, build_comments
 from ..models.entities import EntitySet
 from ..models.entity_set import merge_entity_sets
@@ -651,6 +652,7 @@ def _optional_value(value: str | None) -> str | None:
 
 
 def _read_response_rows(source_path: Path) -> list[list[str]]:
+    ensure_csv_field_size_limit()
     if source_path.suffix.casefold() != ".zip":
         with source_path.open(encoding="utf-8-sig", newline="") as handle:
             return list(csv.reader(handle))
