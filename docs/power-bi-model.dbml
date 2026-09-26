@@ -1,5 +1,5 @@
 Project qualtrics_power_bi {
-  Note: '''Ten exported semantic tables: six active fact-path tables, three display-label tables, and an optional prepared-comment translation lookup, with all fixed export columns and known optional metadata.
+  Note: '''Nine exported semantic tables: six active fact-path tables and three display-label tables, with all fixed export columns and known optional metadata. Prepared translations are nullable target-language columns on fact_comments, not a separate lookup.
     Configure the six fact relationships and two label-only relationships as active, one-to-many, with Single cross-filter direction from the one side to the many side. Display labels never have an active relationship to answer facts or base question/option dimensions.
     DBML symbols encode cardinality, not Power BI filter direction. Configure relationships in Power BI; SQLite exports do not create PK or FK constraints.
     Survey filters flow through fact_responses to both answer facts. Question filters reach both answer facts; option filters reach fact_response_answers only.

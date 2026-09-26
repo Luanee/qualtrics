@@ -10,6 +10,7 @@ from ..models.entities import ALL_ENTITY_NAMES, EntitySet
 from ..models.response_columns import read_source_columns
 from ..models.survey_manifest import MANIFEST_FILENAME, load_manifest, validate_manifests, write_manifest
 from ..models.translation_columns import prepared_targets, translation_columns
+from .tables import write_table
 
 CSV_FIELD_TYPES: dict[str, dict[str, type[int] | type[float] | type[bool]]] = {
     "sections": {"section_order": int},
@@ -276,46 +277,8 @@ def write_entities(entities: EntitySet, folder: str | Path, format: str = "json"
     for name in ALL_ENTITY_NAMES:
         records = build_comments(entities) if name == "comments" else getattr(entities, name)
         path = folder / f"{name}.{format}"
-        if format == "json":
-            path.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
-        elif format == "csv":
-            keys = _column_names(entities, name, records)
-            with path.open("w", encoding="utf-8", newline="") as handle:
-                writer = csv.DictWriter(handle, fieldnames=keys)
-                writer.writeheader()
-                writer.writerows(records)
-        elif format == "parquet":
-            try:
-                import pyarrow as pa
-                import pyarrow.parquet as pq
-            except ImportError as exc:
-                raise RuntimeError("PyArrow is required for Parquet output") from exc
-            keys = _column_names(entities, name, records)
-            normalized_records = _normalize_parquet_records(records)
-            fields = []
-            for key in keys:
-                target = CSV_FIELD_TYPES.get(name, {}).get(key)
-                data_type = (
-                    pa.bool_()
-                    if target is bool
-                    else pa.int64()
-                    if target is int
-                    else pa.float64()
-                    if target is float
-                    else pa.string()
-                )
-                fields.append(pa.field(key, data_type, nullable=True))
-            normalized = []
-            for record in normalized_records:
-                normalized.append({
-                    key: str(record.get(key))
-                    if record.get(key) is not None and pa.types.is_string(fields[index].type)
-                    else record.get(key)
-                    for index, key in enumerate(keys)
-                })
-            pq.write_table(pa.Table.from_pylist(normalized, schema=pa.schema(fields)), path)
-        else:
-            raise ValueError(f"Unsupported format: {format}")
+        keys = _column_names(entities, name, records) if format in {"csv", "parquet"} else []
+        write_table(path, records, format, keys, CSV_FIELD_TYPES.get(name, {}), normalize=_normalize_parquet_records)
     write_manifest(folder, entities.surveys, entities.survey_manifests)
 
 

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import csv
-import json
 import os
 import sqlite3
 from contextlib import closing
@@ -21,6 +19,7 @@ from ..models.translation_columns import (
     translation_is_current,
     translation_is_current_column,
 )
+from .tables import ScalarType, write_table
 
 SEMANTIC_COLUMNS = {
     "fact_responses": (
@@ -182,20 +181,32 @@ SEMANTIC_SQLITE_FILENAME = "semantic_model.sqlite"
 
 
 def _column_names(name: str, rows: list[dict[str, Any]], model: SemanticModel) -> list[str]:
-    keys = list(SEMANTIC_COLUMNS[name])
-    keys.extend(key for row in rows for key in row if key not in keys)
+    keys = dict.fromkeys(SEMANTIC_COLUMNS[name])
+    keys.update(dict.fromkeys(key for row in rows for key in row))
     if name == "fact_comments":
         for target in model.prepared_comment_targets:
-            keys.extend(
-                key for key in (*translation_columns(target), translation_is_current_column(target)) if key not in keys
-            )
+            keys.update(dict.fromkeys((*translation_columns(target), translation_is_current_column(target))))
     if name == "fact_responses":
         for manifest in model.survey_manifests.values():
             for column in read_source_columns(manifest):
                 key = column.get("storage_column")
-                if column.get("storage_table") == "responses" and isinstance(key, str) and key and key not in keys:
-                    keys.append(key)
-    return keys
+                if column.get("storage_table") == "responses" and isinstance(key, str) and key:
+                    keys[key] = None
+    return list(keys)
+
+
+def _parquet_types(name: str, keys: list[str]) -> dict[str, ScalarType]:
+    types: dict[str, ScalarType] = {}
+    for key in keys:
+        if key in SEMANTIC_COLUMNS[name] and key in _FLOAT_COLUMNS:
+            types[key] = float
+        elif (key in SEMANTIC_COLUMNS[name] and key in _BOOL_COLUMNS) or (
+            name == "fact_comments" and key.startswith("translation_is_current__")
+        ):
+            types[key] = bool
+        elif key in SEMANTIC_COLUMNS[name] and key in _INT_COLUMNS:
+            types[key] = int
+    return types
 
 
 def _quote_identifier(name: str) -> str:
@@ -289,44 +300,6 @@ def write_semantic_model(model: SemanticModel, folder: str | Path, format: str =
     for name in SEMANTIC_TABLE_NAMES:
         rows = getattr(model, name)
         path = destination / f"{name}.{format}"
-        if format == "json":
-            path.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
-        elif format == "csv":
-            keys = _column_names(name, rows, model)
-            with path.open("w", encoding="utf-8", newline="") as handle:
-                writer = csv.DictWriter(handle, fieldnames=keys)
-                writer.writeheader()
-                writer.writerows(rows)
-        elif format == "parquet":
-            try:
-                import pyarrow as pa
-                import pyarrow.parquet as pq
-            except ImportError as exc:
-                raise RuntimeError("PyArrow is required for Parquet output") from exc
-            keys = _column_names(name, rows, model)
-            fields = []
-            for key in keys:
-                if key in SEMANTIC_COLUMNS[name] and key in _FLOAT_COLUMNS:
-                    data_type = pa.float64()
-                elif (key in SEMANTIC_COLUMNS[name] and key in _BOOL_COLUMNS) or (
-                    name == "fact_comments" and key.startswith("translation_is_current__")
-                ):
-                    data_type = pa.bool_()
-                elif key in SEMANTIC_COLUMNS[name] and key in _INT_COLUMNS:
-                    data_type = pa.int64()
-                else:
-                    data_type = pa.string()
-                fields.append(pa.field(key, data_type, nullable=True))
-            normalized = []
-            for row in rows:
-                normalized_row = {}
-                for field in fields:
-                    value = row.get(field.name)
-                    if value is not None and pa.types.is_string(field.type):
-                        value = str(value)
-                    normalized_row[field.name] = value
-                normalized.append(normalized_row)
-            pq.write_table(pa.Table.from_pylist(normalized, schema=pa.schema(fields)), path)
-        else:
-            raise ValueError(f"Unsupported format: {format}")
+        keys = _column_names(name, rows, model) if format in {"csv", "parquet"} else []
+        write_table(path, rows, format, keys, _parquet_types(name, keys) if format == "parquet" else {})
     write_manifest(destination, model.dim_surveys, model.survey_manifests)

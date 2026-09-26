@@ -1,5 +1,5 @@
 Project qualtrics_entities {
-  Note: '''Nine authoritative entity tables, the derived comments projection, and an optional prepared-comment translation table, with all fixed export columns and known optional metadata.
+  Note: '''Nine authoritative entity tables and the derived comments projection, with all fixed export columns and known optional metadata. Prepared translations are nullable target-language columns on comments, not a separate table.
     Keys, references and not-null settings describe the validated logical model; exported files do not themselves enforce these constraints.
     Text includes IDs, timestamps, recodes and response metadata that may look numeric.
     Writers also preserve additional record columns, so a survey can extend this schema.
