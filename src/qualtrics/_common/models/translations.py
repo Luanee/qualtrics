@@ -10,7 +10,7 @@ from typing import Literal, TypeVar
 from .comments import COMMENT_COLUMNS, build_comments
 from .entities import EntitySet
 from .localization import ensure_localized_entities
-from .translation_columns import source_text_hash, translation_columns
+from .translation_columns import prepared_targets, source_text_hash, translation_columns
 
 TranslationKind = Literal["question", "field", "answer_option", "comment"]
 
@@ -215,14 +215,9 @@ def _definition_labels(
                 variant["value"] = variant["answer_text"]
 
 
-def _written_answers(entities: EntitySet, survey_id: str, target: str, callback: TranslationCallback | None) -> None:
-    if callback is None:
-        return
-    entities.comments = build_comments(entities)
+def _written_answers(comments: list[dict], target: str, callback: TranslationCallback) -> None:
     text_key, hash_key, language_key = translation_columns(target)
-    for row in entities.comments:
-        if str(row["survey_id"]) != survey_id:
-            continue
+    for row in comments:
         source_language = str(row.get("user_language") or "").strip() or None
         if source_language is not None and source_language.casefold() == target.casefold():
             _set_comment_translation(row, target, None)
@@ -236,18 +231,12 @@ def _written_answers(entities: EntitySet, survey_id: str, target: str, callback:
             text=text,
             source_language=source_language,
             target_language=target,
-            survey_id=survey_id,
+            survey_id=str(row["survey_id"]),
             question_id=str(row["question_id"]),
             question_field_id=str(row["question_field_id"]),
             response_answer_id=str(row["response_answer_id"]),
         )
         _set_comment_translation(row, target, _call(callback, request))
-    entities._present_columns["comments"] = (
-        set(COMMENT_COLUMNS)
-        | set(entities._present_columns.get("comments", set()))
-        | {text_key, hash_key, language_key}
-        | {key for row in entities.comments for key in row}
-    )
 
 
 def _set_comment_translation(row: dict, target: str, text: str | None) -> None:
@@ -268,7 +257,11 @@ def _register_comment_target(entities: EntitySet, survey_id: str, target: str) -
 
 
 def _finalize_comments(entities: EntitySet) -> EntitySet:
-    entities.comments = build_comments(entities)
+    targets = prepared_targets(
+        [key for row in entities.comments for key in row] + list(entities._present_columns.get("comments", set()))
+    )
+    columns = [*COMMENT_COLUMNS, *(column for target in sorted(targets) for column in translation_columns(target))]
+    entities.comments = [{column: row.get(column) for column in columns} for row in entities.comments]
     entities._present_columns["comments"] = (
         set(COMMENT_COLUMNS)
         | set(entities._present_columns.get("comments", set()))
@@ -332,10 +325,16 @@ def prepare_translations(
     prepared = deepcopy(entities)
     if not any(callbacks.values()):
         return prepared
+    prepared.comments = build_comments(prepared)
+    comments_by_survey: dict[str, list[dict]] = {}
+    for row in prepared.comments:
+        comments_by_survey.setdefault(str(row["survey_id"]), []).append(row)
     for survey in prepared.surveys:
         survey_id = str(survey["survey_id"])
         target = _target(prepared, survey_id, language)
         _register_comment_target(prepared, survey_id, target)
         _definition_labels(prepared, survey_id, target, callbacks)
-        _written_answers(prepared, survey_id, target, callbacks["comment"])
+        if callback := callbacks["comment"]:
+            _written_answers(comments_by_survey.get(survey_id, []), target, callback)
+            prepared._present_columns.setdefault("comments", set()).update(translation_columns(target))
     return _finalize_comments(prepared)

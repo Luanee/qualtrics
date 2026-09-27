@@ -5,7 +5,9 @@ from __future__ import annotations
 import copy
 import csv
 import json
+from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -18,7 +20,7 @@ from qualtrics.ui.codebook import build_codebook
 from qualtrics.ui.report_languages import build_report_languages
 
 
-def _survey(tmp_path: Path):
+def _survey(tmp_path: Path, survey_id: str = "SV_NORWAY", base_language: str = "NO"):
     response_path = tmp_path / "responses.csv"
     with response_path.open("w", encoding="utf-8", newline="") as handle:
         csv.writer(handle).writerows([
@@ -32,8 +34,8 @@ def _survey(tmp_path: Path):
     definition = tmp_path / "definition.qsf"
     definition.write_text(
         json.dumps({
-            "SurveyID": "SV_NORWAY",
-            "SurveyOptions": {"SurveyLanguage": "NO", "AvailableLanguages": {"NO": [], "DE": []}},
+            "SurveyID": survey_id,
+            "SurveyOptions": {"SurveyLanguage": base_language, "AvailableLanguages": {"NO": [], "DE": []}},
             "Questions": {
                 "QID1": {
                     "QuestionID": "QID1",
@@ -56,6 +58,64 @@ def _prepare(entities, **kwargs):
     prepare = getattr(qualtrics, "prepare_translations", None)
     assert prepare is not None, "public prepare_translations is missing"
     return prepare(entities, **kwargs)
+
+
+def test_combined_comment_preparation_scans_answers_once_after_copy(tmp_path: Path) -> None:
+    collections = []
+    targets = {"SV_NORWAY": "NO", "SV_ENGLISH": "EN", "SV_GERMAN": "DE"}
+    for survey_id, language in targets.items():
+        folder = tmp_path / survey_id
+        folder.mkdir()
+        collections.append(_survey(folder, survey_id, language))
+    entities = qualtrics.merge_entity_sets(collections)
+    original = copy.deepcopy(entities)
+    visits = []
+
+    class ObservedAnswers(list[dict[str, Any]]):
+        def __iter__(self) -> Iterator[dict[str, Any]]:
+            visits.append(len(self))
+            return super().__iter__()
+
+    entities.response_answers = ObservedAnswers(entities.response_answers)
+
+    def translate(request: qualtrics.TranslationRequest) -> str:
+        return f"{request.target_language}: {request.text}"
+
+    prepared = qualtrics.prepare_translations(entities, comment=translate)
+
+    # One iteration copies the caller's answers; one rebuilds the projection.
+    # More surveys must not trigger another full pass over the answer facts.
+    assert len(visits) <= 2
+    assert len(prepared.comments) == 9
+    assert entities == original
+    assert prepared.response_answers == original.response_answers
+    for row in prepared.comments:
+        for target in ("NO", "EN", "DE"):
+            expected = (
+                f"{target}: {row['answer_text']}"
+                if targets[row["survey_id"]] == target and row["user_language"] != target
+                else None
+            )
+            assert row[f"translated_text__{target}"] == expected
+
+
+def test_entity_writer_discovers_comment_columns_without_rebuilding_answers(tmp_path: Path) -> None:
+    entities = _survey(tmp_path)
+    visits = []
+
+    class ObservedAnswers(list[dict[str, Any]]):
+        def __iter__(self) -> Iterator[dict[str, Any]]:
+            visits.append(len(self))
+            return super().__iter__()
+
+    entities.response_answers = ObservedAnswers(entities.response_answers)
+    qualtrics.write_entities(entities, tmp_path / "out", "csv")
+
+    # Discover the answer columns, write the answer table, and build comments.
+    # Discovering comment columns must not scan the answer table again.
+    assert len(visits) <= 3
+    restored = qualtrics.load_entities(tmp_path / "out")
+    assert restored.comments == entities.comments
 
 
 def test_translation_preparation_has_one_public_entry_point() -> None:
