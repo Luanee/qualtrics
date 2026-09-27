@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable, Mapping
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Literal, TypeVar
+from typing import Literal
 
 from .comments import COMMENT_COLUMNS, build_comments
 from .entities import EntitySet
@@ -31,18 +31,6 @@ class TranslationRequest:
 
 
 TranslationCallback = Callable[[TranslationRequest], str]
-LabelRow = TypeVar("LabelRow", bound=Mapping[str, object])
-
-
-def current_definition_label(base: LabelRow, variant: LabelRow | None, text_key: str) -> LabelRow:
-    """Return a usable localized row, falling back when callback text is stale."""
-    if variant is None:
-        return base
-    if variant.get("label_origin") == "callback" and variant.get("label_source_text_hash") != source_text_hash(
-        str(base.get(text_key) or "")
-    ):
-        return base
-    return variant
 
 
 def _call(callback: TranslationCallback, request: TranslationRequest) -> str:

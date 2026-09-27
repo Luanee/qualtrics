@@ -221,6 +221,11 @@ def test_missing_native_field_lineage_preserves_unambiguous_labels(tmp_path: Pat
             assert report["labels"]["DE"]["options"][row["answer_option_id"]] == (
                 "Ja" if row["answer_external_id"] == "1" else "No"
             )
+    semantic = build_semantic_model(entities)
+    for row in semantic.dim_question_labels:
+        assert row["field_text"] == report["labels"][row["language_code"]]["fields"][row["question_field_id"]]
+    for row in semantic.dim_answer_option_labels:
+        assert row["answer_text"] == report["labels"][row["language_code"]]["options"][row["answer_option_id"]]
 
 
 def test_ambiguous_legacy_field_catalog_keeps_original_labels(tmp_path: Path) -> None:
@@ -238,6 +243,7 @@ def test_ambiguous_legacy_field_catalog_keeps_original_labels(tmp_path: Path) ->
     validate_entity_set(entities, strict=True)
 
     report = build_report_languages(entities)
+    semantic = build_semantic_model(entities)
 
     for row in (original, duplicate):
         assert report["labels"]["DE"]["fields"][row["question_field_id"]] == row["field_text"]
@@ -245,3 +251,7 @@ def test_ambiguous_legacy_field_catalog_keeps_original_labels(tmp_path: Path) ->
     for row in entities.answer_options:
         if not row["is_localized"]:
             assert report["labels"]["DE"]["options"][row["answer_option_id"]] == row["answer_text"]
+    for row in semantic.dim_question_labels:
+        assert row["field_text"] == report["labels"][row["language_code"]]["fields"][row["question_field_id"]]
+    for row in semantic.dim_answer_option_labels:
+        assert row["answer_text"] == report["labels"][row["language_code"]]["options"][row["answer_option_id"]]
