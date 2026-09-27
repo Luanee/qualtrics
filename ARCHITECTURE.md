@@ -43,6 +43,7 @@ _common/serialization ─┘
 - `parsers` interprets QSF and CSV/ZIP source evidence and creates model rows. A transformation that operates on an existing `EntitySet` belongs in models when multiple consumers need it.
 - `analytics` computes metrics from model rows without importing parsers or inspecting raw QSF files.
 - `serialization` owns table formats and round-trips. Survey-manifest validation and its JSON read/write helpers currently live together in `models/survey_manifest.py`.
+- Raw parsers and entity loaders share the platform-safe CSV field-limit policy in `_common/csv_support.py`. Both raise Python's process-global limit without lowering an existing limit; the helper depends only on the standard library.
 - `_common` must not import `api`, `cli`, `ui`, the package-root facade, Typer, Rich, Jinja, or MarkupSafe. Keep `_common/__init__.py` minimal.
 
 These rules prevent adapter dependencies and import cycles in shared operations. [ADR 0001](docs/adr/0001-protect-the-domain-model-from-adapters.md) records the decision. [Architecture tests](tests/unit/test_architecture.py) enforce the four-package layout, root export ownership, shared-package isolation, and the model/analytics-to-parser restrictions.
